@@ -41,7 +41,7 @@ class PITVarAssign(private val repos: Repository) : Rule(Modality(
         )
         if(containsAbstractVar(next)) return null
 
-        //special case: object creation todo: move to own Stmt?
+        //special case: object creation
         if(rhs is Function && rhs.name == "NEW"){
             val cExpr = rhs.params[0]
             if( cExpr is Function && repos.classReqs[cExpr.name] != null ){

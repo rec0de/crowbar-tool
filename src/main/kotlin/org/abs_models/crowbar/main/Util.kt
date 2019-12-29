@@ -54,8 +54,8 @@ fun load(path : Path) : Pair<Model,Repository> {
         exitProcess(-1)
     }
     val repos = Repository()
-    repos.populateAllowedTypes(model) //todo: this not should be global
-    repos.populateClassReqs(model) //todo: this not should be global
+    repos.populateAllowedTypes(model)
+    repos.populateClassReqs(model)
     return Pair(model, repos)
 }
 
