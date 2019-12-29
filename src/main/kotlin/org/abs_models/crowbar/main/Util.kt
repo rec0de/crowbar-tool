@@ -172,3 +172,17 @@ fun executeNode(node : SymbolicNode) : Boolean{
 
     return closed
 }
+
+fun executeAll(classDecl: ClassDecl): Boolean{
+    val iNode = extractInitialNode(classDecl)
+    var totalClosed = executeNode(iNode)
+    println("Crowbar  : Verification <init>: $totalClosed")
+
+    for(m in classDecl.methods){
+        val node = extractMethodNode(m.methodSig.name, classDecl)
+        val closed = executeNode(node)
+        println("Crowbar  : Verification ${m.methodSig.name}: $closed")
+        totalClosed = totalClosed && closed
+    }
+    return totalClosed
+}

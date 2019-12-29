@@ -42,21 +42,13 @@ class Main : CliktCommand() {
         }
 
         val classDecl = extractClassDecl(targetPath[0],targetPath[1], model)
+
         if(targetPath.size == 3) {
             val node = extractMethodNode(targetPath[2], classDecl)
             val closed = executeNode(node)
             println("Crowbar  : Verification result: $closed")
         } else if (targetPath.size == 2){
-            val iNode = extractInitialNode(classDecl)
-            var totalClosed = executeNode(iNode)
-            println("Crowbar  : Verification <init>: $totalClosed")
-
-            for(m in classDecl.methods){
-                val node = extractMethodNode(m.methodSig.name, classDecl)
-                val closed = executeNode(node)
-                println("Crowbar  : Verification ${m.methodSig.name}: $closed")
-                totalClosed = totalClosed && closed
-            }
+            val totalClosed = executeAll(classDecl)
             println("Crowbar  : final verification result: $totalClosed")
         }
 

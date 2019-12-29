@@ -1,0 +1,57 @@
+module Fail;
+
+data Spec = ObjInv(Bool) | Ensures(Bool) | Requires(Bool) | WhileInv(Bool);
+
+[Spec : ObjInv(this.f >= 0 && this.f3 >= 0)]
+[Spec : Requires(this.k >= 0)]
+class C(Fut<Int> sth, Int k) {
+
+	Int f = k;
+	Int f2 = 0;
+	Int f3 = -1;
+	{                      //fails to establish this.f3 >= 0
+	    this.f2 = this.k; 
+	}
+
+    [Spec : Ensures(result >= 0)]
+	Int m(Int v){  	//fails to establish result >= 0
+	    	
+		await this.f >= 0;
+		
+    	Int w = v;
+	    	
+		if(w >= 0) this.f = (this.f-10)+w;
+		else          this.f = -w;
+		return v*w; 
+	}
+	
+    [Spec : Ensures(result == 0)]
+	Int m2(Int v){     //fails to establish this.f3 >= 0
+	    this.f2 = 0;
+	        	
+    	[Spec: WhileInv(this.f >= 0 && this.f2 == 0)] 
+    	while(this.f < 10){
+	    	this.f = this.f+1;
+	    	await this.f2 == 0;
+	    }
+	    	
+		return this.f2;
+	}
+
+
+    [Spec : Ensures(result >= 0 && this.sth == fut)]
+	Int m3(Fut<Int> fut){ //fails to establish this.sth == fut
+    	Int s = fut.get;
+    	
+    	Int w = s;
+	    	
+		if(w >= 0) this.f =  w;
+		else          this.f = -w;
+		return s*w;
+	}
+
+}
+
+{
+
+}
