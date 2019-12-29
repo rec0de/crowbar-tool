@@ -1,7 +1,6 @@
 package org.abs_models.crowbar.rule
 
 import org.abs_models.crowbar.data.*
-import org.abs_models.crowbar.data.Function
 import org.abs_models.crowbar.tree.SymbolicTree
 
 //do not use variables starting with pv_ etc.
