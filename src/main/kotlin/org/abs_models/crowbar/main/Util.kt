@@ -31,17 +31,21 @@ fun<T : ASTNode<out ASTNode<*>>?> extractSpec(decl : ASTNode<T>, expectedSpec : 
     return default
 }
 
+fun output(text : String, level : Verbosity = Verbosity.NORMAL){
+    if(verbosity >= level)
+        println(text)
+}
 
 fun load(path : Path) : Model {
 
-    println("Crowbar  : loading files....")
+    output("Crowbar  : loading files....")
     val input = File(path.toString())
     if(!input.exists()) {
         System.err.println("file not found: $path")
         exitProcess(-1)
     }
 
-    println("Crowbar  : loading ABS model....")
+    output("Crowbar  : loading ABS model....")
     val model = try {
         org.abs_models.frontend.parser.Main().parse(listOf(input))
     } catch (e : Exception) {
@@ -117,7 +121,7 @@ fun extractInitialNode( classDecl: ClassDecl) : SymbolicNode {
         }
     }
 
-    println("Crowbar  : loading specification....")
+    output("Crowbar  : loading specification....")
     val objInv: Formula?
     val objPre: Formula?
     try {
@@ -129,8 +133,8 @@ fun extractInitialNode( classDecl: ClassDecl) : SymbolicNode {
         exitProcess(-1)
     }
     if (verbosity >= Verbosity.V) {
-        println("Crowbar-v: object precondition: ${objPre.prettyPrint()}")
-        println("Crowbar-v: object invariant: ${objInv.prettyPrint()}")
+        output("Crowbar-v: object precondition: ${objPre.prettyPrint()}")
+        output("Crowbar-v: object invariant: ${objInv.prettyPrint()}")
     }
     val symb = SymbolicState(objPre, EmptyUpdate, Modality(body, PostInvariantPair(True, objInv)))
     return SymbolicNode(symb, emptyList())
@@ -149,7 +153,7 @@ fun extractMethodNode(name : String, classDecl: ClassDecl) : SymbolicNode {
         exitProcess(-1)
     }
 
-    println("Crowbar  : loading specification....")
+    output("Crowbar  : loading specification....")
     val symb: SymbolicState?
     val objInv: Formula?
     val metpost: Formula?
@@ -164,10 +168,8 @@ fun extractMethodNode(name : String, classDecl: ClassDecl) : SymbolicNode {
         System.err.println("error during translation, aborting")
         exitProcess(-1)
     }
-    if (verbosity >= Verbosity.V) {
-        println("Crowbar-v: method post-condition: ${metpost.prettyPrint()}")
-        println("Crowbar-v: object invariant: ${objInv.prettyPrint()}")
-    }
+    output("Crowbar-v: method post-condition: ${metpost.prettyPrint()}", Verbosity.V)
+    output("Crowbar-v: object invariant: ${objInv.prettyPrint()}",Verbosity.V)
 
     symb = SymbolicState(objInv, EmptyUpdate, Modality(body, PostInvariantPair(metpost, objInv)))
     return SymbolicNode(symb, emptyList())
@@ -176,14 +178,12 @@ fun extractMethodNode(name : String, classDecl: ClassDecl) : SymbolicNode {
 
 fun executeNode(node : SymbolicNode) : Boolean{
 
-    println("Crowbar  : starting symbolic execution....")
+    output("Crowbar  : starting symbolic execution....")
     val pit = nextPITStrategy()
     pit.execute(node)
 
-    if(verbosity >= Verbosity.V) {
-        println("Crowbar-v: symbolic execution tree:")
-        println(node.debugString(0))
-    }
+    output("Crowbar-v: symbolic execution tree:",Verbosity.V)
+    output(node.debugString(0),Verbosity.V)
 
     if(!node.finishedExecution()){
         System.err.println("could not finish symbolic execution")
@@ -191,13 +191,13 @@ fun executeNode(node : SymbolicNode) : Boolean{
         exitProcess(-1)
     }
 
-    println("Crowbar  : closing open branches....")
+    output("Crowbar  : closing open branches....")
     var closed = true
     for(l in node.collectLeaves()){
         if(l is LogicNode){
-            if(verbosity >= Verbosity.V) println("Crowbar-v: "+ deupdatify(l.formula).prettyPrint())
+            output("Crowbar-v: "+ deupdatify(l.formula).prettyPrint(), Verbosity.V)
             closed = closed && l.evaluate()
-            if(verbosity >= Verbosity.V) println("Crowbar-v: verified? ${l.evaluate()}")
+            output("Crowbar-v: verified? ${l.evaluate()}", Verbosity.V)
         } else {
             System.err.println("Crowbar-v: static analysis nodes not supported")
             exitProcess(-1)
@@ -210,12 +210,12 @@ fun executeNode(node : SymbolicNode) : Boolean{
 fun executeAll(classDecl: ClassDecl): Boolean{
     val iNode = extractInitialNode(classDecl)
     var totalClosed = executeNode(iNode)
-    println("Crowbar  : Verification <init>: $totalClosed")
+    output("Crowbar  : Verification <init>: $totalClosed")
 
     for(m in classDecl.methods){
         val node = extractMethodNode(m.methodSig.name, classDecl)
         val closed = executeNode(node)
-        println("Crowbar  : Verification ${m.methodSig.name}: $closed \n")
+        output("Crowbar  : Verification ${m.methodSig.name}: $closed \n")
         totalClosed = totalClosed && closed
     }
     return totalClosed

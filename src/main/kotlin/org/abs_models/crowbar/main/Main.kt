@@ -12,7 +12,7 @@ import org.abs_models.frontend.ast.ClassDecl
 import java.nio.file.Paths
 import kotlin.system.exitProcess
 
-enum class Verbosity { NORMAL, V, VV }
+enum class Verbosity { SILENT, NORMAL, V, VV }
 
 var tmpPath = "/tmp/"
 var z3Path  = "z3"
@@ -46,17 +46,17 @@ class Main : CliktCommand() {
         if(targetPath[0] == "main"){
             val node = exctractMainNode(model)
             val closed = executeNode(node)
-            println("Crowbar  : Verification result: $closed")
+            output("Crowbar  : Verification result: $closed", Verbosity.SILENT)
         }else {
             val classDecl = extractClassDecl(targetPath[0], targetPath[1], model)
 
             if (targetPath.size == 2) {
                 val totalClosed = executeAll(classDecl)
-                println("Crowbar  : final verification result: $totalClosed")
+                output("Crowbar  : Final verification result: $totalClosed", Verbosity.SILENT)
             } else if (targetPath.size == 3) {
                 val node = extractMethodNode(targetPath[2], classDecl)
                 val closed = executeNode(node)
-                println("Crowbar  : Verification result: $closed")
+                output("Crowbar  : Verification result: $closed", Verbosity.SILENT)
             }
         }
 
