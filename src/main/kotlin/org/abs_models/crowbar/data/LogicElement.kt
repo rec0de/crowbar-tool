@@ -168,6 +168,36 @@ fun apply(update: UpdateElement, input: LogicElement) : LogicElement {
     }
 }
 
+
+fun subst(input: LogicElement, map: Map<LogicElement,LogicElement>) : LogicElement {
+    if(map.containsKey(input)) return map.getValue(input)
+    when(input){
+        is EmptyUpdate -> return EmptyUpdate
+        is ElementaryUpdate -> return ElementaryUpdate(input.lhs, subst(input.rhs, map) as Term)
+        is ChainUpdate -> {
+            if(map.keys.any { it is ProgVar && input.left.assigns(it)}) return ChainUpdate(subst(input.left, map) as UpdateElement, input.right)
+            return ChainUpdate(subst(input.left, map) as UpdateElement, subst(input.right, map) as UpdateElement)
+        }
+        is Function -> return Function(input.name, input.params.map { p -> subst(p, map) as Term })
+        is Predicate -> return Predicate(input.name, input.params.map { p -> subst(p, map) as Term })
+        is Impl -> return Impl(subst(input.left, map) as Formula, subst(input.right, map) as Formula)
+        is And -> return And(subst(input.left, map) as Formula, subst(input.right, map) as Formula)
+        is Or -> return Or(subst(input.left, map) as Formula, subst(input.right, map) as Formula)
+        is Not -> return Not(subst(input.left,map) as Formula)
+        is UpdateOnTerm -> {
+            if(map.keys.any { it is ProgVar && input.update.assigns(it)}) return UpdateOnTerm(subst(input.update, map) as UpdateElement, input.target)
+            return UpdateOnTerm(subst(input.update, map) as UpdateElement, subst(input.target, map) as Term)
+        }
+        is UpdateOnFormula -> {
+            if(map.keys.any { it is ProgVar && input.update.assigns(it)}) return UpdateOnFormula(subst(input.update, map) as UpdateElement, input.target)
+            return UpdateOnFormula(subst(input.update, map) as UpdateElement, subst(input.target, map) as Formula)
+        }
+        else                -> return input
+    }
+}
+fun subst(input: LogicElement, elem : ProgVar, term : Term) : LogicElement = subst(input, mapOf(Pair(elem,term)))
+
+/*
 fun subst(input: LogicElement, elem : ProgVar, term : Term) : LogicElement {
     when(input){
         elem                -> return term
@@ -194,3 +224,4 @@ fun subst(input: LogicElement, elem : ProgVar, term : Term) : LogicElement {
         else                -> return input
     }
 }
+ */

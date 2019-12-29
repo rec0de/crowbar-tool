@@ -7,6 +7,8 @@ import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.types.int
 import com.github.ajalt.clikt.parameters.types.path
 import com.github.ajalt.clikt.parameters.types.restrictTo
+import org.abs_models.crowbar.data.Formula
+import org.abs_models.frontend.ast.ClassDecl
 import java.nio.file.Paths
 import kotlin.system.exitProcess
 
@@ -16,7 +18,8 @@ var tmpPath = "/tmp/"
 var z3Path  = "z3"
 var verbosity = Verbosity.NORMAL
 
-val allowedTypes = listOf("ABS.StdLib.Int","ABS.StdLib.Fut<ABS.StdLib.Int>")
+val allowedTypes = mutableListOf("ABS.StdLib.Int","ABS.StdLib.Fut<ABS.StdLib.Int>")
+val classReqs = mutableMapOf<String,Pair<Formula,ClassDecl>>()
 fun isAllowedType(input : String) : Boolean = allowedTypes.contains(input)
 
 class Main : CliktCommand() {
@@ -50,9 +53,11 @@ class Main : CliktCommand() {
         } else if (targetPath.size == 2){
             val totalClosed = executeAll(classDecl)
             println("Crowbar  : final verification result: $totalClosed")
+
         }
 
     }
+
 
 }
 

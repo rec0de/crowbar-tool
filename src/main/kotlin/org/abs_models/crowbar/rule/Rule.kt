@@ -4,7 +4,7 @@ import org.abs_models.crowbar.data.*
 import org.abs_models.crowbar.tree.SymbolicTree
 
 //do not use variables starting with pv_ etc.
-//todo: make some less intrusive restriction
+//todo: make some less intrusive restrictions
 object FreshGenerator {
     private var count = 0
     fun getFreshProgVar() : ProgVar {
@@ -13,6 +13,10 @@ object FreshGenerator {
     fun getFreshPP() : PP {
         return PPId(count++)
     }
+    //todo: move this out
+	fun getFreshObjectId(className: String, map: List<Expr>): Expr {
+        return SExpr("NEW", listOf(SExpr(className, map)))
+	}
 }
 
 abstract class Rule(

@@ -1,10 +1,14 @@
 package org.abs_models.crowbar.types
 
 import org.abs_models.crowbar.data.*
-import org.abs_models.crowbar.rule.*
+import org.abs_models.crowbar.data.Function
+import org.abs_models.crowbar.main.classReqs
+import org.abs_models.crowbar.rule.MatchCondition
+import org.abs_models.crowbar.rule.Rule
+import org.abs_models.crowbar.rule.containsAbstractVar
 import org.abs_models.crowbar.tree.*
 
-//todo: right now this does *NOT* distinguish between a get and a normal assignment
+//todo: right now this does *NOT* distinguish between a get, a new and a normal assignment
 
 //Declaration
 interface PostInvType : DeductType
@@ -36,6 +40,29 @@ object PITVarAssign : Rule(Modality(
                 Modality(remainder, target)
         )
         if(containsAbstractVar(next)) return null
+
+        //special case: object creation todo: move to own Stmt?
+        if(rhs is Function && rhs.name == "NEW"){
+            val cExpr = rhs.params[0]
+            if( cExpr is Function && classReqs[cExpr.name] != null ){
+                val precond = classReqs.getValue(cExpr.name).first
+                val targetDecl = classReqs[cExpr.name]!!.second
+                val substMap = mutableMapOf<LogicElement,LogicElement>()
+                for(i in 0 until targetDecl.numParam){
+                    val pName = select(Field(targetDecl.getParam(i).name))
+                    val pValue = cExpr.params[i]
+                    substMap[pName] = pValue
+               }
+               return listOf(SymbolicNode(next),
+                             LogicNode(
+                                 Impl(
+                                     input.condition,
+                                     UpdateOnFormula(input.update, subst(precond, substMap) as Formula)
+                                 )
+                             ))
+            }
+            throw Exception("error occurred in creation statement")
+        }
         return listOf(SymbolicNode(next))
     }
 }

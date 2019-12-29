@@ -1,4 +1,4 @@
-module Test;
+module Create;
 
 data Spec = ObjInv(Bool) | Ensures(Bool) | Requires(Bool) | WhileInv(Bool);
 
@@ -13,11 +13,11 @@ class C(I one, Int k) implements I {
 	    return 0;
 	}	
 	
-	Int m(){  	
-	    new C(one, k+1);
+	Int success(){  	
+	   new C(one, k+1);
 	    return 0;
 	}
-
+	
 }
 
 {

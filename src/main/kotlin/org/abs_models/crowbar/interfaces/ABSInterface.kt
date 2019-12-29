@@ -7,7 +7,6 @@ import org.abs_models.crowbar.main.extractSpec
 import org.abs_models.crowbar.main.isAllowedType
 import org.abs_models.crowbar.rule.FreshGenerator
 import org.abs_models.frontend.ast.*
-import org.abs_models.frontend.ast.IfStmt
 
 fun translateABSExpToSymExpr(input : Exp) : Expr {
     when(input){
@@ -31,6 +30,7 @@ fun translateABSExpToSymExpr(input : Exp) : Expr {
         is MinusExp        -> return SExpr("-", listOf(translateABSExpToSymExpr(input.operand)))
         is AndBoolExp      -> return SExpr("&&",listOf(translateABSExpToSymExpr(input.left), translateABSExpToSymExpr(input.right)))
         is GetExp          -> return readFut(translateABSExpToSymExpr(input.pureExp))
+        is NewExp          -> return FreshGenerator.getFreshObjectId(input.className, input.paramList.map { translateABSExpToSymExpr(it) })
         else -> throw Exception("Translation of ${input::class} not supported" )
     }
 }
@@ -40,7 +40,11 @@ fun translateABSStmtToSymStmt(input: Stmt) : org.abs_models.crowbar.data.Stmt {
         is ExpressionStmt ->{
             if (input.exp is GetExp){
                 return org.abs_models.crowbar.data.AssignStmt(FreshGenerator.getFreshProgVar(), translateABSExpToSymExpr(input.exp))
-            }else throw Exception("Translation of ${input.exp::class} in an expression statement is not supported" )
+            }
+            if (input.exp is NewExp){
+                return org.abs_models.crowbar.data.AssignStmt(FreshGenerator.getFreshProgVar(), translateABSExpToSymExpr(input.exp))
+            }
+            throw Exception("Translation of ${input.exp::class} in an expression statement is not supported" )
         }
         is Block -> {
             val subs = input.stmts.map {translateABSStmtToSymStmt(it)  }

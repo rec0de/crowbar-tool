@@ -48,7 +48,31 @@ fun load(path : Path) : Model {
         System.err.println("error during parsing, aborting")
         exitProcess(-1)
     }
+    populateAllowedTypes(model) //todo: this not should be global
+    populateClassReqs(model) //todo: this not should be global
     return model
+}
+
+fun populateClassReqs(model: Model) {
+    for(moduleDecl in model.moduleDecls) {
+        for (decl in moduleDecl.decls) {
+            if (decl is ClassDecl) {
+                val spec = extractSpec(decl,"Requires")
+                classReqs[decl.name] = Pair(spec,decl)
+            }
+        }
+    }
+}
+
+fun populateAllowedTypes(model: Model) {
+    for(moduleDecl in model.moduleDecls){
+        for(decl in moduleDecl.decls){
+            if(decl is InterfaceDecl){
+                allowedTypes += decl.qualifiedName
+                allowedTypes += decl.name
+            }
+        }
+    }
 }
 
 fun extractClassDecl(moduleName : String, className : String, model : Model) : ClassDecl {
@@ -181,7 +205,7 @@ fun executeAll(classDecl: ClassDecl): Boolean{
     for(m in classDecl.methods){
         val node = extractMethodNode(m.methodSig.name, classDecl)
         val closed = executeNode(node)
-        println("Crowbar  : Verification ${m.methodSig.name}: $closed")
+        println("Crowbar  : Verification ${m.methodSig.name}: $closed \n")
         totalClosed = totalClosed && closed
     }
     return totalClosed
