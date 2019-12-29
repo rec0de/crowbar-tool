@@ -1,12 +1,17 @@
 module Test;
 
-data Spec = ObjInv(Bool) | Ensures(Bool) | WhileInv(Bool);
+data Spec = ObjInv(Bool) | Ensures(Bool) | Requires(Bool) | WhileInv(Bool);
 
-[Spec : ObjInv(this.f >= 0)]
-class C(Fut<Int> sth) {
+[Spec : ObjInv(this.f >= 0 && this.f3 >= 0)]
+[Spec : Requires(this.k >= 0)]
+class C(Fut<Int> sth, Int k) {
 
-	Int f = 0;
+	Int f = k;
 	Int f2 = 0;
+	Int f3 = -1;
+	{
+	    this.f3 = this.k;
+	}
 
     [Spec : Ensures(result >= 0)]
 	Int m(Int v){  	
@@ -24,7 +29,7 @@ class C(Fut<Int> sth) {
 	Int m2(Int v){
 	    this.f2 = 0;
 	        	
-    	[Spec: WhileInv(this.f >= 0 && this.f2 == 0)]
+    	[Spec: WhileInv(this.f >= 0 && this.f2 == 0 && this.f3 >= 0)]
     	while(this.f < 10){
 	    	this.f = this.f+1;
 	    	await this.f2 == 0;

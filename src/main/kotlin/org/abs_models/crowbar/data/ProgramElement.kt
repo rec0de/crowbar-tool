@@ -108,7 +108,7 @@ interface Location : Expr
 data class LocationVar(val name : String) : Location, AbstractVar
 open class Field(val name : String) : Location, Term {
     override fun prettyPrint(): String {
-        return name
+        return "this.$name"
     }
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -171,9 +171,11 @@ data class ProgFieldAbstractVar(val vName : String) : Field(vName), AbstractVar 
 fun appendStmt(stmt : Stmt, add : Stmt) : Stmt {
     return when(stmt){
         is SeqStmt -> {
-            val (first, next) = stmt;
+            val (first, next) = stmt
             SeqStmt(first,appendStmt(next,add))
         }
         else -> SeqStmt(stmt, add)
     }
 }
+
+fun unitExpr() : Expr = SExpr("Unit", emptyList())
