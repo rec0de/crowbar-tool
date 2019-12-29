@@ -25,10 +25,16 @@ class FileTest : StringSpec ({
 		val model = load(Paths.get("src/test/resources/create.abs"))
 		val classDecl = extractClassDecl("Create","C", model)
 
+		val iNode = extractInitialNode(classDecl)
+		executeNode(iNode) shouldBe true
+
 		val sNode = extractMethodNode("success", classDecl)
 		executeNode(sNode) shouldBe true
 
 		val fNode = extractMethodNode("fail", classDecl)
 		executeNode(fNode) shouldBe false
+
+		val mNode = exctractMainNode(model)
+		executeNode(mNode) shouldBe true
 	}
 })

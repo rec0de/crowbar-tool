@@ -35,6 +35,7 @@ For v0.1, we aim for a variant that can deal with programs containing only `ABS.
 and `ABS.StdLib.Fut<ABS.StdLib.Int>`-types, uses expressions as invariants and post-conditions, and has the following features
 
 * Move global part (classReqs and allowedTypes) to a specification repository update
+* Multi-file models and `--all-code` option
 * Fixing the small todos in the code, catching up with the tests 
 * Options to deal with type-checking and flattening of the model in main before executing symbolic execution
  

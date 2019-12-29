@@ -1,8 +1,11 @@
 package org.abs_models.crowbar.interfaces
 
 import org.abs_models.crowbar.data.Formula
-import org.abs_models.crowbar.main.*
 import org.abs_models.crowbar.data.deupdatify
+import org.abs_models.crowbar.main.Verbosity
+import org.abs_models.crowbar.main.tmpPath
+import org.abs_models.crowbar.main.verbosity
+import org.abs_models.crowbar.main.z3Path
 import java.io.File
 import java.util.concurrent.TimeUnit
 
@@ -19,6 +22,7 @@ fun generateZ3(formula: Formula) : String {
     val vars = noUp.getProgVars()
     var header = z3Header
     if(fields.isNotEmpty()) header = "(declare-datatypes () ((Field ${fields.fold("", { acc, nx-> acc +" " +nx.name})})))\n$header"
+    else                    header = "(declare-datatypes () ((Field dummy)))\n$header"
     header = vars.fold(header, {acc, nx-> acc+"\n(declare-const ${nx.name} Int)"})
     return """
     $header 

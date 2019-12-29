@@ -3,6 +3,7 @@ package org.abs_models.crowbar.main
 import org.abs_models.crowbar.data.*
 import org.abs_models.crowbar.data.AssignStmt
 import org.abs_models.crowbar.data.ReturnStmt
+import org.abs_models.crowbar.data.SkipStmt
 import org.abs_models.crowbar.data.Stmt
 import org.abs_models.crowbar.interfaces.translateABSExpToSymExpr
 import org.abs_models.crowbar.interfaces.translateABSStmtToSymStmt
@@ -95,6 +96,15 @@ fun extractClassDecl(moduleName : String, className : String, model : Model) : C
     return classDecl
 }
 
+fun exctractMainNode(model : Model) : SymbolicNode{
+    if(!model.hasMainBlock()){
+        System.err.println("model has no main block!")
+        exitProcess(-1)
+    }
+
+    val v = appendStmt(translateABSStmtToSymStmt(model.mainBlock), SkipStmt)
+    return SymbolicNode(SymbolicState(True, EmptyUpdate, Modality(v, PostInvariantPair(True, True))), emptyList())
+}
 
 fun extractInitialNode( classDecl: ClassDecl) : SymbolicNode {
 

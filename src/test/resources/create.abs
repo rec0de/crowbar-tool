@@ -6,20 +6,27 @@ interface I{ }
 
 [Spec : Requires(this.k > 0)]
 [Spec : ObjInv(this.k > 0)]
-class C(I one, Int k) implements I {
+class C(Int k) implements I {
 
 	Int fail(){  	
-	    I two = new C(one, k-1);
+	    I two = new C(k-1);
 	    return 0;
 	}	
 	
 	Int success(){  	
-	   new C(one, k+1);
+	   new C(k+1);
 	    return 0;
 	}
 	
 }
 
 {
-
+	    new C(1);
+	    Int i = 10;
+	    [Spec : WhileInv(i >= 0)]
+	    while(i > 0){
+	       I j = new C(i);
+	       i = i - 1;
+	    }
+	    new C(i+1);
 }

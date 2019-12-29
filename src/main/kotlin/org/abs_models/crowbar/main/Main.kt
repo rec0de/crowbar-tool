@@ -24,7 +24,7 @@ fun isAllowedType(input : String) : Boolean = allowedTypes.contains(input)
 
 class Main : CliktCommand() {
     private val filePath by argument(help="path to ABS file").path()
-    private val target   by argument(help="method under verification in the format <module>.<class>.<method>")
+    private val target   by argument(help="method under verification in the format <module>.<class>.<method> or class under verification in the format <module>.<class> or main block (just main)")
     private val tmp      by   option("--tmp","-t",help="path to a directory used to store the .z3 files").path().default(Paths.get(tmpPath))
     private val z3Cmd    by   option("--z3","-z3",help="command to start z3").default(z3Path)
     private val verbose  by   option("--verbose", "-v",help="verbosity output level").int().restrictTo(Verbosity.values().indices).default(Verbosity.NORMAL.ordinal)
@@ -39,21 +39,25 @@ class Main : CliktCommand() {
         val model = load(filePath)
 
         val targetPath = target.split(".")
-        if(targetPath.size < 2 || targetPath.size > 3){
-            System.err.println("$target is not a fully qualified method or class name!")
+        if(targetPath.isEmpty() || targetPath.size > 3){
+            System.err.println("$target is not \"main\" or a fully qualified method or class name!")
             exitProcess(-1)
         }
-
-        val classDecl = extractClassDecl(targetPath[0],targetPath[1], model)
-
-        if(targetPath.size == 3) {
-            val node = extractMethodNode(targetPath[2], classDecl)
+        if(targetPath[0] == "main"){
+            val node = exctractMainNode(model)
             val closed = executeNode(node)
             println("Crowbar  : Verification result: $closed")
-        } else if (targetPath.size == 2){
-            val totalClosed = executeAll(classDecl)
-            println("Crowbar  : final verification result: $totalClosed")
+        }else {
+            val classDecl = extractClassDecl(targetPath[0], targetPath[1], model)
 
+            if (targetPath.size == 2) {
+                val totalClosed = executeAll(classDecl)
+                println("Crowbar  : final verification result: $totalClosed")
+            } else if (targetPath.size == 3) {
+                val node = extractMethodNode(targetPath[2], classDecl)
+                val closed = executeNode(node)
+                println("Crowbar  : Verification result: $closed")
+            }
         }
 
     }
