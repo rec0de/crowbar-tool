@@ -3,6 +3,7 @@ import io.kotlintest.shouldBe
 import io.kotlintest.specs.StringSpec
 import org.abs_models.crowbar.data.*
 import org.abs_models.crowbar.data.Function
+import org.abs_models.crowbar.main.Repository
 import org.abs_models.crowbar.rule.MatchCondition
 import org.abs_models.crowbar.rule.containsAbstractVar
 import org.abs_models.crowbar.rule.match
@@ -43,7 +44,7 @@ class BasicTest : StringSpec() {
                             True))
             )
 
-            val strategy = nextPITStrategy()
+            val strategy = nextPITStrategy(Repository())
             val node = SymbolicNode(input3, emptyList())
             strategy.execute(node)
             println(node.debugString(0))

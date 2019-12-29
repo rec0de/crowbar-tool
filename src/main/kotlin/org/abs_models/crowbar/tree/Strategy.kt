@@ -1,5 +1,6 @@
 package org.abs_models.crowbar.tree
 
+import org.abs_models.crowbar.main.Repository
 import org.abs_models.crowbar.rule.Rule
 
 interface Strategy{
@@ -7,7 +8,7 @@ interface Strategy{
 }
 
 
-class DefaultStrategy(private val rules : List<Rule>) : Strategy{
+class DefaultStrategy(private val rules : List<Rule>, private val repos : Repository) : Strategy{
 
     override fun execute(symbolicNode: SymbolicNode){
         symbolicNode.children = emptyList()

@@ -2,7 +2,7 @@ package org.abs_models.crowbar.types
 
 import org.abs_models.crowbar.data.*
 import org.abs_models.crowbar.data.Function
-import org.abs_models.crowbar.main.classReqs
+import org.abs_models.crowbar.main.Repository
 import org.abs_models.crowbar.rule.MatchCondition
 import org.abs_models.crowbar.rule.Rule
 import org.abs_models.crowbar.rule.containsAbstractVar
@@ -24,7 +24,7 @@ data class PostInvariantPair(val post : Formula, val objInvariant : Formula) : P
 }
 
 //Type system
-object PITVarAssign : Rule(Modality(
+class PITVarAssign(private val repos: Repository) : Rule(Modality(
         SeqStmt(AssignStmt(ProgAbstractVar("LHS"), ExprAbstractVar("EXPR")),
                 StmtAbstractVar("CONT")),
         PostInvAbstractVar("TYPE"))) {
@@ -44,9 +44,9 @@ object PITVarAssign : Rule(Modality(
         //special case: object creation todo: move to own Stmt?
         if(rhs is Function && rhs.name == "NEW"){
             val cExpr = rhs.params[0]
-            if( cExpr is Function && classReqs[cExpr.name] != null ){
-                val precond = classReqs.getValue(cExpr.name).first
-                val targetDecl = classReqs[cExpr.name]!!.second
+            if( cExpr is Function && repos.classReqs[cExpr.name] != null ){
+                val precond = repos.classReqs.getValue(cExpr.name).first
+                val targetDecl = repos.classReqs[cExpr.name]!!.second
                 val substMap = mutableMapOf<LogicElement,LogicElement>()
                 for(i in 0 until targetDecl.numParam){
                     val pName = select(Field(targetDecl.getParam(i).name))
@@ -215,5 +215,4 @@ object PITWhile : Rule(Modality(
     }
 }
 
-val PITCalc = listOf(PITVarAssign,PITFieldAssign,PITReturn,PITSkip,PITIf,PITAwait,PITSkipSkip,PITWhile)
-fun nextPITStrategy() : Strategy = DefaultStrategy(PITCalc)
+fun nextPITStrategy(repos: Repository) : Strategy = DefaultStrategy(listOf(PITVarAssign(repos),PITFieldAssign,PITReturn,PITSkip,PITIf,PITAwait,PITSkipSkip,PITWhile), repos)

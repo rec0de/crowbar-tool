@@ -5,36 +5,36 @@ import java.nio.file.Paths
 
 class FileTest : StringSpec ({
 	"success"{
-		val model = load(Paths.get("src/test/resources/success.abs"))
-		val classDecl = extractClassDecl("Success","C", model)
-		executeAll(classDecl) shouldBe true
+		val (model, repos) = load(Paths.get("src/test/resources/success.abs"))
+		val classDecl = model.extractClassDecl("Success","C", repos)
+		classDecl.executeAll(repos) shouldBe true
 	}
 	"fails"{
-		val model = load(Paths.get("src/test/resources/fail.abs"))
-		val classDecl = extractClassDecl("Fail","C", model)
+		val (model, repos) = load(Paths.get("src/test/resources/fail.abs"))
+		val classDecl = model.extractClassDecl("Fail","C", repos)
 
-		val iNode = extractInitialNode(classDecl)
-		executeNode(iNode) shouldBe false
+		val iNode = classDecl.extractInitialNode()
+		executeNode(iNode, repos) shouldBe false
 
 		for(m in classDecl.methods){
-			val node = extractMethodNode(m.methodSig.name, classDecl)
-			executeNode(node) shouldBe false
+			val node = classDecl.extractMethodNode(m.methodSig.name, repos)
+			executeNode(node, repos) shouldBe false
 		}
 	}
 	"create"{
-		val model = load(Paths.get("src/test/resources/create.abs"))
-		val classDecl = extractClassDecl("Create","C", model)
+		val (model, repos) = load(Paths.get("src/test/resources/create.abs"))
+		val classDecl = model.extractClassDecl("Create","C", repos)
 
-		val iNode = extractInitialNode(classDecl)
-		executeNode(iNode) shouldBe true
+		val iNode = classDecl.extractInitialNode()
+		executeNode(iNode, repos) shouldBe true
 
-		val sNode = extractMethodNode("success", classDecl)
-		executeNode(sNode) shouldBe true
+		val sNode = classDecl.extractMethodNode("success", repos)
+		executeNode(sNode, repos) shouldBe true
 
-		val fNode = extractMethodNode("fail", classDecl)
-		executeNode(fNode) shouldBe false
+		val fNode = classDecl.extractMethodNode("fail", repos)
+		executeNode(fNode, repos) shouldBe false
 
-		val mNode = exctractMainNode(model)
-		executeNode(mNode) shouldBe true
+		val mNode = model.exctractMainNode()
+		executeNode(mNode, repos) shouldBe true
 	}
 })

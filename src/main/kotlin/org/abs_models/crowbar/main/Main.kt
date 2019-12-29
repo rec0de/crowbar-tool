@@ -9,6 +9,8 @@ import com.github.ajalt.clikt.parameters.types.path
 import com.github.ajalt.clikt.parameters.types.restrictTo
 import org.abs_models.crowbar.data.Formula
 import org.abs_models.frontend.ast.ClassDecl
+import org.abs_models.frontend.ast.InterfaceDecl
+import org.abs_models.frontend.ast.Model
 import java.nio.file.Paths
 import kotlin.system.exitProcess
 
@@ -18,9 +20,35 @@ var tmpPath = "/tmp/"
 var z3Path  = "z3"
 var verbosity = Verbosity.NORMAL
 
-val allowedTypes = mutableListOf("ABS.StdLib.Int","ABS.StdLib.Fut<ABS.StdLib.Int>")
-val classReqs = mutableMapOf<String,Pair<Formula,ClassDecl>>()
-fun isAllowedType(input : String) : Boolean = allowedTypes.contains(input)
+//todo: once allowedTypes is not needed anymore, the repository needs to be passed to fewer places
+data class Repository(val allowedTypes : MutableList<String> =  mutableListOf("ABS.StdLib.Int","ABS.StdLib.Fut<ABS.StdLib.Int>"),
+                      val classReqs : MutableMap<String,Pair<Formula,ClassDecl>> = mutableMapOf()){
+    fun populateClassReqs(model: Model) {
+        for(moduleDecl in model.moduleDecls) {
+            for (decl in moduleDecl.decls) {
+                if (decl is ClassDecl) {
+                    val spec = extractSpec(decl,"Requires")
+                    classReqs[decl.name] = Pair(spec,decl)
+                }
+            }
+        }
+    }
+
+    fun populateAllowedTypes(model: Model) {
+        for(moduleDecl in model.moduleDecls){
+            for(decl in moduleDecl.decls){
+                if(decl is InterfaceDecl){
+                    allowedTypes += decl.qualifiedName
+                    allowedTypes += decl.name
+                }
+            }
+        }
+    }
+    fun isAllowedType(input : String) : Boolean = allowedTypes.contains(input)
+}
+
+/*val allowedTypes =)
+val classReqs = mutableMapOf<String,Pair<Formula,ClassDecl>>()*/
 
 class Main : CliktCommand() {
     private val filePath by argument(help="path to ABS file").path()
@@ -35,8 +63,7 @@ class Main : CliktCommand() {
         tmpPath = "$tmp/"
         z3Path = z3Cmd
         verbosity = Verbosity.values()[verbose]
-
-        val model = load(filePath)
+        val (model, repos) = load(filePath)
 
         val targetPath = target.split(".")
         if(targetPath.isEmpty() || targetPath.size > 3){
@@ -44,18 +71,18 @@ class Main : CliktCommand() {
             exitProcess(-1)
         }
         if(targetPath[0] == "main"){
-            val node = exctractMainNode(model)
-            val closed = executeNode(node)
+            val node = model.exctractMainNode()
+            val closed = executeNode(node, repos)
             output("Crowbar  : Verification result: $closed", Verbosity.SILENT)
         }else {
-            val classDecl = extractClassDecl(targetPath[0], targetPath[1], model)
+            val classDecl = model.extractClassDecl(targetPath[0], targetPath[1], repos)
 
             if (targetPath.size == 2) {
-                val totalClosed = executeAll(classDecl)
+                val totalClosed = classDecl.executeAll(repos)
                 output("Crowbar  : Final verification result: $totalClosed", Verbosity.SILENT)
             } else if (targetPath.size == 3) {
-                val node = extractMethodNode(targetPath[2], classDecl)
-                val closed = executeNode(node)
+                val node = classDecl.extractMethodNode(targetPath[2],repos)
+                val closed = executeNode(node, repos)
                 output("Crowbar  : Verification result: $closed", Verbosity.SILENT)
             }
         }

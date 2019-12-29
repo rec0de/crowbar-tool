@@ -36,7 +36,7 @@ fun output(text : String, level : Verbosity = Verbosity.NORMAL){
         println(text)
 }
 
-fun load(path : Path) : Model {
+fun load(path : Path) : Pair<Model,Repository> {
 
     output("Crowbar  : loading files....")
     val input = File(path.toString())
@@ -53,35 +53,16 @@ fun load(path : Path) : Model {
         System.err.println("error during parsing, aborting")
         exitProcess(-1)
     }
-    populateAllowedTypes(model) //todo: this not should be global
-    populateClassReqs(model) //todo: this not should be global
-    return model
+    val repos = Repository()
+    repos.populateAllowedTypes(model) //todo: this not should be global
+    repos.populateClassReqs(model) //todo: this not should be global
+    return Pair(model, repos)
 }
 
-fun populateClassReqs(model: Model) {
-    for(moduleDecl in model.moduleDecls) {
-        for (decl in moduleDecl.decls) {
-            if (decl is ClassDecl) {
-                val spec = extractSpec(decl,"Requires")
-                classReqs[decl.name] = Pair(spec,decl)
-            }
-        }
-    }
-}
 
-fun populateAllowedTypes(model: Model) {
-    for(moduleDecl in model.moduleDecls){
-        for(decl in moduleDecl.decls){
-            if(decl is InterfaceDecl){
-                allowedTypes += decl.qualifiedName
-                allowedTypes += decl.name
-            }
-        }
-    }
-}
 
-fun extractClassDecl(moduleName : String, className : String, model : Model) : ClassDecl {
-    val moduleDecl = model.moduleDecls.firstOrNull { it.name == moduleName }
+fun Model.extractClassDecl(moduleName : String, className : String, repos : Repository) : ClassDecl {
+    val moduleDecl = moduleDecls.firstOrNull { it.name == moduleName }
     if(moduleDecl == null){
         System.err.println("module not found: $moduleName")
         exitProcess(-1)
@@ -92,29 +73,29 @@ fun extractClassDecl(moduleName : String, className : String, model : Model) : C
         exitProcess(-1)
     }
 
-    if(    classDecl.params.any { !isAllowedType(it.type.toString()) }
-        || classDecl.fields.any { !isAllowedType(it.type.toString()) } ){
+    if(    classDecl.params.any { !repos.isAllowedType(it.type.toString()) }
+        || classDecl.fields.any { !repos.isAllowedType(it.type.toString()) } ){
         System.err.println("fields with non-Int type not supported")
         exitProcess(-1)
     }
     return classDecl
 }
 
-fun exctractMainNode(model : Model) : SymbolicNode{
+fun Model.exctractMainNode() : SymbolicNode{
     if(!model.hasMainBlock()){
         System.err.println("model has no main block!")
         exitProcess(-1)
     }
 
-    val v = appendStmt(translateABSStmtToSymStmt(model.mainBlock), SkipStmt)
+    val v = appendStmt(translateABSStmtToSymStmt(this.mainBlock), SkipStmt)
     return SymbolicNode(SymbolicState(True, EmptyUpdate, Modality(v, PostInvariantPair(True, True))), emptyList())
 }
 
-fun extractInitialNode( classDecl: ClassDecl) : SymbolicNode {
+fun ClassDecl.extractInitialNode() : SymbolicNode {
 
-    val initBlock = classDecl.initBlock
+    val initBlock = this.initBlock
     var body = if(initBlock!= null) appendStmt(translateABSStmtToSymStmt(initBlock), ReturnStmt(unitExpr())) else ReturnStmt(unitExpr())
-    for (fieldDecl in classDecl.fields){
+    for (fieldDecl in this.fields){
         if(fieldDecl.hasInitExp()){
             val nextBody = AssignStmt(Field(fieldDecl.name), translateABSExpToSymExpr(fieldDecl.initExp))
             body = SeqStmt(nextBody,body)
@@ -125,8 +106,8 @@ fun extractInitialNode( classDecl: ClassDecl) : SymbolicNode {
     val objInv: Formula?
     val objPre: Formula?
     try {
-        objInv = extractSpec(classDecl, "ObjInv")
-        objPre = extractSpec(classDecl, "Requires")
+        objInv = extractSpec(this, "ObjInv")
+        objPre = extractSpec(this, "Requires")
     } catch (e: Exception) {
         e.printStackTrace()
         System.err.println("error during translation, aborting")
@@ -139,16 +120,16 @@ fun extractInitialNode( classDecl: ClassDecl) : SymbolicNode {
     val symb = SymbolicState(objPre, EmptyUpdate, Modality(body, PostInvariantPair(True, objInv)))
     return SymbolicNode(symb, emptyList())
 }
-fun extractMethodNode(name : String, classDecl: ClassDecl) : SymbolicNode {
+fun ClassDecl.extractMethodNode(name : String, repos: Repository) : SymbolicNode {
 
     if(name == "<init>")
-        return extractInitialNode(classDecl)
-    val mDecl = classDecl.methods.firstOrNull { it.methodSig.name == name }
+        return this.extractInitialNode()
+    val mDecl = this.methods.firstOrNull { it.methodSig.name == name }
     if (mDecl == null) {
-        System.err.println("method not found: ${classDecl.qualifiedName}.${name}")
+        System.err.println("method not found: ${this.qualifiedName}.${name}")
         exitProcess(-1)
     }
-    if (mDecl.methodSig.params.any { !isAllowedType(it.type.toString()) }) {
+    if (mDecl.methodSig.params.any { !repos.isAllowedType(it.type.toString()) }) {
         System.err.println("parameters with non-Int type not supported")
         exitProcess(-1)
     }
@@ -159,7 +140,7 @@ fun extractMethodNode(name : String, classDecl: ClassDecl) : SymbolicNode {
     val metpost: Formula?
     val body: Stmt?
     try {
-        objInv = extractSpec(classDecl, "ObjInv")
+        objInv = extractSpec(this, "ObjInv")
         metpost = extractSpec(mDecl, "Ensures")
         val st = mDecl.block
         body = translateABSStmtToSymStmt(st)
@@ -176,10 +157,10 @@ fun extractMethodNode(name : String, classDecl: ClassDecl) : SymbolicNode {
 
 }
 
-fun executeNode(node : SymbolicNode) : Boolean{
+fun executeNode(node : SymbolicNode, repos: Repository) : Boolean{
 
     output("Crowbar  : starting symbolic execution....")
-    val pit = nextPITStrategy()
+    val pit = nextPITStrategy(repos)
     pit.execute(node)
 
     output("Crowbar-v: symbolic execution tree:",Verbosity.V)
@@ -207,14 +188,14 @@ fun executeNode(node : SymbolicNode) : Boolean{
     return closed
 }
 
-fun executeAll(classDecl: ClassDecl): Boolean{
-    val iNode = extractInitialNode(classDecl)
-    var totalClosed = executeNode(iNode)
+fun ClassDecl.executeAll(repos: Repository): Boolean{
+    val iNode = extractInitialNode()
+    var totalClosed = executeNode(iNode, repos)
     output("Crowbar  : Verification <init>: $totalClosed")
 
-    for(m in classDecl.methods){
-        val node = extractMethodNode(m.methodSig.name, classDecl)
-        val closed = executeNode(node)
+    for(m in methods){
+        val node = extractMethodNode(m.methodSig.name, repos)
+        val closed = executeNode(node, repos)
         output("Crowbar  : Verification ${m.methodSig.name}: $closed \n")
         totalClosed = totalClosed && closed
     }

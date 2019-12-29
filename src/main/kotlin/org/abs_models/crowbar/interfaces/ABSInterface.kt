@@ -4,7 +4,6 @@ import org.abs_models.crowbar.data.Expr
 import org.abs_models.crowbar.data.SExpr
 import org.abs_models.crowbar.data.readFut
 import org.abs_models.crowbar.main.extractSpec
-import org.abs_models.crowbar.main.isAllowedType
 import org.abs_models.crowbar.rule.FreshGenerator
 import org.abs_models.frontend.ast.*
 
@@ -53,7 +52,7 @@ fun translateABSStmtToSymStmt(input: Stmt) : org.abs_models.crowbar.data.Stmt {
             return tail.foldRight( last , {nx, acc -> org.abs_models.crowbar.data.SeqStmt(nx, acc) })
         }
         is VarDeclStmt -> {
-            if(!isAllowedType(input.varDecl.type.toString())) throw Exception("Translation of ${input.varDecl.type} not supported" )
+            //if(!repos.isAllowedType(input.varDecl.type.toString())) throw Exception("Translation of ${input.varDecl.type} not supported" )
             return org.abs_models.crowbar.data.AssignStmt(org.abs_models.crowbar.data.ProgVar(input.varDecl.name), translateABSExpToSymExpr(input.varDecl.initExp))
         }
         is AssignStmt -> {
