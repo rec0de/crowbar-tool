@@ -53,6 +53,8 @@ fun load(paths : List<Path>) : Pair<Model,Repository> {
         System.err.println("error during parsing, aborting")
         exitProcess(-1)
     }
+    if(model.hasTypeErrors())
+        throw Exception("Compilation failed with type errors")
     val repos = Repository()
     repos.populateAllowedTypes(model)
     repos.populateClassReqs(model)

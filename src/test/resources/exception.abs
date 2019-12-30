@@ -1,0 +1,21 @@
+module Exc;
+data Spec = ObjInv(Bool) | Ensures(Bool) | Requires(Bool) | WhileInv(Bool);
+
+interface I {}
+
+[Spec : Requires(this.k > 0)]
+[Spec : ObjInv(this.k > 0)]
+class C(Int k) implements I {
+
+	Int success(){  	
+	   new C("as");
+	    return 0;
+	}
+	
+
+}
+          
+
+{
+	new C(5);
+}

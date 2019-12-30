@@ -37,7 +37,6 @@ For v0.1, we aim for a variant that can deal with programs containing only `ABS.
 
 * Fix reference type handling
 * Fixing the small todos in the code, catching up with the tests 
-* Options to deal with type-checking and flattening of the model in main before executing symbolic execution
  
 ### Beyond v0.1
 The following features are planned as further steps (unordered)
@@ -51,8 +50,10 @@ The following features are planned as further steps (unordered)
 * All the other BPL-types
 * Connection to the dynamic analyses
 * Frames
+* Verification and specification of SPLs without flattening
 * Basic inference for effect-types etc.
 * Encoding the [**KeYmaera X**](https://github.com/LS-Lab/KeYmaeraX-release) bridge in a BPL type
 
 ### Misc.
 Please make sure that some SMT solver is installed and callable via command line. 
+Right now, Crowbar does not support to pass a product to the ABS compiler.

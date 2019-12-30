@@ -1,5 +1,6 @@
 import io.kotlintest.data.forall
 import io.kotlintest.shouldBe
+import io.kotlintest.shouldThrow
 import io.kotlintest.specs.StringSpec
 import io.kotlintest.tables.Row1
 import org.abs_models.crowbar.main.*
@@ -65,6 +66,11 @@ class FileTest : StringSpec ({
 
 			val mNode = model.exctractMainNode()
 			executeNode(mNode, repos) shouldBe true
+		}
+	}
+	"typeerror"{
+		shouldThrow<Exception> {
+			load(listOf(Paths.get("src/test/resources/exception.abs")))
 		}
 	}
 })
