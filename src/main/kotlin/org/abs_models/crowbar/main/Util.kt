@@ -62,6 +62,16 @@ fun load(paths : List<Path>) : Pair<Model,Repository> {
 }
 
 
+fun Model.extractAllClasses() : List<ClassDecl>{
+    var l = emptyList<ClassDecl>()
+    for( module in this.moduleDecls){
+        for( decl in module.decls){
+            if(decl is ClassDecl)
+                l = l + decl
+        }
+    }
+    return l
+}
 
 fun Model.extractClassDecl(moduleName : String, className : String, repos : Repository) : ClassDecl {
     val moduleDecl = moduleDecls.firstOrNull { it.name == moduleName }

@@ -50,10 +50,11 @@ data class Repository(val allowedTypes : MutableList<String> =  mutableListOf("A
 }
 
 sealed class CrowOption{
-data class MethodOption(val path : String) : CrowOption()
-data class InitOption(val path : String) : CrowOption()
-data class AllClassOption(val path : String) : CrowOption()
-object MainBlockOption : CrowOption()
+    data class MethodOption(val path : String) : CrowOption()
+    data class InitOption(val path : String) : CrowOption()
+    data class AllClassOption(val path : String) : CrowOption()
+    object MainBlockOption : CrowOption()
+    object FullOption : CrowOption()
 }
 
 class Main : CliktCommand() {
@@ -73,7 +74,8 @@ class Main : CliktCommand() {
                 .convert {  CrowOption.AllClassOption(it) as CrowOption }
                 .validate { require((it as CrowOption.AllClassOption).path.split(".").size == 2,
                                     lazyMessage = {"invalid fully qualified class name $it"}) },
-        option(help="Verifies the main block of the model").switch("--main" to CrowOption.MainBlockOption)
+        option(help="Verifies the main block of the model").switch("--main" to CrowOption.MainBlockOption),
+        option(help="Verifies the full model").switch("--full" to CrowOption.FullOption)
     ).single().required()
 
     private val tmp      by   option("--tmp","-t",help="path to a directory used to store the .smt files").path().default(Paths.get(tmpPath))
@@ -88,6 +90,18 @@ class Main : CliktCommand() {
         val (model, repos) = load(filePath)
 
         when(target){
+            is  CrowOption.FullOption -> {
+                var finalClose = true;
+                for( classDecl in model.extractAllClasses() ) {
+                    val totalClosed = classDecl.executeAll(repos)
+                    output("Crowbar  : Verification result ${classDecl.qualifiedName}: $totalClosed", Verbosity.SILENT)
+                    finalClose = finalClose && totalClosed
+                }
+                val node = model.exctractMainNode()
+                val closed = executeNode(node, repos)
+                output("Crowbar  : Verification of main: $closed", Verbosity.SILENT)
+                output("Crowbar  : Final verification result: $finalClose", Verbosity.SILENT)
+            }
             is  CrowOption.MainBlockOption -> {
                 val node = model.exctractMainNode()
                 val closed = executeNode(node, repos)
