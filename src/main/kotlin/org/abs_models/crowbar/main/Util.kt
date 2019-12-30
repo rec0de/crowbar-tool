@@ -36,18 +36,18 @@ fun output(text : String, level : Verbosity = Verbosity.NORMAL){
         println(text)
 }
 
-fun load(path : Path) : Pair<Model,Repository> {
+fun load(paths : List<Path>) : Pair<Model,Repository> {
 
     output("Crowbar  : loading files....")
-    val input = File(path.toString())
-    if(!input.exists()) {
-        System.err.println("file not found: $path")
+    val input = paths.map{ File(it.toString()) }
+    if(input.any { !it.exists() }) {
+        System.err.println("file not found: $paths")
         exitProcess(-1)
     }
 
     output("Crowbar  : loading ABS model....")
     val model = try {
-        org.abs_models.frontend.parser.Main().parse(listOf(input))
+        org.abs_models.frontend.parser.Main().parse(input)
     } catch (e : Exception) {
         e.printStackTrace()
         System.err.println("error during parsing, aborting")

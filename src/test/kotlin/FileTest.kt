@@ -5,12 +5,12 @@ import java.nio.file.Paths
 
 class FileTest : StringSpec ({
 	"success"{
-		val (model, repos) = load(Paths.get("src/test/resources/success.abs"))
+		val (model, repos) = load(listOf(Paths.get("src/test/resources/success.abs")))
 		val classDecl = model.extractClassDecl("Success","C", repos)
 		classDecl.executeAll(repos) shouldBe true
 	}
 	"fails"{
-		val (model, repos) = load(Paths.get("src/test/resources/fail.abs"))
+		val (model, repos) = load(listOf(Paths.get("src/test/resources/fail.abs")))
 		val classDecl = model.extractClassDecl("Fail","C", repos)
 
 		val iNode = classDecl.extractInitialNode()
@@ -22,7 +22,7 @@ class FileTest : StringSpec ({
 		}
 	}
 	"create"{
-		val (model, repos) = load(Paths.get("src/test/resources/create.abs"))
+		val (model, repos) = load(listOf(Paths.get("src/test/resources/create.abs")))
 		val classDecl = model.extractClassDecl("Create","C", repos)
 
 		val iNode = classDecl.extractInitialNode()
@@ -33,6 +33,14 @@ class FileTest : StringSpec ({
 
 		val fNode = classDecl.extractMethodNode("fail", repos)
 		executeNode(fNode, repos) shouldBe false
+
+		val mNode = model.exctractMainNode()
+		executeNode(mNode, repos) shouldBe true
+	}
+	"multi"{
+		val (model, repos) = load(listOf(Paths.get("src/test/resources/multi1.abs"),Paths.get("src/test/resources/multi2.abs")))
+		val classDecl = model.extractClassDecl("Multi1","C", repos)
+		classDecl.executeAll(repos) shouldBe true
 
 		val mNode = model.exctractMainNode()
 		executeNode(mNode, repos) shouldBe true

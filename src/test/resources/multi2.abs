@@ -1,0 +1,10 @@
+module Multi2;
+ 
+import * from Multi1;
+export *;
+
+interface I{ }
+
+{
+	    new C(1);
+}
