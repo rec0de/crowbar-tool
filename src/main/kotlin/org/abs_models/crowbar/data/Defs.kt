@@ -3,7 +3,6 @@ package org.abs_models.crowbar.data
 //General Elements
 interface Anything /*: Cloneable*/ {
    /* public override fun clone(): Any {
-        println("arrived at anything")
         return super.clone()
     }*/
     fun prettyPrint() : String { return toString() }

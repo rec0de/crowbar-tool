@@ -25,9 +25,9 @@ data class PostInvariantPair(val post : Formula, val objInvariant : Formula) : P
 
 //Type system
 class PITVarAssign(private val repos: Repository) : Rule(Modality(
-        SeqStmt(AssignStmt(ProgAbstractVar("LHS"), ExprAbstractVar("EXPR")),
-                StmtAbstractVar("CONT")),
-        PostInvAbstractVar("TYPE"))) {
+    SeqStmt(AssignStmt(ProgAbstractVar("LHS"), ExprAbstractVar("EXPR")),
+        StmtAbstractVar("CONT")),
+    PostInvAbstractVar("TYPE"))) {
 
     override fun transform(cond: MatchCondition, input : SymbolicState): List<SymbolicTree>? {
         val lhs = cond.map[ProgAbstractVar("LHS")] as ProgVar
@@ -35,37 +35,58 @@ class PITVarAssign(private val repos: Repository) : Rule(Modality(
         val remainder = cond.map[StmtAbstractVar("CONT")] as Stmt
         val target = cond.map[PostInvAbstractVar("TYPE")] as DeductType
         val next = SymbolicState(
+            input.condition,
+            ChainUpdate(input.update, ElementaryUpdate(lhs, rhs)),
+            Modality(remainder, target)
+        )
+        if(containsAbstractVar(next)) return null
+        return listOf(SymbolicNode(next))
+    }
+}
+//Type system
+class PITAllocAssign(private val repos: Repository) : Rule(Modality(
+    SeqStmt(AllocateStmt(ProgAbstractVar("LHS"), ExprAbstractVar("EXPR")),
+        StmtAbstractVar("CONT")),
+    PostInvAbstractVar("TYPE"))) {
+
+    override fun transform(cond: MatchCondition, input : SymbolicState): List<SymbolicTree>? {
+        val lhs = cond.map[ProgAbstractVar("LHS")] as ProgVar
+        val rhs = exprToTerm(cond.map[ExprAbstractVar("EXPR")] as Expr) as Function
+        val remainder = cond.map[StmtAbstractVar("CONT")] as Stmt
+        val target = cond.map[PostInvAbstractVar("TYPE")] as DeductType
+
+        val classNameExpr = rhs.params[0] as Function
+        val nextRhs = Function(rhs.name,rhs.params.subList(1,rhs.params.size))
+
+        //construct precondition check of the class creation
+        val precond = repos.classReqs.getValue(classNameExpr.name).first
+        val targetDecl = repos.classReqs[classNameExpr.name]!!.second
+        val substMap = mutableMapOf<LogicElement,LogicElement>()
+        for(i in 0 until targetDecl.numParam){
+            val pName = select(Field(targetDecl.getParam(i).name))
+            val pValue = nextRhs.params[i]
+            substMap[pName] = pValue
+        }
+
+        val pre = LogicNode(
+            Impl(
                 input.condition,
-                ChainUpdate(input.update, ElementaryUpdate(lhs, rhs)),
-                Modality(remainder, target)
+                UpdateOnFormula(input.update, subst(precond, substMap) as Formula)
+            )
+        )
+
+        if(containsAbstractVar(pre.formula)) return null
+
+
+        //construct continuation
+        val next = SymbolicState(
+            And(input.condition, UpdateOnFormula(input.update,Not(Predicate("=", listOf(nextRhs, Function("0")))))), //this adds that the created object is not null
+            ChainUpdate(input.update, ElementaryUpdate(lhs, nextRhs)),
+            Modality(remainder, target)
         )
         if(containsAbstractVar(next)) return null
 
-        //special case: object creation
-        if(rhs is Function && rhs.name.startsWith("NEW")){
-            val cExpr = rhs.params[0]
-            val nextRhs = Function(rhs.name,rhs.params.subList(1,rhs.params.size))
-            if( cExpr is Function && repos.classReqs[cExpr.name] != null ){
-                val precond = repos.classReqs.getValue(cExpr.name).first
-                val targetDecl = repos.classReqs[cExpr.name]!!.second
-                val substMap = mutableMapOf<LogicElement,LogicElement>()
-                for(i in 0 until targetDecl.numParam){
-                    val pName = select(Field(targetDecl.getParam(i).name))
-                    val pValue = nextRhs.params[i]
-                    substMap[pName] = pValue
-               }
-                val newCond = And(input.condition, UpdateOnFormula(input.update,Not(Predicate("=", listOf(nextRhs, Function("0"))))))
-               return listOf(SymbolicNode(SymbolicState(newCond,ChainUpdate(input.update, ElementaryUpdate(lhs, nextRhs)),next.modality)),
-                             LogicNode(
-                                 Impl(
-                                     input.condition,
-                                     UpdateOnFormula(input.update, subst(precond, substMap) as Formula)
-                                 )
-                             ))
-            }
-            throw Exception("error occurred in creation statement")
-        }
-        return listOf(SymbolicNode(next))
+        return listOf(pre,SymbolicNode(next))
     }
 }
 
@@ -217,4 +238,4 @@ object PITWhile : Rule(Modality(
     }
 }
 
-fun nextPITStrategy(repos: Repository) : Strategy = DefaultStrategy(listOf(PITVarAssign(repos),PITFieldAssign,PITReturn,PITSkip,PITIf,PITAwait,PITSkipSkip,PITWhile), repos)
+fun nextPITStrategy(repos: Repository) : Strategy = DefaultStrategy(listOf(PITVarAssign(repos),PITAllocAssign(repos),PITFieldAssign,PITReturn,PITSkip,PITIf,PITAwait,PITSkipSkip,PITWhile), repos)

@@ -33,6 +33,11 @@ data class AssignStmt(val lhs : Location, val rhs : Expr) : Stmt {
         return lhs.prettyPrint()+" = "+rhs.prettyPrint()
     }
 }
+data class AllocateStmt(val lhs : Location, val rhs : Expr) : Stmt {
+    override fun prettyPrint(): String {
+        return lhs.prettyPrint()+" = "+rhs.prettyPrint()
+    }
+}
 object SkipStmt : Stmt {
     override fun prettyPrint(): String {
         return "skip"

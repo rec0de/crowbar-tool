@@ -56,10 +56,10 @@ class FileTest : StringSpec ({
 		}
 	}
 	"reference"{
-		forall(Row1("z3"),
-			Row1("cvc")) {
-			println("testing with: $it as backend")
-			smtPath = it
+	//	forall(Row1("z3"),
+			//Row1("cvc")) {
+			//println("testing with: $it as backend")
+			//smtPath = it
 			val (model, repos) = load(listOf(Paths.get("src/test/resources/reference.abs")))
 			val classDecl = model.extractClassDecl("Reference", "C", repos)
 
@@ -80,7 +80,7 @@ class FileTest : StringSpec ({
 
 			val mNode = model.exctractMainNode()
 			executeNode(mNode, repos) shouldBe false
-		}
+		//}
 	}
 	"multi"{
 		forall(Row1("z3"),

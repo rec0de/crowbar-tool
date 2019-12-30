@@ -38,7 +38,7 @@ data class LogicNode(val formula: Formula) : SymbolicLeaf{
 }
 data class SymbolicNode(val content : SymbolicState, var children : List<SymbolicTree> = emptyList()) : SymbolicTree{
     override fun finishedExecution() : Boolean {
-        return children.fold(true, { acc, nx -> acc and nx.finishedExecution()})
+        return children.isNotEmpty() && children.fold(true, { acc, nx -> acc && nx.finishedExecution()})
     }
 
     override fun debugString(steps : Int) : String {

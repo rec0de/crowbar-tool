@@ -22,7 +22,7 @@ class C(I other) implements I {
 	    return j;
 	}
 
-//should close: we do not return other
+//should close: we do return other
 [Spec : Ensures(result == this.other)]
 	I m3(){  	
 	   I j = new C(this.other);

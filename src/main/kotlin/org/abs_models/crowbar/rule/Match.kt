@@ -1,6 +1,7 @@
 package org.abs_models.crowbar.rule
 
-import org.abs_models.crowbar.data.*
+import org.abs_models.crowbar.data.AbstractVar
+import org.abs_models.crowbar.data.Anything
 import kotlin.reflect.full.superclasses
 
 
@@ -37,7 +38,7 @@ fun containsAbstractVar(concrete: Anything) : Boolean{
 /*
 *   For reasons unknown, the clone part throws a java.lang.VerifyError
 *   This may be a versioning error in the classPath
-*   However, this function is not used currently anyway
+*   However, this function is currently not used anyway
 *
 fun apply(pattern : Anything, matchCond : MatchCondition) : Any{
 
