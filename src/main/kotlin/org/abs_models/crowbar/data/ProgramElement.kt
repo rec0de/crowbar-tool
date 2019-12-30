@@ -126,7 +126,7 @@ open class Field(val name : String) : Location, Term {
     }
     override fun getFields() : Set<Field> =setOf(this)
     override fun getProgVars() : Set<ProgVar> =  emptySet()
-    override fun toZ3() : String = name
+    override fun toSMT() : String = name
 }
 
 open class ProgVar(val name : String) : Location, Term {
@@ -150,7 +150,7 @@ open class ProgVar(val name : String) : Location, Term {
     }
     override fun getFields() : Set<Field> = emptySet()
     override fun getProgVars() : Set<ProgVar> = setOf(this)
-    override fun toZ3() : String = name
+    override fun toSMT() : String = name
 }
 object ReturnVar : ProgVar("result")
 
@@ -165,7 +165,7 @@ data class ProgFieldAbstractVar(val vName : String) : Field(vName), AbstractVar 
     }
     override fun getFields() : Set<Field> = emptySet()
     override fun getProgVars() : Set<ProgVar> = emptySet()
-    override fun toZ3() : String = name
+    override fun toSMT() : String = name
 }
 
 fun appendStmt(stmt : Stmt, add : Stmt) : Stmt {

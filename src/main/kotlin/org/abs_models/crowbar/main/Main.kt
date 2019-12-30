@@ -19,7 +19,7 @@ import java.nio.file.Paths
 enum class Verbosity { SILENT, NORMAL, V, VV }
 
 var tmpPath = "/tmp/"
-var z3Path  = "z3"
+var smtPath  = "z3"
 var verbosity = Verbosity.NORMAL
 
 //todo: once allowedTypes is not needed anymore, the repository needs to be passed to fewer places
@@ -76,14 +76,14 @@ class Main : CliktCommand() {
         option(help="Verifies the main block of the model").switch("--main" to CrowOption.MainBlockOption)
     ).single().required()
 
-    private val tmp      by   option("--tmp","-t",help="path to a directory used to store the .z3 files").path().default(Paths.get(tmpPath))
-    private val z3Cmd    by   option("--z3","-z3",help="command to start z3").default(z3Path)
+    private val tmp      by   option("--tmp","-t",help="path to a directory used to store the .smt files").path().default(Paths.get(tmpPath))
+    private val smtCmd   by   option("--smt","-s",help="command to start SMT solver").default(smtPath)
     private val verbose  by   option("--verbose", "-v",help="verbosity output level").int().restrictTo(Verbosity.values().indices).default(Verbosity.NORMAL.ordinal)
 
     override fun run() {
 
         tmpPath = "$tmp/"
-        z3Path = z3Cmd
+        smtPath = smtCmd
         verbosity = Verbosity.values()[verbose]
         val (model, repos) = load(filePath)
 

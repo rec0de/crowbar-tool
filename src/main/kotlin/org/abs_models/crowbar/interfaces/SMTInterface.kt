@@ -5,28 +5,29 @@ import org.abs_models.crowbar.data.deupdatify
 import org.abs_models.crowbar.main.Verbosity
 import org.abs_models.crowbar.main.tmpPath
 import org.abs_models.crowbar.main.verbosity
-import org.abs_models.crowbar.main.z3Path
 import java.io.File
 import java.util.concurrent.TimeUnit
 
-val z3Header = """
+val smtHeader = """
+    (set-logic ALL)
+    (define-sort Field () Int)
     (define-sort MHeap () (Array Field Int))
     (declare-const heap MHeap)
     (declare-fun   anon (MHeap) MHeap)
     (declare-fun   read (Int) Int)
     """.trimIndent()
 
-fun generateZ3(formula: Formula) : String {
+fun generateSMT(formula: Formula) : String {
     val noUp = deupdatify(formula)
     val fields = noUp.getFields()
     val vars = noUp.getProgVars()
-    var header = z3Header
-    if(fields.isNotEmpty()) header = "(declare-datatypes () ((Field ${fields.fold("", { acc, nx-> acc +" " +nx.name})})))\n$header"
-    else                    header = "(declare-datatypes () ((Field dummy)))\n$header"
+    var header = smtHeader
+    header = fields.fold(header, { acc, nx-> acc +"\n(declare-const ${nx.name} Field)"})
     header = vars.fold(header, {acc, nx-> acc+"\n(declare-const ${nx.name} Int)"})
+    fields.forEach { f1 -> fields.minus(f1).forEach{ f2 -> header += "\n (assert (not (= ${f1.name} ${f2.name})))" } }
     return """
     $header 
-    (assert ${noUp.toZ3()}) 
+    (assert ${noUp.toSMT()}) 
     (check-sat)
     (exit)
     """.trimIndent()
@@ -49,15 +50,15 @@ fun String.runCommand(
     null
 }
 
-fun evaluateZ3(z3Rep : String) : Boolean {
-    val path = "${tmpPath}z3.out"
-    File(path).writeText(z3Rep)
-    val res = "$z3Path $path".runCommand()
+fun evaluateSMT(smtRep : String) : Boolean {
+    val path = "${tmpPath}out.smt2"
+    File(path).writeText(smtRep)
+    val res = "${org.abs_models.crowbar.main.smtPath} $path".runCommand()
     return res != null && res.trim() == "unsat"
 }
 
-fun evaluateZ3(formula: Formula) : Boolean {
-    val z3Rep = generateZ3(formula)
-    if(verbosity >= Verbosity.VV) println("crowbar-v: \n$z3Rep")
-    return evaluateZ3(z3Rep)
+fun evaluateSMT(formula: Formula) : Boolean {
+    val smtRep = generateSMT(formula)
+    if(verbosity >= Verbosity.VV) println("crowbar-v: \n$smtRep")
+    return evaluateSMT(smtRep)
 }

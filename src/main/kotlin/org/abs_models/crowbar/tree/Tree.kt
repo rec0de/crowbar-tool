@@ -3,7 +3,7 @@ package org.abs_models.crowbar.tree
 import org.abs_models.crowbar.data.Formula
 import org.abs_models.crowbar.data.Not
 import org.abs_models.crowbar.data.SymbolicState
-import org.abs_models.crowbar.interfaces.evaluateZ3
+import org.abs_models.crowbar.interfaces.evaluateSMT
 
 interface SymbolicTree{
     fun finishedExecution() : Boolean
@@ -27,7 +27,7 @@ data class LogicNode(val formula: Formula) : SymbolicLeaf{
     private var isValid = false
     override fun evaluate() : Boolean{
         if(isEvaluated) return isValid
-        isValid = evaluateZ3(Not(formula))//\phi valid <-> !\phi unsat
+        isValid = evaluateSMT(Not(formula))//\phi valid <-> !\phi unsat
         isEvaluated = true
         return isValid
     }

@@ -3,7 +3,7 @@ package org.abs_models.crowbar.data
 interface LogicElement: Anything {
     fun getFields() : Set<Field>
     fun getProgVars() : Set<ProgVar>
-    fun toZ3() : String
+    fun toSMT() : String
 }
 interface Formula: LogicElement
 interface Term : LogicElement
@@ -17,7 +17,7 @@ data class FormulaAbstractVar(val name : String) : Formula, AbstractVar {
     }
     override fun getFields() : Set<Field> = emptySet()
     override fun getProgVars() : Set<ProgVar> = emptySet()
-    override fun toZ3() : String = name
+    override fun toSMT() : String = name
 }
 
 data class Function(val name : String, val params : List<Term> = emptyList()) : Term {
@@ -28,9 +28,12 @@ data class Function(val name : String, val params : List<Term> = emptyList()) : 
     }
     override fun getFields() : Set<Field> = params.fold(emptySet(),{ acc, nx -> acc + nx.getFields()})
     override fun getProgVars() : Set<ProgVar> = params.fold(emptySet(),{ acc, nx -> acc + nx.getProgVars()})
-    override fun toZ3() : String {
-        if(params.isEmpty()) return name
-        val list = params.fold("",{acc,nx -> acc+ " ${nx.toZ3()}"})
+    override fun toSMT() : String {
+        if(params.isEmpty()) {
+            if(name.startsWith("-")) return "(- ${name.substring(1)})" //CVC4 requires -1 to be passed as (- 1)
+            return name
+        }
+        val list = params.fold("",{acc,nx -> acc+ " ${nx.toSMT()}"})
         return "($name $list)"
     }
 }
@@ -40,7 +43,7 @@ data class UpdateOnTerm(val update : UpdateElement, val target : Term) : Term {
     }
     override fun getFields() : Set<Field> = update.getFields()+target.getFields()
     override fun getProgVars() : Set<ProgVar> = update.getProgVars()+target.getProgVars()
-    override fun toZ3() : String = throw Exception("Updates are not translatable to Z3")
+    override fun toSMT() : String = throw Exception("Updates are not translatable to Z3")
 }
 data class Impl(val left : Formula, val right : Formula) : Formula {
     override fun prettyPrint(): String {
@@ -48,7 +51,7 @@ data class Impl(val left : Formula, val right : Formula) : Formula {
     }
     override fun getFields() : Set<Field> = left.getFields()+right.getFields()
     override fun getProgVars() : Set<ProgVar> = left.getProgVars()+right.getProgVars()
-    override fun toZ3() : String = "(=> ${left.toZ3()} ${right.toZ3()})"
+    override fun toSMT() : String = "(=> ${left.toSMT()} ${right.toSMT()})"
 }
 data class And(val left : Formula, val right : Formula) : Formula {
     override fun prettyPrint(): String {
@@ -58,7 +61,7 @@ data class And(val left : Formula, val right : Formula) : Formula {
     }
     override fun getFields() : Set<Field> = left.getFields()+right.getFields()
     override fun getProgVars() : Set<ProgVar> = left.getProgVars()+right.getProgVars()
-    override fun toZ3() : String = "(and ${left.toZ3()} ${right.toZ3()})"
+    override fun toSMT() : String = "(and ${left.toSMT()} ${right.toSMT()})"
 }
 data class Or(val left : Formula, val right : Formula) : Formula {
     override fun prettyPrint(): String {
@@ -68,7 +71,7 @@ data class Or(val left : Formula, val right : Formula) : Formula {
     }
     override fun getFields() : Set<Field> = left.getFields()+right.getFields()
     override fun getProgVars() : Set<ProgVar> = left.getProgVars()+right.getProgVars()
-    override fun toZ3() : String = "(or ${left.toZ3()} ${right.toZ3()})"
+    override fun toSMT() : String = "(or ${left.toSMT()} ${right.toSMT()})"
 }
 data class Not(val left : Formula) : Formula {
     override fun prettyPrint(): String {
@@ -76,7 +79,7 @@ data class Not(val left : Formula) : Formula {
     }
     override fun getFields() : Set<Field> = left.getFields()
     override fun getProgVars() : Set<ProgVar> = left.getProgVars()
-    override fun toZ3() : String = "(not ${left.toZ3()})"
+    override fun toSMT() : String = "(not ${left.toSMT()})"
 }
 data class Predicate(val name : String, val params : List<Term> = emptyList()) : Formula {
     override fun prettyPrint(): String {
@@ -86,9 +89,9 @@ data class Predicate(val name : String, val params : List<Term> = emptyList()) :
     }
     override fun getFields() : Set<Field> = params.fold(emptySet(),{ acc, nx -> acc + nx.getFields()})
     override fun getProgVars() : Set<ProgVar> = params.fold(emptySet(),{ acc, nx -> acc + nx.getProgVars()})
-    override fun toZ3() : String {
+    override fun toSMT() : String {
         if(params.isEmpty()) return name
-        val list = params.fold("",{acc,nx -> acc+ " ${nx.toZ3()}"})
+        val list = params.fold("",{acc,nx -> acc+ " ${nx.toSMT()}"})
         return "($name $list)"
     }
 }
@@ -98,7 +101,7 @@ data class UpdateOnFormula(val update : UpdateElement, val target : Formula) : F
     }
     override fun getFields() : Set<Field> = update.getFields()+target.getFields()
     override fun getProgVars() : Set<ProgVar> = update.getProgVars()+target.getProgVars()
-    override fun toZ3() : String = throw Exception("Updates are not translatable to Z3")
+    override fun toSMT() : String = throw Exception("Updates are not translatable to Z3")
 }
 object True : Formula {
     override fun prettyPrint(): String {
@@ -106,7 +109,7 @@ object True : Formula {
     }
     override fun getFields() : Set<Field> = emptySet()
     override fun getProgVars() : Set<ProgVar> = emptySet()
-    override fun toZ3() : String = "true"
+    override fun toSMT() : String = "true"
 }
 object False : Formula {
     override fun prettyPrint(): String {
@@ -114,7 +117,7 @@ object False : Formula {
     }
     override fun getFields() : Set<Field> = emptySet()
     override fun getProgVars() : Set<ProgVar> = emptySet()
-    override fun toZ3() : String = "false"
+    override fun toSMT() : String = "false"
 }
 
 object Heap : ProgVar("heap"){
