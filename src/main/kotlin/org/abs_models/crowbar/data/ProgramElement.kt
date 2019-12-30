@@ -126,6 +126,7 @@ open class Field(val name : String) : Location, Term {
     }
     override fun getFields() : Set<Field> =setOf(this)
     override fun getProgVars() : Set<ProgVar> =  emptySet()
+    override fun getHeapNews() : Set<String> =  emptySet()
     override fun toSMT() : String = name
 }
 
@@ -150,6 +151,7 @@ open class ProgVar(val name : String) : Location, Term {
     }
     override fun getFields() : Set<Field> = emptySet()
     override fun getProgVars() : Set<ProgVar> = setOf(this)
+    override fun getHeapNews() : Set<String> =  emptySet()
     override fun toSMT() : String = name
 }
 object ReturnVar : ProgVar("result")

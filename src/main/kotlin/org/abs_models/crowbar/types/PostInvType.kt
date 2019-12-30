@@ -42,18 +42,20 @@ class PITVarAssign(private val repos: Repository) : Rule(Modality(
         if(containsAbstractVar(next)) return null
 
         //special case: object creation
-        if(rhs is Function && rhs.name == "NEW"){
+        if(rhs is Function && rhs.name.startsWith("NEW")){
             val cExpr = rhs.params[0]
+            val nextRhs = Function(rhs.name,rhs.params.subList(1,rhs.params.size))
             if( cExpr is Function && repos.classReqs[cExpr.name] != null ){
                 val precond = repos.classReqs.getValue(cExpr.name).first
                 val targetDecl = repos.classReqs[cExpr.name]!!.second
                 val substMap = mutableMapOf<LogicElement,LogicElement>()
                 for(i in 0 until targetDecl.numParam){
                     val pName = select(Field(targetDecl.getParam(i).name))
-                    val pValue = cExpr.params[i]
+                    val pValue = nextRhs.params[i]
                     substMap[pName] = pValue
                }
-               return listOf(SymbolicNode(next),
+                val newCond = And(input.condition, UpdateOnFormula(input.update,Not(Predicate("=", listOf(nextRhs, Function("0"))))))
+               return listOf(SymbolicNode(SymbolicState(newCond,ChainUpdate(input.update, ElementaryUpdate(lhs, nextRhs)),next.modality)),
                              LogicNode(
                                  Impl(
                                      input.condition,

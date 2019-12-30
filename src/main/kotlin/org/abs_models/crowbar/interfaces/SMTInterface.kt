@@ -21,9 +21,11 @@ fun generateSMT(formula: Formula) : String {
     val noUp = deupdatify(formula)
     val fields = noUp.getFields()
     val vars = noUp.getProgVars()
+    val heaps = noUp.getHeapNews()
     var header = smtHeader
     header = fields.fold(header, { acc, nx-> acc +"\n(declare-const ${nx.name} Field)"})
     header = vars.fold(header, {acc, nx-> acc+"\n(declare-const ${nx.name} Int)"})
+    header = heaps.fold(header, {acc, nx-> "$acc\n(declare-fun $nx (Int) Int)" })
     fields.forEach { f1 -> fields.minus(f1).forEach{ f2 -> header += "\n (assert (not (= ${f1.name} ${f2.name})))" } }
     return """
     $header 

@@ -55,6 +55,33 @@ class FileTest : StringSpec ({
 			executeNode(mNode, repos) shouldBe true
 		}
 	}
+	"reference"{
+		forall(Row1("z3"),
+			Row1("cvc")) {
+			println("testing with: $it as backend")
+			smtPath = it
+			val (model, repos) = load(listOf(Paths.get("src/test/resources/reference.abs")))
+			val classDecl = model.extractClassDecl("Reference", "C", repos)
+
+			val iNode = classDecl.extractInitialNode()
+			executeNode(iNode, repos) shouldBe true
+
+			val m1Node = classDecl.extractMethodNode("m1", repos)
+			executeNode(m1Node, repos) shouldBe false
+
+			val m2Node = classDecl.extractMethodNode("m2", repos)
+			executeNode(m2Node, repos) shouldBe false //see comment in file
+
+			val m3Node = classDecl.extractMethodNode("m3", repos)
+			executeNode(m3Node, repos) shouldBe true
+
+			val m4Node = classDecl.extractMethodNode("m4", repos)
+			executeNode(m4Node, repos) shouldBe true
+
+			val mNode = model.exctractMainNode()
+			executeNode(mNode, repos) shouldBe false
+		}
+	}
 	"multi"{
 		forall(Row1("z3"),
 			Row1("cvc")) {

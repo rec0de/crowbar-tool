@@ -6,7 +6,6 @@ functional correctness of Active Objects. Contrary to [**KeY**](https://www.key-
 Instead, symbolic execution generates a set of first-order formulas that are passed to a backend solver in the [**SMT-LIB**](http://smtlib.cs.uiowa.edu) format
 (Test are checking with [**Z3**](https://github.com/Z3Prover/z3) and [**CVC4**](https://cvc4.github.io/)).
 
-**Crowbar** is an early stage of development.
 
 ### Example
 
@@ -32,13 +31,9 @@ class C {
 {}
 ```
 
-### For v0.1
-For v0.1, we aim for a variant that can deal with programs containing only `ABS.StdLib.Int`, `ABS.StdLib.Fut<ABS.StdLib.Int>`-types and reference types, uses expressions as invariants and post-conditions, and has the following features
+### Plans
+**Crowbar** is a very early stage of development.
 
-* Fix reference type handling
-* Fixing the small todos in the code, catching up with the tests 
- 
-### Beyond v0.1
 The following features are planned as further steps (unordered)
 * ADT support
 * ProgramElements (and PIT rules etc.) for `assert` and calls

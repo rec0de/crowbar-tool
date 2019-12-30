@@ -30,6 +30,7 @@ fun translateABSExpToSymExpr(input : Exp) : Expr {
         is AndBoolExp      -> return SExpr("&&",listOf(translateABSExpToSymExpr(input.left), translateABSExpToSymExpr(input.right)))
         is GetExp          -> return readFut(translateABSExpToSymExpr(input.pureExp))
         is NewExp          -> return FreshGenerator.getFreshObjectId(input.className, input.paramList.map { translateABSExpToSymExpr(it) })
+        is NullExp         -> return org.abs_models.crowbar.data.Const("0")
         else -> throw Exception("Translation of ${input::class} not supported" )
     }
 }
