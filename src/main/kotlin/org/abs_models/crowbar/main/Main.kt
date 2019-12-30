@@ -99,6 +99,7 @@ class Main : CliktCommand() {
                 }
                 val node = model.exctractMainNode()
                 val closed = executeNode(node, repos)
+                finalClose = finalClose && closed
                 output("Crowbar  : Verification of main: $closed", Verbosity.SILENT)
                 output("Crowbar  : Final verification result: $finalClose", Verbosity.SILENT)
             }

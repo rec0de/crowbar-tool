@@ -16,6 +16,30 @@ import java.io.File
 import java.nio.file.Path
 import kotlin.system.exitProcess
 
+fun extractInheritedSpec(iDecl : InterfaceTypeUse, expectedSpec : String, mSig: MethodSig, default:Formula) : Formula? {
+    for( miSig in iDecl.decl.findChildren(MethodSig::class.java)){
+        if(miSig.matches(mSig)) return extractSpec(miSig, expectedSpec, default)
+    }
+    val uses = iDecl.decl.getChild(1) as org.abs_models.frontend.ast.List<InterfaceTypeUse>
+    for(use in uses){
+        val next = extractInheritedSpec(use, expectedSpec, mSig, default)
+        if(next != null) return next
+    }
+    return null
+}
+
+fun extractInheritedSpec(mSig : MethodSig, expectedSpec : String, default:Formula = True) : Formula {
+    val direct = extractSpec(mSig.contextDecl, expectedSpec, default)
+    val conDecl = mSig.contextDecl
+    if(conDecl is ClassDecl){
+        for( iDecl in conDecl.implementedInterfaceUses){
+            val next = extractInheritedSpec(iDecl, expectedSpec, mSig, default)
+            if(next != null) return And(direct,next)
+        }
+    }
+    return direct
+}
+
 fun<T : ASTNode<out ASTNode<*>>?> extractSpec(decl : ASTNode<T>, expectedSpec : String, default:Formula = True, multipleAllowed:Boolean = true) : Formula {
     var ret : Formula? = null
     for(annotation in decl.nodeAnnotations){
@@ -59,6 +83,7 @@ fun load(paths : List<Path>) : Pair<Model,Repository> {
     }
     if(model.hasTypeErrors())
         throw Exception("Compilation failed with type errors")
+
     val repos = Repository()
     repos.populateAllowedTypes(model)
     repos.populateClassReqs(model)
@@ -155,10 +180,12 @@ fun ClassDecl.extractMethodNode(name : String, repos: Repository) : SymbolicNode
     val symb: SymbolicState?
     val objInv: Formula?
     val metpost: Formula?
+    val metpre: Formula?
     val body: Stmt?
     try {
         objInv = extractSpec(this, "ObjInv")
         metpost = extractSpec(mDecl, "Ensures")
+        metpre = extractInheritedSpec(mDecl.methodSig, "Requires")
         val st = mDecl.block
         body = translateABSStmtToSymStmt(st)
     } catch (e: Exception) {
@@ -169,7 +196,7 @@ fun ClassDecl.extractMethodNode(name : String, repos: Repository) : SymbolicNode
     output("Crowbar-v: method post-condition: ${metpost.prettyPrint()}", Verbosity.V)
     output("Crowbar-v: object invariant: ${objInv.prettyPrint()}",Verbosity.V)
 
-    symb = SymbolicState(objInv, EmptyUpdate, Modality(body, PostInvariantPair(metpost, objInv)))
+    symb = SymbolicState(And(objInv,metpre), EmptyUpdate, Modality(body, PostInvariantPair(metpost, objInv)))
     return SymbolicNode(symb, emptyList())
 
 }

@@ -51,4 +51,7 @@ The following features are planned as further steps (unordered)
 
 ### Misc.
 Please make sure that some SMT solver is installed and callable via command line. 
+
+### Minor bugs
 Right now, Crowbar does not support to pass a product to the ABS compiler.
+Right now, lists are not translated into the SMT-LIB signature, so parameter lists of classes with more than one element cause crowbar to fail.

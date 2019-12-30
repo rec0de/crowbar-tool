@@ -1,47 +1,56 @@
 module Test;
 data Spec = ObjInv(Bool) | Ensures(Bool) | Requires(Bool) | WhileInv(Bool);
 
-interface I {}
+interface I { 
+	[Spec : Requires(mi > mj)] 
+	[Spec : Requires(mj > 0)] 
+	[Spec : Ensures(result > mi)] 
+	Int m(Int mi, Int mj);
+}
+interface K { 
+	[Spec : Ensures(result > 0)] 
+	Int o();
+}
+interface J extends I, K{
+	[Spec : Requires(ni < 0)] 
+	Int n(Int ni);
+}
+
+[Spec: ObjInv(this.f >= 0)]
+class C() implements I{
+	Int f = 0;	
+	
+	[Spec : Ensures(result > this.f)] 
+	Int m(Int mi, Int mj){
+		return mi+mj+this.f;
+	}
+}
 
 [Spec: Requires(this.other != null)]
-[Spec: ObjInv(this.other != null)]
-class C(I other) implements I {
+[Spec: ObjInv(this.other != null && this.g > 0)]
+class D(I other) implements J {
+	Int g = 1;	
 
-//should not close: we do not return other
-[Spec : Ensures(result == this.other)]
-	I m1(){  	
-	   I j = new C(this.other);
-	    return j;
-	}
-
-//should close: we do not return other
-//however, we do not model that new always returns something that did not exist before
-[Spec : Ensures(result != this.other)]
-	I m2(){  	
-	   I j = new C(this.other);
-	    return j;
-	}
-
-//should close: we do not return other
-[Spec : Ensures(result == this.other)]
-	I m3(){  	
-	   I j = new C(this.other);
-	    return this.other;
-	}
-
-
-//should close: we do not return other
-[Spec : Ensures(result != null)]
-	I m4(){  	
-	   I j = new C(this.other);
-	    return j;
+	[Spec : Ensures(this.g > 1)] 
+	Int m(Int mi, Int mj){
+		this.g = this.g + 1;
+		return mi+mj;
 	}
 	
-
+	Int o(){
+		return 1;
+	}
+	
+	[Spec : Ensures(result != ni)] 
+	[Spec : Ensures(result != this.g)] 
+	Int n(Int ni){
+	    	return this.g-ni;
+	}
+	
 }
           
 
 {
-//should not close
-	new C(null);
+  I i = new C();
+  K k  = new D(i);
 }

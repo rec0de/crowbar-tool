@@ -15,6 +15,8 @@ object FreshGenerator {
     }
     //todo: move this out
 	fun getFreshObjectId(className: String, map: List<Expr>): Expr {
+        if(map.isEmpty())
+            return SExpr("NEW"+(count++), listOf(SExpr(className, emptyList()))+ listOf(Const("0")))
         return SExpr("NEW"+(count++), listOf(SExpr(className, emptyList()))+map)
 	}
 }
