@@ -2,7 +2,8 @@ module Success;
 
 data Spec = ObjInv(Bool) | Ensures(Bool) | Requires(Bool) | WhileInv(Bool);
 
-[Spec : ObjInv(this.f >= 0 && this.f3 >= 0)]
+[Spec : ObjInv(this.f >= 0 )]
+[Spec : ObjInv(this.f3 >= 0)]
 [Spec : Requires(this.k >= 0)]
 class C(Fut<Int> sth, Int k) {
 

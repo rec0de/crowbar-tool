@@ -16,7 +16,8 @@ import java.io.File
 import java.nio.file.Path
 import kotlin.system.exitProcess
 
-fun<T : ASTNode<out ASTNode<*>>?> extractSpec(decl : ASTNode<T>, expectedSpec : String, default:Formula = True) : Formula {
+fun<T : ASTNode<out ASTNode<*>>?> extractSpec(decl : ASTNode<T>, expectedSpec : String, default:Formula = True, multipleAllowed:Boolean = true) : Formula {
+    var ret : Formula? = null
     for(annotation in decl.nodeAnnotations){
         if(!annotation.type.toString().endsWith(".Spec")) continue
         if(annotation.value !is DataConstructorExp) {
@@ -24,8 +25,11 @@ fun<T : ASTNode<out ASTNode<*>>?> extractSpec(decl : ASTNode<T>, expectedSpec : 
         }
         val annotated = annotation.value as DataConstructorExp
         if(annotated.constructor != expectedSpec) continue
-        return exprToForm(translateABSExpToSymExpr(annotated.getParam(0) as Exp))
+        val next = exprToForm(translateABSExpToSymExpr(annotated.getParam(0) as Exp))
+        ret = if(ret == null) next else And(ret, next)
+        if(!multipleAllowed) break;
     }
+    if(ret != null) return ret;
     if(verbosity >= Verbosity.V)
         println("Crowbar-v: Could not extract $expectedSpec specification, using $default")
     return default
@@ -65,6 +69,7 @@ fun load(paths : List<Path>) : Pair<Model,Repository> {
 fun Model.extractAllClasses() : List<ClassDecl>{
     var l = emptyList<ClassDecl>()
     for( module in this.moduleDecls){
+        if(module.name.startsWith("ABS.")) continue
         for( decl in module.decls){
             if(decl is ClassDecl)
                 l = l + decl
