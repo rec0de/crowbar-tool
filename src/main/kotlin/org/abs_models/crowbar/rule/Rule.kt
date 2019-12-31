@@ -1,6 +1,7 @@
 package org.abs_models.crowbar.rule
 
 import org.abs_models.crowbar.data.*
+import org.abs_models.crowbar.data.Function
 import org.abs_models.crowbar.tree.SymbolicTree
 
 //do not use variables starting with pv_ etc.
@@ -12,6 +13,9 @@ object FreshGenerator {
     }
     fun getFreshPP() : PP {
         return PPId(count++)
+    }
+    fun getFreshFuture() : Function {
+        return Function("fut_"+ (count++), emptyList())
     }
     //todo: move this out
 	fun getFreshObjectId(className: String, map: List<Expr>): Expr {

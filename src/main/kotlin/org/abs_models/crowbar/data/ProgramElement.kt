@@ -35,7 +35,7 @@ data class AssignStmt(val lhs : Location, val rhs : Expr) : Stmt {
 }
 data class AllocateStmt(val lhs : Location, val rhs : Expr) : Stmt {
     override fun prettyPrint(): String {
-        return lhs.prettyPrint()+" = "+rhs.prettyPrint()
+        return lhs.prettyPrint()+" = new "+rhs.prettyPrint()
     }
 }
 object SkipStmt : Stmt {
@@ -74,7 +74,13 @@ data class AwaitStmt(val resExpr : Expr, val id : PP) : Stmt {
 
 data class GetStmt(val lhs : Location, val resExpr : Expr, val id : PP) : Stmt {
     override fun prettyPrint(): String {
-        return lhs.prettyPrint()+" = " +resExpr.prettyPrint()+"get{${id.prettyPrint()}}"
+        return lhs.prettyPrint()+" = " +resExpr.prettyPrint()+".get{${id.prettyPrint()}}"
+    }
+}
+
+data class CallStmt(val lhs : Location, val target : Expr, val resExpr : CallingExpr) : Stmt {
+    override fun prettyPrint(): String {
+        return "${lhs.prettyPrint()} = ${target.prettyPrint()}.${resExpr.prettyPrint()}"
     }
 }
 
@@ -87,6 +93,18 @@ data class ExprAbstractVar(val name : String) : Expr, AbstractVar {
         return name
     }
 }
+interface CallingExpr : Expr
+data class CallExprAbstractVar(val name : String) : CallingExpr, AbstractVar {
+    override fun prettyPrint(): String {
+        return name
+    }
+}
+data class CallExpr(val met : String, val e : List<Expr>) : CallingExpr{
+    override fun prettyPrint(): String {
+        return met+"("+e.map { p -> p.prettyPrint() }.fold("", { acc, nx -> "$acc,$nx" }).removePrefix(",") + ")"
+    }
+}
+
 data class AddExpr(val e1 : Expr, val e2 : Expr) : Expr {
     override fun prettyPrint(): String {
         return e1.prettyPrint()+"+"+e2.prettyPrint()

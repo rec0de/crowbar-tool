@@ -13,6 +13,7 @@ import com.github.ajalt.clikt.parameters.types.restrictTo
 import org.abs_models.crowbar.data.Formula
 import org.abs_models.frontend.ast.ClassDecl
 import org.abs_models.frontend.ast.InterfaceDecl
+import org.abs_models.frontend.ast.MethodSig
 import org.abs_models.frontend.ast.Model
 import java.nio.file.Paths
 
@@ -23,20 +24,41 @@ var smtPath  = "z3"
 var verbosity = Verbosity.NORMAL
 
 //todo: once allowedTypes is not needed anymore, the repository needs to be passed to fewer places
-data class Repository(val allowedTypes : MutableList<String> =  mutableListOf("ABS.StdLib.Int","ABS.StdLib.Fut<ABS.StdLib.Int>"),
-                      val classReqs : MutableMap<String,Pair<Formula,ClassDecl>> = mutableMapOf()){
-    fun populateClassReqs(model: Model) {
+data class Repository(private val model : Model?,
+                      val allowedTypes : MutableList<String> =  mutableListOf("ABS.StdLib.Int","ABS.StdLib.Fut<ABS.StdLib.Int>"),
+                      val classReqs : MutableMap<String,Pair<Formula,ClassDecl>> = mutableMapOf(),
+                      val methodReqs : MutableMap<String,Pair<Formula,MethodSig>> = mutableMapOf()){
+    init{
+        if(model != null) {
+            populateClassReqs(model)
+            populateMethodReqs(model)
+            populateAllowedTypes(model)
+        }
+    }
+    private fun populateClassReqs(model: Model) {
         for(moduleDecl in model.moduleDecls) {
             for (decl in moduleDecl.decls) {
                 if (decl is ClassDecl) {
                     val spec = extractSpec(decl,"Requires")
-                    classReqs[decl.name] = Pair(spec,decl)
+                    classReqs[decl.name] = Pair(spec,decl) //todo: use fully qualified name here
+                }
+            }
+        }
+    }
+    private fun populateMethodReqs(model: Model) {
+        for(moduleDecl in model.moduleDecls) {
+            for (decl in moduleDecl.decls) {
+                if (decl is InterfaceDecl) {
+                    for (mDecl in decl.allMethodSigs) {
+                        val spec = extractSpec(mDecl, "Requires")
+                        methodReqs[decl.qualifiedName+"."+mDecl.name] = Pair(spec, mDecl)
+                    }
                 }
             }
         }
     }
 
-    fun populateAllowedTypes(model: Model) {
+    private fun populateAllowedTypes(model: Model) {
         for(moduleDecl in model.moduleDecls){
             for(decl in moduleDecl.decls){
                 if(decl is InterfaceDecl){
@@ -91,7 +113,7 @@ class Main : CliktCommand() {
 
         when(target){
             is  CrowOption.FullOption -> {
-                var finalClose = true;
+                var finalClose = true
                 for( classDecl in model.extractAllClasses() ) {
                     val totalClosed = classDecl.executeAll(repos)
                     output("Crowbar  : Verification result ${classDecl.qualifiedName}: $totalClosed", Verbosity.SILENT)

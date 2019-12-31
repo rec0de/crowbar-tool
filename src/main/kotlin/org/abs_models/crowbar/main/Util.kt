@@ -51,11 +51,11 @@ fun<T : ASTNode<out ASTNode<*>>?> extractSpec(decl : ASTNode<T>, expectedSpec : 
         if(annotated.constructor != expectedSpec) continue
         val next = exprToForm(translateABSExpToSymExpr(annotated.getParam(0) as Exp))
         ret = if(ret == null) next else And(ret, next)
-        if(!multipleAllowed) break;
+        if(!multipleAllowed) break
     }
-    if(ret != null) return ret;
+    if(ret != null) return ret
     if(verbosity >= Verbosity.V)
-        println("Crowbar-v: Could not extract $expectedSpec specification, using $default")
+        println("Crowbar-v: Could not extract $expectedSpec specification, using ${default.prettyPrint()}")
     return default
 }
 
@@ -84,9 +84,7 @@ fun load(paths : List<Path>) : Pair<Model,Repository> {
     if(model.hasTypeErrors())
         throw Exception("Compilation failed with type errors")
 
-    val repos = Repository()
-    repos.populateAllowedTypes(model)
-    repos.populateClassReqs(model)
+    val repos = Repository(model)
     return Pair(model, repos)
 }
 

@@ -3,6 +3,7 @@ package org.abs_models.crowbar.types
 import org.abs_models.crowbar.data.*
 import org.abs_models.crowbar.data.Function
 import org.abs_models.crowbar.main.Repository
+import org.abs_models.crowbar.rule.FreshGenerator
 import org.abs_models.crowbar.rule.MatchCondition
 import org.abs_models.crowbar.rule.Rule
 import org.abs_models.crowbar.rule.containsAbstractVar
@@ -43,7 +44,29 @@ class PITVarAssign(private val repos: Repository) : Rule(Modality(
         return listOf(SymbolicNode(next))
     }
 }
-//Type system
+
+
+object PITFieldAssign : Rule(Modality(
+        SeqStmt(AssignStmt(ProgFieldAbstractVar("LHS"), ExprAbstractVar("EXPR")),
+                StmtAbstractVar("CONT")),
+        PostInvAbstractVar("TYPE"))) {
+
+    override fun transform(cond: MatchCondition, input : SymbolicState): List<SymbolicTree>? {
+        val lhs = cond.map[ProgFieldAbstractVar("LHS")] as Field
+        val rhs = exprToTerm(cond.map[ExprAbstractVar("EXPR")] as Expr)
+        val remainder = cond.map[StmtAbstractVar("CONT")] as Stmt
+        val target = cond.map[PostInvAbstractVar("TYPE")] as DeductType
+        val next = SymbolicState(
+                input.condition,
+                ChainUpdate(input.update, ElementaryUpdate(Heap, store(lhs, rhs))),
+                Modality(remainder, target)
+        )
+        if(containsAbstractVar(next)) return null
+        return listOf(SymbolicNode(next))
+    }
+}
+
+
 class PITAllocAssign(private val repos: Repository) : Rule(Modality(
     SeqStmt(AllocateStmt(ProgAbstractVar("LHS"), ExprAbstractVar("EXPR")),
         StmtAbstractVar("CONT")),
@@ -90,23 +113,56 @@ class PITAllocAssign(private val repos: Repository) : Rule(Modality(
     }
 }
 
-object PITFieldAssign : Rule(Modality(
-        SeqStmt(AssignStmt(ProgFieldAbstractVar("LHS"), ExprAbstractVar("EXPR")),
-                StmtAbstractVar("CONT")),
-        PostInvAbstractVar("TYPE"))) {
+
+class PITCallAssign(private val repos: Repository) : Rule(Modality(
+    SeqStmt(CallStmt(ProgAbstractVar("LHS"), ExprAbstractVar("CALLEE"), CallExprAbstractVar("CALL")),
+        StmtAbstractVar("CONT")),
+    PostInvAbstractVar("TYPE"))) {
 
     override fun transform(cond: MatchCondition, input : SymbolicState): List<SymbolicTree>? {
-        val lhs = cond.map[ProgFieldAbstractVar("LHS")] as Field
-        val rhs = exprToTerm(cond.map[ExprAbstractVar("EXPR")] as Expr)
+        val lhs = cond.map[ProgAbstractVar("LHS")] as ProgVar
+        val callee = exprToTerm(cond.map[ExprAbstractVar("CALLEE")] as Expr)
+        val call = cond.map[CallExprAbstractVar("CALL")] as CallExpr
         val remainder = cond.map[StmtAbstractVar("CONT")] as Stmt
         val target = cond.map[PostInvAbstractVar("TYPE")] as DeductType
-        val next = SymbolicState(
+
+
+        val nonenull = LogicNode(
+            Impl(
                 input.condition,
-                ChainUpdate(input.update, ElementaryUpdate(Heap, store(lhs, rhs))),
-                Modality(remainder, target)
+                UpdateOnFormula(input.update, Not(Predicate("=", listOf(callee,Function("0", emptyList())))))
+            )
+        )
+
+        //construct precondition check of the class creation
+        val precond = repos.methodReqs.getValue(call.met).first
+        val targetDecl = repos.methodReqs.getValue(call.met).second
+        val substMap = mutableMapOf<LogicElement,LogicElement>()
+        for(i in 0 until targetDecl.numParam){
+            val pName = ProgVar(targetDecl.getParam(i).name)
+            val pValue = exprToTerm(call.e[i])
+            substMap[pName] = pValue
+        }
+        val pre = LogicNode(
+            Impl(
+                input.condition,
+                UpdateOnFormula(input.update, subst(precond, substMap) as Formula)
+            )
+        )
+
+        if(containsAbstractVar(pre.formula)) return null
+
+        val freshFut = FreshGenerator.getFreshFuture()
+
+        //construct continuation
+        val next = SymbolicState(
+            input.condition, //this adds that the created object is not null
+            ChainUpdate(input.update, ElementaryUpdate(lhs, freshFut)),
+            Modality(remainder, target)
         )
         if(containsAbstractVar(next)) return null
-        return listOf(SymbolicNode(next))
+
+        return listOf(nonenull,pre,SymbolicNode(next))
     }
 }
 
@@ -238,4 +294,4 @@ object PITWhile : Rule(Modality(
     }
 }
 
-fun nextPITStrategy(repos: Repository) : Strategy = DefaultStrategy(listOf(PITVarAssign(repos),PITAllocAssign(repos),PITFieldAssign,PITReturn,PITSkip,PITIf,PITAwait,PITSkipSkip,PITWhile), repos)
+fun nextPITStrategy(repos: Repository) : Strategy = DefaultStrategy(listOf(PITVarAssign(repos),PITFieldAssign,PITAllocAssign(repos),PITCallAssign(repos),PITReturn,PITSkip,PITIf,PITAwait,PITSkipSkip,PITWhile), repos)

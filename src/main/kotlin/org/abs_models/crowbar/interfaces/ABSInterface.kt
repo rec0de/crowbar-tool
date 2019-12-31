@@ -35,6 +35,8 @@ fun translateABSExpToSymExpr(input : Exp) : Expr {
         is GetExp          -> return readFut(translateABSExpToSymExpr(input.pureExp))
         is NewExp          -> return FreshGenerator.getFreshObjectId(input.className, input.paramList.map { translateABSExpToSymExpr(it) })
         is NullExp         -> return org.abs_models.crowbar.data.Const("0")
+        is AsyncCall       -> return CallExpr(input.methodSig.contextDecl.qualifiedName+"."+input.methodSig.name,
+                                              input.params.map {  translateABSExpToSymExpr(it) })
         else -> throw Exception("Translation of ${input::class} not supported, term is $input" )
     }
 }
@@ -42,11 +44,13 @@ fun translateABSExpToSymExpr(input : Exp) : Expr {
 fun translateABSStmtToSymStmt(input: Stmt) : org.abs_models.crowbar.data.Stmt {
     when(input){
         is ExpressionStmt ->{
-            if (input.exp is GetExp){
-                return org.abs_models.crowbar.data.AssignStmt(FreshGenerator.getFreshProgVar(), translateABSExpToSymExpr(input.exp))
-            }
-            if (input.exp is NewExp){
-                return AllocateStmt(FreshGenerator.getFreshProgVar(), translateABSExpToSymExpr(input.exp))
+            when(input.exp) {
+                is GetExp       -> return org.abs_models.crowbar.data.AssignStmt(FreshGenerator.getFreshProgVar(), translateABSExpToSymExpr(input.exp))
+                is NewExp       -> return AllocateStmt(FreshGenerator.getFreshProgVar(), translateABSExpToSymExpr(input.exp))
+                is AsyncCall    -> { //todo:test
+                    val v = input.exp as AsyncCall
+                    return CallStmt(FreshGenerator.getFreshProgVar(), translateABSExpToSymExpr(v.callee), translateABSExpToSymExpr(v) as CallExpr)
+                }
             }
             throw Exception("Translation of ${input.exp::class} in an expression statement is not supported" )
         }
@@ -58,11 +62,20 @@ fun translateABSStmtToSymStmt(input: Stmt) : org.abs_models.crowbar.data.Stmt {
         }
         is VarDeclStmt -> {
             if(input.varDecl.initExp is NewExp) return AllocateStmt(ProgVar(input.varDecl.name),translateABSExpToSymExpr(input.varDecl.initExp))
+            if(input.varDecl.initExp is AsyncCall) {
+                val v = input.varDecl.initExp as AsyncCall
+                return CallStmt(ProgVar(input.varDecl.name), translateABSExpToSymExpr(v.callee), translateABSExpToSymExpr(v) as CallExpr)
+            }
             return org.abs_models.crowbar.data.AssignStmt(ProgVar(input.varDecl.name), translateABSExpToSymExpr(input.varDecl.initExp))
         }
         is AssignStmt -> {
-            val loc:Location = if(input.varNoTransform is FieldUse) Field(input.varNoTransform.name) else ProgVar(input.varNoTransform.name)
-            if(input.varNoTransform is NewExp) return AllocateStmt(loc,translateABSExpToSymExpr(input.valueNoTransform))
+            val ass = input
+            val loc:Location = if(ass.varNoTransform is FieldUse) Field(ass.varNoTransform.name) else ProgVar(ass.varNoTransform.name)
+            if(ass.valueNoTransform is NewExp) return AllocateStmt(loc,translateABSExpToSymExpr(input.valueNoTransform))
+            if(ass.valueNoTransform is AsyncCall) {
+                val v = input.valueNoTransform as AsyncCall
+                return CallStmt(loc, translateABSExpToSymExpr(v.callee), translateABSExpToSymExpr(v) as CallExpr)
+            }
             return org.abs_models.crowbar.data.AssignStmt(loc, translateABSExpToSymExpr(input.valueNoTransform))
         }
         is WhileStmt -> {
@@ -71,7 +84,6 @@ fun translateABSStmtToSymStmt(input: Stmt) : org.abs_models.crowbar.data.Stmt {
                                                          FreshGenerator.getFreshPP(),
                                                          extractSpec(input,"WhileInv"))
         }
-        //is Get
         is AwaitStmt -> return org.abs_models.crowbar.data.AwaitStmt(translateABSGuardToSymExpr(input.guard),FreshGenerator.getFreshPP())
         is ReturnStmt -> return org.abs_models.crowbar.data.ReturnStmt(translateABSExpToSymExpr(input.retExp))
         is IfStmt -> return org.abs_models.crowbar.data.IfStmt(translateABSExpToSymExpr(input.conditionNoTransform), translateABSStmtToSymStmt(input.then), translateABSStmtToSymStmt(input.`else`))

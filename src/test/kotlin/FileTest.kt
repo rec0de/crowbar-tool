@@ -100,4 +100,37 @@ class FileTest : StringSpec ({
 			load(listOf(Paths.get("src/test/resources/exception.abs")))
 		}
 	}
+	"callsuccess"{
+		forall(Row1("z3"),
+			Row1("cvc")) {
+			println("testing with: $it as backend")
+			smtPath = it
+			val (model, repos) = load(listOf(Paths.get("src/test/resources/callsimplesuccess.abs")))
+			val classDeclC = model.extractClassDecl("CallS", "C", repos)
+			classDeclC.executeAll(repos) shouldBe true
+			val classDeclD = model.extractClassDecl("CallS", "D", repos)
+			classDeclD.executeAll(repos) shouldBe true
+			val mNode = model.exctractMainNode()
+			executeNode(mNode, repos) shouldBe true
+		}
+	}
+	"callfail"{
+		forall(Row1("z3"),
+			Row1("cvc")) {
+			println("testing with: $it as backend")
+			smtPath = it
+			val (model, repos) = load(listOf(Paths.get("src/test/resources/callsimplefail.abs")))
+			val classDeclC = model.extractClassDecl("CallF", "C", repos)
+			val m0Node = classDeclC.extractMethodNode("m", repos)
+			executeNode(m0Node, repos) shouldBe false
+			val classDeclD = model.extractClassDecl("CallF", "D", repos)
+			val m1Node = classDeclD.extractMethodNode("m", repos)
+			executeNode(m1Node, repos) shouldBe false
+			val classDeclE = model.extractClassDecl("CallF", "E", repos)
+			val m2Node = classDeclE.extractMethodNode("m", repos)
+			executeNode(m2Node, repos) shouldBe false
+			val mNode = model.exctractMainNode()
+			executeNode(mNode, repos) shouldBe false
+		}
+	}
 })

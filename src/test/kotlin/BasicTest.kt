@@ -44,7 +44,7 @@ class BasicTest : StringSpec() {
                             True))
             )
 
-            val strategy = nextPITStrategy(Repository())
+            val strategy = nextPITStrategy(Repository(null))
             val node = SymbolicNode(input3, emptyList())
             strategy.execute(node)
             println(node.debugString(0))

@@ -14,7 +14,7 @@ class C() implements I{
 	
 	[Spec : Ensures(result > this.f)] 
 	Int m(Int mi, Int mj){
-		return mi+mj+this.f;
+		return this.f;
 	}
 }
 

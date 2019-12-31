@@ -1,4 +1,4 @@
-module CallF;
+module CallS;
 data Spec = ObjInv(Bool) | Ensures(Bool) | Requires(Bool) | WhileInv(Bool);
 
 interface I { 
@@ -6,6 +6,14 @@ interface I {
 	[Spec : Requires(mj > 0)] 
 	[Spec : Ensures(result > mi)] 
 	Int m(Int mi, Int mj);
+}
+interface K { 
+	[Spec : Ensures(result > 0)] 
+	Int o();
+}
+interface J extends I, K{
+	[Spec : Requires(ni < 0)] 
+	Int n(Int ni);
 }
 
 [Spec: ObjInv(this.f >= 0)]
@@ -20,33 +28,31 @@ class C() implements I{
 
 [Spec: Requires(this.other != null)]
 [Spec: ObjInv(this.other != null && this.g > 0)]
-class D(I other) implements I{
+class D(I other) implements J {
 	Int g = 1;	
 
 	[Spec : Ensures(this.g > 1)] 
 	Int m(Int mi, Int mj){
-		other!m(this.g,this.g-1);
 		this.g = this.g + 1;
 		return mi+mj;
 	}
-}
-
-
-[Spec: ObjInv(this.g > 0)]
-class E(I other) implements I{
-	Int g = 1;	
-
-	[Spec : Ensures(this.g > 1)] 
-	Int m(Int mi, Int mj){
+	
+	Int o(){
 		other!m(this.g+1,this.g);
-		this.g = this.g + 1;
-		return mi+mj;
+		return 1;
 	}
+	
+	[Spec : Ensures(result != ni)] 
+	[Spec : Ensures(result != this.g)] 
+	Int n(Int ni){
+	    	return this.g-ni;
+	}
+	
 }
           
 
 {
   I i = new C();
-  I k  = new D(i);
-  Fut<Int> f = k!m(1,1);
+  J k  = new D(i);
+  Fut<Int> f = k!n(-10);
 }
