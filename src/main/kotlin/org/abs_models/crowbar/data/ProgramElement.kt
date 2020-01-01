@@ -128,7 +128,11 @@ data class Const(val name : String)  : Expr {
 }
 
 interface Location : Expr
-data class LocationVar(val name : String) : Location, AbstractVar
+data class LocationAbstractVar(val name : String) : Location, AbstractVar{
+    override fun prettyPrint(): String {
+        return name
+    }
+}
 open class Field(val name : String) : Location, Term {
     override fun prettyPrint(): String {
         return "this.$name"

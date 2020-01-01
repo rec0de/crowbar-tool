@@ -1,52 +1,18 @@
-module CallF;
-data Spec = ObjInv(Bool) | Ensures(Bool) | Requires(Bool) | WhileInv(Bool);
+module Test;
 
-interface I { 
-	[Spec : Requires(mi > mj)] 
-	[Spec : Requires(mj > 0)] 
-	[Spec : Ensures(result > mi)] 
-	Int m(Int mi, Int mj);
+data Spec = ObjInv(Bool) | Ensures(Bool);
+
+[Spec : ObjInv(this.f >= 0)]
+class C {
+    Int f = 0;
+
+    [Spec : Ensures(result >= 0)]
+    Int m(Int v){
+        Int w = v;
+        if(w >= 0) this.f = w;
+        else       this.f = -w;
+        return v*w;
+    }
 }
 
-[Spec: ObjInv(this.f >= 0)]
-class C() implements I{
-	Int f = 0;	
-	
-	[Spec : Ensures(result > this.f)] 
-	Int m(Int mi, Int mj){
-		return mi+mj+this.f;
-	}
-}
-
-[Spec: Requires(this.other != null)]
-[Spec: ObjInv(this.other != null && this.g > 0)]
-class D(I other) implements I{
-	Int g = 1;	
-
-	[Spec : Ensures(this.g > 1)] 
-	Int m(Int mi, Int mj){
-		other!m(this.g,this.g-1);
-		this.g = this.g + 1;
-		return mi+mj;
-	}
-}
-
-
-[Spec: ObjInv(this.g > 0)]
-class E(I other) implements I{
-	Int g = 1;	
-
-	[Spec : Ensures(this.g > 1)] 
-	Int m(Int mi, Int mj){
-		other!m(this.g+1,this.g);
-		this.g = this.g + 1;
-		return mi+mj;
-	}
-}
-          
-
-{
-  I i = new C();
-  I k  = new D(i);
-  Fut<Int> f = k!m(1,1);
-}
+{}

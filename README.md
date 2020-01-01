@@ -7,9 +7,11 @@ Instead, symbolic execution generates a set of first-order formulas that are pas
 (Test are checking with [**Z3**](https://github.com/Z3Prover/z3) and [**CVC4**](https://cvc4.github.io/)).
 
 
-### Example
+**Crowbar** is at a very early development stage.
 
-Install crowbar and generate an executable jar with `./gradlew shadowJar`, save the following ABS code and call `java -jar crowbar-0.1-pre-SNAPSHOT-all.jar <file> --class=Test.C`
+## Example
+
+Clone the code, generate an executable jar with `./gradlew shadowJar`, save the following ABS code and call `java -jar crowbar-0.1-all.jar <file> --class=Test.C`
 ```
 module Test;
 
@@ -31,27 +33,7 @@ class C {
 {}
 ```
 
-### Plans
-**Crowbar** is a very early stage of development.
-
-The following features are planned as further steps (unordered)
-* ADT support
-* ProgramElements (and PIT rules etc.) for `assert` and calls
-* Taclet DSL
-* Counter-model feedback from the backends
-* First-order specification
-* BPL leading composition
-* Other solvers as backends: KeY, Vampire, SMT-RAT(for HABS), AProVe...
-* All the other BPL-types
-* Connection to the dynamic analyses
-* Frames
-* Verification and specification of SPLs without flattening
-* Basic inference for effect-types etc.
-* Encoding the [**KeYmaera X**](https://github.com/LS-Lab/KeYmaeraX-release) bridge in a BPL type
-
-### Misc.
-Please make sure that some SMT solver is installed and callable via command line. 
-
-### Minor bugs
-Right now, Crowbar does not support to pass a product to the ABS compiler.
-Right now, lists are not translated into the SMT-LIB signature, so parameter lists of classes with more than one element cause crowbar to fail.
+## Misc.
+* Please make sure that some SMT solver is installed and callable via command line. The tests use the `z3` and `cvc` commands.
+* Crowbar does not yet support any SPL option.
+* Translation into SMT-LIB fails silently if parameter lists of classes have more than one element.

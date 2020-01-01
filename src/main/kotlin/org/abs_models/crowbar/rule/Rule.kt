@@ -48,10 +48,11 @@ abstract class Rule(
         val cond = generateMatchCondition(input)
         if(cond.failure) return null
 
-        //todo: check here that the result contains no abstract variables anymore
-        return transform(cond, input)
+        val ret= transform(cond, input)
+        if(ret.any{ it.hasAbstractVar() }) return null
+        return ret
     }
 
-    abstract fun transform(cond : MatchCondition, input: SymbolicState) : List<SymbolicTree>?
+    abstract fun transform(cond : MatchCondition, input: SymbolicState) : List<SymbolicTree>
 }
 

@@ -6,7 +6,6 @@ import org.abs_models.crowbar.main.Repository
 import org.abs_models.crowbar.rule.FreshGenerator
 import org.abs_models.crowbar.rule.MatchCondition
 import org.abs_models.crowbar.rule.Rule
-import org.abs_models.crowbar.rule.containsAbstractVar
 import org.abs_models.crowbar.tree.*
 
 //todo: right now this does *NOT* distinguish between a get, a new and a normal assignment
@@ -24,56 +23,64 @@ data class PostInvariantPair(val post : Formula, val objInvariant : Formula) : P
     }
 }
 
+abstract class PITAssign(protected val repos: Repository,
+                         conclusion : Modality) : Rule(conclusion){
+
+    protected fun assignFor(loc : Location, rhs : Term) : ElementaryUpdate{
+        return if(loc is Field)   ElementaryUpdate(Heap, store(loc, rhs)) else ElementaryUpdate(loc as ProgVar, rhs)
+    }
+    protected fun symbolicNext(loc : Location,
+                     rhs : Term,
+                     remainder : Stmt,
+                     target : DeductType,
+                     iForm : Formula,
+                     iUp : UpdateElement) : SymbolicNode{
+        return SymbolicNode(SymbolicState(
+            iForm,
+            ChainUpdate(iUp, assignFor(loc,rhs)),
+            Modality(remainder, target)
+        ))
+    }
+}
+
 //Type system
-class PITVarAssign(private val repos: Repository) : Rule(Modality(
+class PITVarAssign(repos: Repository) : PITAssign(repos,Modality(
     SeqStmt(AssignStmt(ProgAbstractVar("LHS"), ExprAbstractVar("EXPR")),
         StmtAbstractVar("CONT")),
     PostInvAbstractVar("TYPE"))) {
 
-    override fun transform(cond: MatchCondition, input : SymbolicState): List<SymbolicTree>? {
+    override fun transform(cond: MatchCondition, input : SymbolicState): List<SymbolicTree> {
         val lhs = cond.map[ProgAbstractVar("LHS")] as ProgVar
         val rhs = exprToTerm(cond.map[ExprAbstractVar("EXPR")] as Expr)
         val remainder = cond.map[StmtAbstractVar("CONT")] as Stmt
         val target = cond.map[PostInvAbstractVar("TYPE")] as DeductType
-        val next = SymbolicState(
-            input.condition,
-            ChainUpdate(input.update, ElementaryUpdate(lhs, rhs)),
-            Modality(remainder, target)
-        )
-        if(containsAbstractVar(next)) return null
-        return listOf(SymbolicNode(next))
+        return listOf(symbolicNext(lhs,rhs,remainder, target, input.condition, input.update))
     }
 }
 
 
-object PITFieldAssign : Rule(Modality(
+class PITFieldAssign(repos: Repository) : PITAssign(repos,Modality(
         SeqStmt(AssignStmt(ProgFieldAbstractVar("LHS"), ExprAbstractVar("EXPR")),
                 StmtAbstractVar("CONT")),
         PostInvAbstractVar("TYPE"))) {
 
-    override fun transform(cond: MatchCondition, input : SymbolicState): List<SymbolicTree>? {
+    override fun transform(cond: MatchCondition, input : SymbolicState): List<SymbolicTree> {
         val lhs = cond.map[ProgFieldAbstractVar("LHS")] as Field
         val rhs = exprToTerm(cond.map[ExprAbstractVar("EXPR")] as Expr)
         val remainder = cond.map[StmtAbstractVar("CONT")] as Stmt
         val target = cond.map[PostInvAbstractVar("TYPE")] as DeductType
-        val next = SymbolicState(
-                input.condition,
-                ChainUpdate(input.update, ElementaryUpdate(Heap, store(lhs, rhs))),
-                Modality(remainder, target)
-        )
-        if(containsAbstractVar(next)) return null
-        return listOf(SymbolicNode(next))
+        return listOf(symbolicNext(lhs,rhs,remainder, target, input.condition, input.update))
     }
 }
 
 
-class PITAllocAssign(private val repos: Repository) : Rule(Modality(
+class PITAllocAssign(repos: Repository) : PITAssign(repos, Modality(
     SeqStmt(AllocateStmt(ProgAbstractVar("LHS"), ExprAbstractVar("EXPR")),
         StmtAbstractVar("CONT")),
     PostInvAbstractVar("TYPE"))) {
 
-    override fun transform(cond: MatchCondition, input : SymbolicState): List<SymbolicTree>? {
-        val lhs = cond.map[ProgAbstractVar("LHS")] as ProgVar
+    override fun transform(cond: MatchCondition, input : SymbolicState): List<SymbolicTree> {
+        val lhs = cond.map[ProgAbstractVar("LHS")] as Location
         val rhs = exprToTerm(cond.map[ExprAbstractVar("EXPR")] as Expr) as Function
         val remainder = cond.map[StmtAbstractVar("CONT")] as Stmt
         val target = cond.map[PostInvAbstractVar("TYPE")] as DeductType
@@ -98,29 +105,26 @@ class PITAllocAssign(private val repos: Repository) : Rule(Modality(
             )
         )
 
-        if(containsAbstractVar(pre.formula)) return null
 
+        val next = symbolicNext(lhs,
+                                            nextRhs,
+                                            remainder,
+                                            target,
+                                            And(input.condition, UpdateOnFormula(input.update, Not(Predicate("=", listOf(nextRhs, Function("0")))))),
+                                            ChainUpdate(input.update, assignFor(lhs, nextRhs)))
 
-        //construct continuation
-        val next = SymbolicState(
-            And(input.condition, UpdateOnFormula(input.update,Not(Predicate("=", listOf(nextRhs, Function("0")))))), //this adds that the created object is not null
-            ChainUpdate(input.update, ElementaryUpdate(lhs, nextRhs)),
-            Modality(remainder, target)
-        )
-        if(containsAbstractVar(next)) return null
-
-        return listOf(pre,SymbolicNode(next))
+        return listOf(pre, next)
     }
 }
 
 
-class PITCallAssign(private val repos: Repository) : Rule(Modality(
+class PITCallAssign(repos: Repository) : PITAssign(repos, Modality(
     SeqStmt(CallStmt(ProgAbstractVar("LHS"), ExprAbstractVar("CALLEE"), CallExprAbstractVar("CALL")),
         StmtAbstractVar("CONT")),
     PostInvAbstractVar("TYPE"))) {
 
-    override fun transform(cond: MatchCondition, input : SymbolicState): List<SymbolicTree>? {
-        val lhs = cond.map[ProgAbstractVar("LHS")] as ProgVar
+    override fun transform(cond: MatchCondition, input : SymbolicState): List<SymbolicTree> {
+        val lhs = cond.map[ProgAbstractVar("LHS")] as Location
         val callee = exprToTerm(cond.map[ExprAbstractVar("CALLEE")] as Expr)
         val call = cond.map[CallExprAbstractVar("CALL")] as CallExpr
         val remainder = cond.map[StmtAbstractVar("CONT")] as Stmt
@@ -150,19 +154,17 @@ class PITCallAssign(private val repos: Repository) : Rule(Modality(
             )
         )
 
-        if(containsAbstractVar(pre.formula)) return null
 
         val freshFut = FreshGenerator.getFreshFuture()
 
-        //construct continuation
-        val next = SymbolicState(
-            input.condition, //this adds that the created object is not null
-            ChainUpdate(input.update, ElementaryUpdate(lhs, freshFut)),
-            Modality(remainder, target)
-        )
-        if(containsAbstractVar(next)) return null
+        val next = symbolicNext(lhs,
+                                            freshFut,
+                                            remainder,
+                                            target,
+                                            input.condition,
+                                            ChainUpdate(input.update, assignFor(lhs, freshFut)))
 
-        return listOf(nonenull,pre,SymbolicNode(next))
+        return listOf(nonenull,pre,next)
     }
 }
 
@@ -170,7 +172,7 @@ object PITSkip : Rule(Modality(
         SkipStmt,
         PostInvariantPair(FormulaAbstractVar("POST"), FormulaAbstractVar("OBJ")))) {
 
-    override fun transform(cond: MatchCondition, input : SymbolicState): List<SymbolicTree>? {
+    override fun transform(cond: MatchCondition, input : SymbolicState): List<SymbolicTree> {
         val target = cond.map[FormulaAbstractVar("POST")] as Formula
         val res = LogicNode(
                 Impl(
@@ -186,7 +188,7 @@ object PITSkipSkip : Rule(Modality(
         SeqStmt(SkipStmt, StmtAbstractVar("CONT")),
         PostInvAbstractVar("TYPE"))) {
 
-    override fun transform(cond: MatchCondition, input : SymbolicState): List<SymbolicTree>? {
+    override fun transform(cond: MatchCondition, input : SymbolicState): List<SymbolicTree> {
         val cont = cond.map[StmtAbstractVar("CONT")] as Stmt
         val pitype = cond.map[PostInvAbstractVar("TYPE")] as DeductType
         val res = SymbolicNode(SymbolicState(input.condition, input.update, Modality(cont, pitype)))
@@ -198,7 +200,7 @@ object PITReturn : Rule(Modality(
         ReturnStmt(ExprAbstractVar("RET")),
         PostInvariantPair(FormulaAbstractVar("POST"), FormulaAbstractVar("OBJ")))) {
 
-    override fun transform(cond: MatchCondition, input : SymbolicState): List<SymbolicTree>? {
+    override fun transform(cond: MatchCondition, input : SymbolicState): List<SymbolicTree> {
         val target = cond.map[FormulaAbstractVar("OBJ")] as Formula
         val targetPost = cond.map[FormulaAbstractVar("POST")] as Formula
         val retExpr = exprToTerm(cond.map[ExprAbstractVar("RET")] as Expr)
@@ -220,7 +222,7 @@ object PITIf : Rule(Modality(
                 StmtAbstractVar("CONT")),
         PostInvAbstractVar("TYPE"))) {
 
-    override fun transform(cond: MatchCondition, input : SymbolicState): List<SymbolicTree>? {
+    override fun transform(cond: MatchCondition, input : SymbolicState): List<SymbolicTree> {
 
         //then
         val guardYes = exprToForm(cond.map[ExprAbstractVar("LHS")] as Expr)
@@ -244,7 +246,7 @@ object PITAwait : Rule(Modality(
         SeqStmt(AwaitStmt(ExprAbstractVar("GUARD"),PPAbstractVar("PP")), StmtAbstractVar("CONT")),
         PostInvariantPair(FormulaAbstractVar("POST"), FormulaAbstractVar("OBJ")))) {
 
-    override fun transform(cond: MatchCondition, input : SymbolicState): List<SymbolicTree>? {
+    override fun transform(cond: MatchCondition, input : SymbolicState): List<SymbolicTree> {
         val guard = exprToForm(cond.map[ExprAbstractVar("GUARD")] as Expr)
         val cont = cond.map[StmtAbstractVar("CONT")] as Stmt
         val target = cond.map[FormulaAbstractVar("OBJ")] as Formula
@@ -269,7 +271,7 @@ object PITWhile : Rule(Modality(
         PostInvariantPair(FormulaAbstractVar("POST"),
                           FormulaAbstractVar("OBJ")))) {
 
-    override fun transform(cond: MatchCondition, input : SymbolicState): List<SymbolicTree>? {
+    override fun transform(cond: MatchCondition, input : SymbolicState): List<SymbolicTree> {
         val guard = exprToForm(cond.map[ExprAbstractVar("GUARD")] as Expr)
         val body = cond.map[StmtAbstractVar("BODY")] as Stmt
         val cont = cond.map[StmtAbstractVar("CONT")] as Stmt
@@ -294,4 +296,4 @@ object PITWhile : Rule(Modality(
     }
 }
 
-fun nextPITStrategy(repos: Repository) : Strategy = DefaultStrategy(listOf(PITVarAssign(repos),PITFieldAssign,PITAllocAssign(repos),PITCallAssign(repos),PITReturn,PITSkip,PITIf,PITAwait,PITSkipSkip,PITWhile), repos)
+fun nextPITStrategy(repos: Repository) : Strategy = DefaultStrategy(listOf(PITVarAssign(repos),PITFieldAssign(repos),PITAllocAssign(repos),PITCallAssign(repos),PITReturn,PITSkip,PITIf,PITAwait,PITSkipSkip,PITWhile), repos)

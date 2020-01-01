@@ -16,7 +16,7 @@ plugins{
 }
 
 group 'Crowbar'
-version '0.1-pre-SNAPSHOT'
+version '0.1'
 
 apply plugin: 'kotlin'
 

@@ -16,6 +16,38 @@ import java.io.File
 import java.nio.file.Path
 import kotlin.system.exitProcess
 
+
+
+
+fun output(text : String, level : Verbosity = Verbosity.NORMAL){
+    if(verbosity >= level)
+        println(text)
+}
+
+fun load(paths : List<Path>) : Pair<Model,Repository> {
+
+    output("Crowbar  : loading files....")
+    val input = paths.map{ File(it.toString()) }
+    if(input.any { !it.exists() }) {
+        System.err.println("file not found: $paths")
+        exitProcess(-1)
+    }
+
+    output("Crowbar  : loading ABS model....")
+    val model = try {
+        org.abs_models.frontend.parser.Main().parse(input)
+    } catch (e : Exception) {
+        e.printStackTrace()
+        System.err.println("error during parsing, aborting")
+        exitProcess(-1)
+    }
+    if(model.hasTypeErrors())
+        throw Exception("Compilation failed with type errors")
+
+    val repos = Repository(model)
+    return Pair(model, repos)
+}
+
 fun extractInheritedSpec(iDecl : InterfaceTypeUse, expectedSpec : String, mSig: MethodSig, default:Formula) : Formula? {
     for( miSig in iDecl.decl.findChildren(MethodSig::class.java)){
         if(miSig.matches(mSig)) return extractSpec(miSig, expectedSpec, default)
@@ -57,35 +89,6 @@ fun<T : ASTNode<out ASTNode<*>>?> extractSpec(decl : ASTNode<T>, expectedSpec : 
     if(verbosity >= Verbosity.V)
         println("Crowbar-v: Could not extract $expectedSpec specification, using ${default.prettyPrint()}")
     return default
-}
-
-fun output(text : String, level : Verbosity = Verbosity.NORMAL){
-    if(verbosity >= level)
-        println(text)
-}
-
-fun load(paths : List<Path>) : Pair<Model,Repository> {
-
-    output("Crowbar  : loading files....")
-    val input = paths.map{ File(it.toString()) }
-    if(input.any { !it.exists() }) {
-        System.err.println("file not found: $paths")
-        exitProcess(-1)
-    }
-
-    output("Crowbar  : loading ABS model....")
-    val model = try {
-        org.abs_models.frontend.parser.Main().parse(input)
-    } catch (e : Exception) {
-        e.printStackTrace()
-        System.err.println("error during parsing, aborting")
-        exitProcess(-1)
-    }
-    if(model.hasTypeErrors())
-        throw Exception("Compilation failed with type errors")
-
-    val repos = Repository(model)
-    return Pair(model, repos)
 }
 
 
@@ -160,6 +163,7 @@ fun ClassDecl.extractInitialNode() : SymbolicNode {
     val symb = SymbolicState(objPre, EmptyUpdate, Modality(body, PostInvariantPair(True, objInv)))
     return SymbolicNode(symb, emptyList())
 }
+
 fun ClassDecl.extractMethodNode(name : String, repos: Repository) : SymbolicNode {
 
     if(name == "<init>")

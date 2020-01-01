@@ -1,6 +1,7 @@
 package org.abs_models.crowbar.interfaces
 
 import org.abs_models.crowbar.data.*
+import org.abs_models.crowbar.data.SkipStmt
 import org.abs_models.crowbar.main.extractSpec
 import org.abs_models.crowbar.rule.FreshGenerator
 import org.abs_models.frontend.ast.*
@@ -47,7 +48,7 @@ fun translateABSStmtToSymStmt(input: Stmt) : org.abs_models.crowbar.data.Stmt {
             when(input.exp) {
                 is GetExp       -> return org.abs_models.crowbar.data.AssignStmt(FreshGenerator.getFreshProgVar(), translateABSExpToSymExpr(input.exp))
                 is NewExp       -> return AllocateStmt(FreshGenerator.getFreshProgVar(), translateABSExpToSymExpr(input.exp))
-                is AsyncCall    -> { //todo:test
+                is AsyncCall    -> { 
                     val v = input.exp as AsyncCall
                     return CallStmt(FreshGenerator.getFreshProgVar(), translateABSExpToSymExpr(v.callee), translateABSExpToSymExpr(v) as CallExpr)
                 }
@@ -56,6 +57,7 @@ fun translateABSStmtToSymStmt(input: Stmt) : org.abs_models.crowbar.data.Stmt {
         }
         is Block -> {
             val subs = input.stmts.map {translateABSStmtToSymStmt(it)  }
+            if(subs.isEmpty())  return SkipStmt
             val last = subs.last()
             val tail = subs.dropLast(1)
             return tail.foldRight( last , {nx, acc -> SeqStmt(nx, acc) })
@@ -69,10 +71,9 @@ fun translateABSStmtToSymStmt(input: Stmt) : org.abs_models.crowbar.data.Stmt {
             return org.abs_models.crowbar.data.AssignStmt(ProgVar(input.varDecl.name), translateABSExpToSymExpr(input.varDecl.initExp))
         }
         is AssignStmt -> {
-            val ass = input
-            val loc:Location = if(ass.varNoTransform is FieldUse) Field(ass.varNoTransform.name) else ProgVar(ass.varNoTransform.name)
-            if(ass.valueNoTransform is NewExp) return AllocateStmt(loc,translateABSExpToSymExpr(input.valueNoTransform))
-            if(ass.valueNoTransform is AsyncCall) {
+            val loc:Location = if(input.varNoTransform is FieldUse) Field(input.varNoTransform.name) else ProgVar(input.varNoTransform.name)
+            if(input.valueNoTransform is NewExp) return AllocateStmt(loc,translateABSExpToSymExpr(input.valueNoTransform))
+            if(input.valueNoTransform is AsyncCall) {
                 val v = input.valueNoTransform as AsyncCall
                 return CallStmt(loc, translateABSExpToSymExpr(v.callee), translateABSExpToSymExpr(v) as CallExpr)
             }

@@ -4,11 +4,13 @@ import org.abs_models.crowbar.data.Formula
 import org.abs_models.crowbar.data.Not
 import org.abs_models.crowbar.data.SymbolicState
 import org.abs_models.crowbar.interfaces.evaluateSMT
+import org.abs_models.crowbar.rule.containsAbstractVar
 
 interface SymbolicTree{
     fun finishedExecution() : Boolean
     fun debugString(steps : Int) : String
     fun collectLeaves() : List<SymbolicLeaf>
+    fun hasAbstractVar() : Boolean
 }
 
 interface SymbolicLeaf : SymbolicTree{
@@ -20,6 +22,7 @@ data class StaticNode(val str : String) : SymbolicLeaf{
     override fun debugString(steps : Int) : String = "NOT IMPLEMENTED"
     override fun collectLeaves() : List<SymbolicLeaf> = listOf(this)
     override fun evaluate() : Boolean = false
+    override fun hasAbstractVar() : Boolean = false
 }
 
 data class LogicNode(val formula: Formula) : SymbolicLeaf{
@@ -35,6 +38,7 @@ data class LogicNode(val formula: Formula) : SymbolicLeaf{
     override fun finishedExecution() : Boolean = true
     override fun debugString(steps : Int) : String = "\t".repeat(steps)+formula.prettyPrint()+"\n"
     override fun collectLeaves() : List<SymbolicLeaf> = listOf(this)
+    override fun hasAbstractVar() : Boolean = containsAbstractVar(formula)
 }
 data class SymbolicNode(val content : SymbolicState, var children : List<SymbolicTree> = emptyList()) : SymbolicTree{
     override fun finishedExecution() : Boolean {
@@ -49,5 +53,6 @@ data class SymbolicNode(val content : SymbolicState, var children : List<Symboli
         return res
     }
 
+    override fun hasAbstractVar() : Boolean = containsAbstractVar(content)
     override fun collectLeaves() : List<SymbolicLeaf> = children.fold(emptyList(), { acc, nx -> acc + nx.collectLeaves()})
 }
