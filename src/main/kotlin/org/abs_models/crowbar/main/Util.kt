@@ -247,3 +247,20 @@ fun ClassDecl.executeAll(repos: Repository): Boolean{
     }
     return totalClosed
 }
+
+fun normalize(st : Stmt) : Stmt {
+    when(st){
+        is SeqStmt -> {
+            when(st.first){
+                is SeqStmt -> {
+                    val a = st.first.first
+                    val b = st.first.second
+                    val c = st.second
+                    return normalize(SeqStmt(a,SeqStmt(b,c)))
+                }
+                else -> return SeqStmt(st.first, normalize(st.second))
+            }
+        }
+        else -> return st
+    }
+}

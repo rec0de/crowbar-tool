@@ -11,6 +11,7 @@ interface SymbolicTree{
     fun debugString(steps : Int) : String
     fun collectLeaves() : List<SymbolicLeaf>
     fun hasAbstractVar() : Boolean
+    fun normalize()
 }
 
 interface SymbolicLeaf : SymbolicTree{
@@ -23,6 +24,7 @@ data class StaticNode(val str : String) : SymbolicLeaf{
     override fun collectLeaves() : List<SymbolicLeaf> = listOf(this)
     override fun evaluate() : Boolean = false
     override fun hasAbstractVar() : Boolean = false
+    override fun normalize() = Unit
 }
 
 data class LogicNode(val formula: Formula) : SymbolicLeaf{
@@ -39,6 +41,7 @@ data class LogicNode(val formula: Formula) : SymbolicLeaf{
     override fun debugString(steps : Int) : String = "\t".repeat(steps)+formula.prettyPrint()+"\n"
     override fun collectLeaves() : List<SymbolicLeaf> = listOf(this)
     override fun hasAbstractVar() : Boolean = containsAbstractVar(formula)
+    override fun normalize() = Unit
 }
 data class SymbolicNode(val content : SymbolicState, var children : List<SymbolicTree> = emptyList()) : SymbolicTree{
     override fun finishedExecution() : Boolean {
@@ -55,4 +58,7 @@ data class SymbolicNode(val content : SymbolicState, var children : List<Symboli
 
     override fun hasAbstractVar() : Boolean = containsAbstractVar(content)
     override fun collectLeaves() : List<SymbolicLeaf> = children.fold(emptyList(), { acc, nx -> acc + nx.collectLeaves()})
+    override fun normalize() {
+        content.modality.remainder = org.abs_models.crowbar.main.normalize(content.modality.remainder)
+    }
 }

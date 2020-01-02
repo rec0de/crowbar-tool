@@ -1,0 +1,58 @@
+module CallS;
+data Spec = ObjInv(Bool) | Ensures(Bool) | Requires(Bool) | WhileInv(Bool);
+
+interface GcdI { 
+	[Spec : Requires(p1 >= 0)] 
+	[Spec : Requires(p2 >= 0)] 
+	[Spec : Ensures(result >= 0)] 
+	Int gcd(Int p1, Int p2);
+}
+
+
+interface LogI { 
+	[Spec : Requires(p1 > 0)] 
+	[Spec : Ensures(result > 0)] 
+	Int log(Int p1);
+}
+
+
+[Spec : Requires(log != null)] 
+class GcdC(LogI log) implements GcdI{	
+	
+	Int gcd(Int p1, Int p2){
+		Int a = p1;
+		Int b = p2;
+		Int ret = 0;
+	
+		if (a == 0){
+			ret = b;
+		} else {
+		
+    		[Spec: WhileInv(b >= 0 && a >= 0)]
+			while(b != 0){
+				if( a > b ) a = a-b;
+				else         b = b-a;
+			}
+			ret = a;
+		}
+		return ret;		
+	}
+}
+
+[Spec : Requires(this.f == 0)] 
+[Spec : ObjInv(this.f >= 0)]
+class LogC(Int f) implements LogI{	
+
+	Int log(Int p1){
+		this.f = this.f + p1;
+		return this.f;
+	}
+	
+}
+          
+
+{
+  LogI log = new LogC(0);
+  GcdI gcd  = new GcdC(log);
+  Fut<Int> f = gcd!gcd(10,5);
+}

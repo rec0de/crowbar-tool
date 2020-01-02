@@ -10,7 +10,7 @@ interface Anything /*: Cloneable*/ {
 interface AbstractVar
 data class AnyAbstractVar(val name : String) : Anything, AbstractVar
 
-data class Modality(val remainder: Stmt, val target: DeductType) : Anything {
+data class Modality(var remainder: Stmt, val target: DeductType) : Anything {
     override fun prettyPrint() : String{ return "["+remainder.prettyPrint()+" || "+target.prettyPrint()+"]"}
 }
 data class SymbolicState(val condition: Formula, val update: UpdateElement, val modality: Modality) : Anything {

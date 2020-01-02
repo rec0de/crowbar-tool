@@ -48,7 +48,7 @@ abstract class Rule(
         val cond = generateMatchCondition(input)
         if(cond.failure) return null
 
-        val ret= transform(cond, input)
+        val ret= transform(cond, input).map { it.normalize(); it }
         if(ret.any{ it.hasAbstractVar() }) return null
         return ret
     }
