@@ -8,8 +8,8 @@ import org.abs_models.crowbar.tree.SymbolicTree
 //todo: make some less intrusive restrictions
 object FreshGenerator {
     private var count = 0
-    fun getFreshProgVar() : ProgVar {
-        return ProgVar("pv_" + (count++))
+    fun getFreshProgVar(dType : String) : ProgVar {
+        return ProgVar("pv_" + (count++), dType)
     }
     fun getFreshPP() : PP {
         return PPId(count++)

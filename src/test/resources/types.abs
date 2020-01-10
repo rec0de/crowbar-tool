@@ -1,0 +1,25 @@
+module Types;
+
+data Spec = ObjInv(Bool) | Ensures(Bool) | Requires(Bool) | WhileInv(Bool);
+
+[Spec : ObjInv(this.f >= 0)]
+class C {
+    Int f = 0;
+	
+	[Spec: Ensures(result == Unit)] 
+    Unit m(Int v){
+        Int w = v;
+        if(w >= 0) this.f = w;
+        else       this.f = -w;
+        return Unit;
+    }
+	[Spec: Ensures(result != Unit)] 
+    Unit m2(Int v){
+        Int w = v;
+        if(w >= 0) this.f = w;
+        else       this.f = -w;
+        return Unit;
+    }
+}
+
+{}

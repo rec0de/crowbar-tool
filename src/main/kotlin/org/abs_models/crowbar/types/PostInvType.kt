@@ -93,7 +93,7 @@ class PITAllocAssign(repos: Repository) : PITAssign(repos, Modality(
         val targetDecl = repos.classReqs[classNameExpr.name]!!.second
         val substMap = mutableMapOf<LogicElement,LogicElement>()
         for(i in 0 until targetDecl.numParam){
-            val pName = select(Field(targetDecl.getParam(i).name))
+            val pName = select(Field(targetDecl.getParam(i).name, targetDecl.getParam(i).type.simpleName))
             val pValue = nextRhs.params[i]
             substMap[pName] = pValue
         }
@@ -143,7 +143,7 @@ class PITCallAssign(repos: Repository) : PITAssign(repos, Modality(
         val targetDecl = repos.methodReqs.getValue(call.met).second
         val substMap = mutableMapOf<LogicElement,LogicElement>()
         for(i in 0 until targetDecl.numParam){
-            val pName = ProgVar(targetDecl.getParam(i).name)
+            val pName = ProgVar(targetDecl.getParam(i).name,targetDecl.getParam(i).type.simpleName)
             val pValue = exprToTerm(call.e[i])
             substMap[pName] = pValue
         }
@@ -208,7 +208,8 @@ object PITReturn : Rule(Modality(
                 Impl(
                         input.condition,
                         And(
-                                UpdateOnFormula(ChainUpdate(input.update, ElementaryUpdate(ReturnVar, retExpr)), targetPost),
+                                UpdateOnFormula(ChainUpdate(input.update,
+                                    ElementaryUpdate(ReturnVar("<UNKNOWN>"), retExpr)), targetPost), //todo:hack
                                 UpdateOnFormula(input.update, target)
                         )
                 )

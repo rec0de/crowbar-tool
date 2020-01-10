@@ -35,6 +35,19 @@ class FileTest : StringSpec ({
 			executeNode(fNode, repos) shouldBe false
 		}
 	}
+	"ints"{
+		forall(Row1("z3"),
+			Row1("cvc")) {
+			println("testing with: $it as backend")
+			smtPath = it
+			val (model, repos) = load(listOf(Paths.get("src/test/resources/ints.abs")))
+			val classDecl = model.extractClassDecl("Ints", "C", repos)
+			classDecl.executeAll(repos) shouldBe true
+
+			val mNode = model.exctractMainNode()
+			executeNode(mNode, repos) shouldBe true
+		}
+	}
 	"fails"{
 		forall(Row1("z3"),
 			   Row1("cvc")) {

@@ -133,9 +133,9 @@ data class LocationAbstractVar(val name : String) : Location, AbstractVar{
         return name
     }
 }
-open class Field(val name : String) : Location, Term {
+open class Field(val name : String, val dType : String = "Int") : Location, Term {
     override fun prettyPrint(): String {
-        return "this.$name"
+        return "this.$name : $dType"
     }
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -154,12 +154,12 @@ open class Field(val name : String) : Location, Term {
     override fun getFields() : Set<Field> =setOf(this)
     override fun getProgVars() : Set<ProgVar> =  emptySet()
     override fun getHeapNews() : Set<String> =  emptySet()
-    override fun toSMT() : String = name
+    override fun toSMT(isInForm : Boolean) : String = name
 }
 
-open class ProgVar(val name : String) : Location, Term {
+open class ProgVar(val name : String, val dType : String = "Int") : Location, Term {
     override fun prettyPrint(): String {
-        return name
+        return name+":"+dType
     }
 
     override fun equals(other: Any?): Boolean {
@@ -179,22 +179,22 @@ open class ProgVar(val name : String) : Location, Term {
     override fun getFields() : Set<Field> = emptySet()
     override fun getProgVars() : Set<ProgVar> = setOf(this)
     override fun getHeapNews() : Set<String> =  emptySet()
-    override fun toSMT() : String = name
+    override fun toSMT(isInForm : Boolean) : String = name
 }
-object ReturnVar : ProgVar("result")
+data class ReturnVar(val vParam : String) : ProgVar("result", vParam)
 
-data class ProgAbstractVar(val vName : String) : ProgVar(vName), AbstractVar {
+data class ProgAbstractVar(val vName : String) : ProgVar(vName, "AVAR"), AbstractVar {
     override fun prettyPrint(): String {
         return name
     }
 }
-data class ProgFieldAbstractVar(val vName : String) : Field(vName), AbstractVar {
+data class ProgFieldAbstractVar(val vName : String) : Field(vName, "AVAR"), AbstractVar {
     override fun prettyPrint(): String {
         return name
     }
     override fun getFields() : Set<Field> = emptySet()
     override fun getProgVars() : Set<ProgVar> = emptySet()
-    override fun toSMT() : String = name
+    override fun toSMT(isInForm : Boolean) : String = name
 }
 
 fun appendStmt(stmt : Stmt, add : Stmt) : Stmt {

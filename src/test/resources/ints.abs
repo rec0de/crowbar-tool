@@ -1,0 +1,57 @@
+module Ints;
+
+data Spec = ObjInv(Bool) | Ensures(Bool) | Requires(Bool) | WhileInv(Bool);
+
+[Spec : ObjInv(f)]
+[Spec : Requires(this.f)]
+class C( Bool f ) {
+    Bool g = True;
+    Bool flag = True;
+    Int fl = 0;
+    Int gl = 0;
+    
+	[Spec: Ensures(!result || this.fl >= this.gl)]
+    Bool m(){
+	    Bool ret = this.fl == this.gl && this.gl < 0 && this.fl > 0;
+        return ret && !this.f;
+    }
+    
+	[Spec: Ensures(!this.g && result)]
+    Bool m2(Bool v){
+		Bool w = this.f && False;
+		this.g = w;
+        return (v || !v);
+    }
+    
+    Unit m3(Bool v){
+        Bool w = v;
+        if(f && w)  this.f = w;
+        if(f && !w) this.f = !w;
+        if(!f) this.f = False;
+        else this.f = this.f;
+        return Unit;
+    }
+    
+	[Spec: Ensures(result)]
+    Bool m4(Bool v){
+        Int i = 100;
+        if(v) i = 10;
+        if(!v) i = 5;
+        return i<20;
+    }
+    
+	[Spec: Ensures(!this.flag || this.gl == 0)]
+    Int m5(Bool v){
+    	Bool c = False;
+    	if(flag) c = True;
+    	if(c) gl = 0;
+        return this.gl;
+    }    
+	[Spec: Ensures(!result)] // ||this.fl >= this.gl)]
+    Bool m6(){
+	    Bool ret = this.fl == this.gl && this.gl < 0 && this.fl > 0;
+        return ret;
+    }
+}
+
+{ new C(1!=2); }

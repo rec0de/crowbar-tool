@@ -86,7 +86,7 @@ fun<T : ASTNode<out ASTNode<*>>?> extractSpec(decl : ASTNode<T>, expectedSpec : 
         if(!multipleAllowed) break
     }
     if(ret != null) return ret
-    if(verbosity >= Verbosity.V)
+    if(verbosity >= Verbosity.VV)
         println("Crowbar-v: Could not extract $expectedSpec specification, using ${default.prettyPrint()}")
     return default
 }
@@ -140,7 +140,7 @@ fun ClassDecl.extractInitialNode() : SymbolicNode {
     var body = if(initBlock!= null) appendStmt(translateABSStmtToSymStmt(initBlock), ReturnStmt(unitExpr())) else ReturnStmt(unitExpr())
     for (fieldDecl in this.fields){
         if(fieldDecl.hasInitExp()){
-            val nextBody = AssignStmt(Field(fieldDecl.name), translateABSExpToSymExpr(fieldDecl.initExp))
+            val nextBody = AssignStmt(Field(fieldDecl.name, fieldDecl.type.simpleName), translateABSExpToSymExpr(fieldDecl.initExp))
             body = SeqStmt(nextBody,body)
         }
     }

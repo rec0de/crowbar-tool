@@ -25,7 +25,12 @@ var verbosity = Verbosity.NORMAL
 
 //todo: once allowedTypes is not needed anymore, the repository needs to be passed to fewer places
 data class Repository(private val model : Model?,
-                      val allowedTypes : MutableList<String> =  mutableListOf("ABS.StdLib.Int","ABS.StdLib.Unit","ABS.StdLib.Fut<ABS.StdLib.Int>"),
+                      val allowedTypes : MutableList<String> =  mutableListOf("ABS.StdLib.Int",
+                                                                              "ABS.StdLib.Bool",
+                                                                              "ABS.StdLib.Unit",
+                                                                              "ABS.StdLib.Fut<ABS.StdLib.Int>",
+                                                                              "ABS.StdLib.Fut<ABS.StdLib.Bool>",
+                                                                              "ABS.StdLib.Fut<ABS.StdLib.Unit>"),
                       val classReqs : MutableMap<String,Pair<Formula,ClassDecl>> = mutableMapOf(),
                       val methodReqs : MutableMap<String,Pair<Formula,MethodSig>> = mutableMapOf()){
     init{
