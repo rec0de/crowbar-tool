@@ -1,7 +1,6 @@
 package org.abs_models.crowbar.tree
 
 import org.abs_models.crowbar.data.Formula
-import org.abs_models.crowbar.data.Not
 import org.abs_models.crowbar.data.SymbolicState
 import org.abs_models.crowbar.interfaces.evaluateSMT
 import org.abs_models.crowbar.rule.containsAbstractVar
@@ -27,20 +26,20 @@ data class StaticNode(val str : String) : SymbolicLeaf{
     override fun normalize() = Unit
 }
 
-data class LogicNode(val formula: Formula) : SymbolicLeaf{
+data class LogicNode(val ante: Formula, val succ : Formula) : SymbolicLeaf{
     private var isEvaluated = false
     private var isValid = false
     override fun evaluate() : Boolean{
         if(isEvaluated) return isValid
-        isValid = evaluateSMT(Not(formula))  //\phi valid <-> !\phi unsat
+        isValid = evaluateSMT(ante,succ)
         isEvaluated = true
         return isValid
     }
 
     override fun finishedExecution() : Boolean = true
-    override fun debugString(steps : Int) : String = "\t".repeat(steps)+formula.prettyPrint()+"\n"
+    override fun debugString(steps : Int) : String = "\t".repeat(steps)+ante.prettyPrint()+" --> "+succ.prettyPrint()+"\n"
     override fun collectLeaves() : List<SymbolicLeaf> = listOf(this)
-    override fun hasAbstractVar() : Boolean = containsAbstractVar(formula)
+    override fun hasAbstractVar() : Boolean = containsAbstractVar(ante) || containsAbstractVar(succ)
     override fun normalize() = Unit
 }
 data class SymbolicNode(val content : SymbolicState, var children : List<SymbolicTree> = emptyList()) : SymbolicTree{

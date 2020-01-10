@@ -34,8 +34,8 @@ data class Function(val name : String, val params : List<Term> = emptyList()) : 
         return if(name.startsWith("NEW")) setOf(name) else emptySet()
     }
     override fun toSMT(isInForm : Boolean) : String {
-        var back = name;
-        if(!isInForm) {
+        var back = name
+	    if(!isInForm) {
             if (name == "||") back = "iOr"
             if (name == "&&") back = "iAnd"
             if (name == "!") back = "iNot"
@@ -118,8 +118,8 @@ data class Predicate(val name : String, val params : List<Term> = emptyList()) :
     override fun getHeapNews() : Set<String> = params.fold(emptySet(),{ acc, nx -> acc + nx.getHeapNews()})
     override fun toSMT(isInForm : Boolean) : String {
         if(params.isEmpty()) return name
-        var back = name;
-        if(!isInForm) {
+        var back = name
+	    if(!isInForm) {
             if (name == "||") back = "iOr"
             if (name == "&&") back = "iAnd"
             if (name == "!") back = "iNot"
@@ -198,7 +198,7 @@ fun exprToForm(input : Expr) : Formula {
     if(input is SExpr) return Predicate(input.op, input.e.map { ex -> exprToTerm(ex) })
     if(input is Field) return exprToForm(SExpr("=",listOf(input, Const("1"))))
     if(input is ProgVar) return exprToForm(SExpr("=",listOf(input, Const("1"))))
-    throw Exception("Expression cannot be converted to formula: "+input)
+    throw Exception("Expression cannot be converted to formula: $input")
 }
 
 fun deupdatify(input: LogicElement) : LogicElement {

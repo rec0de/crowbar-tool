@@ -8,7 +8,6 @@ import org.abs_models.crowbar.rule.MatchCondition
 import org.abs_models.crowbar.rule.Rule
 import org.abs_models.crowbar.tree.*
 
-//todo: right now this does *NOT* distinguish between a get, a new and a normal assignment
 
 //Declaration
 interface PostInvType : DeductType
@@ -99,10 +98,8 @@ class PITAllocAssign(repos: Repository) : PITAssign(repos, Modality(
         }
 
         val pre = LogicNode(
-            Impl(
-                input.condition,
-                UpdateOnFormula(input.update, subst(precond, substMap) as Formula)
-            )
+            input.condition,
+            UpdateOnFormula(input.update, subst(precond, substMap) as Formula)
         )
 
 
@@ -132,10 +129,8 @@ class PITCallAssign(repos: Repository) : PITAssign(repos, Modality(
 
 
         val nonenull = LogicNode(
-            Impl(
-                input.condition,
-                UpdateOnFormula(input.update, Not(Predicate("=", listOf(callee,Function("0", emptyList())))))
-            )
+            input.condition,
+            UpdateOnFormula(input.update, Not(Predicate("=", listOf(callee,Function("0", emptyList())))))
         )
 
         //construct precondition check of the class creation
@@ -148,10 +143,8 @@ class PITCallAssign(repos: Repository) : PITAssign(repos, Modality(
             substMap[pName] = pValue
         }
         val pre = LogicNode(
-            Impl(
-                input.condition,
-                UpdateOnFormula(input.update, subst(precond, substMap) as Formula)
-            )
+            input.condition,
+            UpdateOnFormula(input.update, subst(precond, substMap) as Formula)
         )
 
 
@@ -175,10 +168,8 @@ object PITSkip : Rule(Modality(
     override fun transform(cond: MatchCondition, input : SymbolicState): List<SymbolicTree> {
         val target = cond.map[FormulaAbstractVar("POST")] as Formula
         val res = LogicNode(
-                Impl(
-                        input.condition,
-                        UpdateOnFormula(input.update, target)
-                )
+                    input.condition,
+                    UpdateOnFormula(input.update, target)
         )
         return listOf(res)
     }
@@ -205,14 +196,12 @@ object PITReturn : Rule(Modality(
         val targetPost = cond.map[FormulaAbstractVar("POST")] as Formula
         val retExpr = exprToTerm(cond.map[ExprAbstractVar("RET")] as Expr)
         val res = LogicNode(
-                Impl(
-                        input.condition,
-                        And(
-                                UpdateOnFormula(ChainUpdate(input.update,
-                                    ElementaryUpdate(ReturnVar("<UNKNOWN>"), retExpr)), targetPost), //todo:hack
-                                UpdateOnFormula(input.update, target)
-                        )
-                )
+            input.condition,
+            And(
+                    UpdateOnFormula(ChainUpdate(input.update,
+                        ElementaryUpdate(ReturnVar("<UNKNOWN>"), retExpr)), targetPost), //todo:hack
+                    UpdateOnFormula(input.update, target)
+            )
         )
         return listOf(res)
     }
@@ -253,7 +242,7 @@ object PITAwait : Rule(Modality(
         val target = cond.map[FormulaAbstractVar("OBJ")] as Formula
         val targetPost = cond.map[FormulaAbstractVar("POST")] as Formula
 
-        val lNode = LogicNode(Impl(input.condition, UpdateOnFormula(input.update, target)))
+        val lNode = LogicNode(input.condition, UpdateOnFormula(input.update, target))
         val sStat = SymbolicState(And(input.condition,UpdateOnFormula(ChainUpdate(input.update, ElementaryUpdate(Heap,anon(Heap))), And(target,guard))),
                                  ChainUpdate(input.update, ElementaryUpdate(Heap,anon(Heap))),
                                  Modality(cont, PostInvariantPair(targetPost,target)))
@@ -281,7 +270,7 @@ object PITWhile : Rule(Modality(
         val targetPost = cond.map[FormulaAbstractVar("POST")] as Formula
 
         //Initial Case
-        val initial = LogicNode(Impl(input.condition, UpdateOnFormula(input.update, targetInv)))
+        val initial = LogicNode(input.condition, UpdateOnFormula(input.update, targetInv))
 
         //Preserves Case
         val preserves = SymbolicState(And(targetInv,guard),

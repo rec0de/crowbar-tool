@@ -223,7 +223,7 @@ fun executeNode(node : SymbolicNode, repos: Repository) : Boolean{
     var closed = true
     for(l in node.collectLeaves()){
         if(l is LogicNode){
-            output("Crowbar-v: "+ deupdatify(l.formula).prettyPrint(), Verbosity.V)
+            output("Crowbar-v: "+ deupdatify(l.ante).prettyPrint()+"->"+deupdatify(l.succ).prettyPrint(), Verbosity.V)
             closed = closed && l.evaluate()
             output("Crowbar-v: verified? ${l.evaluate()}", Verbosity.V)
         } else {
@@ -250,18 +250,18 @@ fun ClassDecl.executeAll(repos: Repository): Boolean{
 }
 
 fun normalize(st : Stmt) : Stmt {
-    when(st){
+    return when(st){
         is SeqStmt -> {
             when(st.first){
                 is SeqStmt -> {
                     val a = st.first.first
                     val b = st.first.second
                     val c = st.second
-                    return normalize(SeqStmt(a,SeqStmt(b,c)))
+                    normalize(SeqStmt(a,SeqStmt(b,c)))
                 }
-                else -> return SeqStmt(st.first, normalize(st.second))
+                else -> SeqStmt(st.first, normalize(st.second))
             }
         }
-        else -> return st
+        else -> st
     }
 }

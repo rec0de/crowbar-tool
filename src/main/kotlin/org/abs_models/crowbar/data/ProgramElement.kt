@@ -165,11 +165,12 @@ open class Field(val name : String, val dType : String = "Int") : Location, Term
     override fun toSMT(isInForm : Boolean) : String = name
 }
 
-open class ProgVar(val name : String, val dType : String = "Int") : Location, Term {
+open class ProgVar(val name : String, val dType : String = "Int") : Location, Term { //todo: change simpleName to qualifiedName and do something clever in the SMT-translation
     override fun prettyPrint(): String {
         return name+":"+dType
     }
 
+    //this ignores the type and that is ok for now
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (javaClass != other?.javaClass) return false
