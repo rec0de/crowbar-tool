@@ -36,6 +36,8 @@ fun translateABSExpToSymExpr(input : Exp) : Expr {
         is GetExp          -> return readFut(translateABSExpToSymExpr(input.pureExp))
         is NewExp          -> return FreshGenerator.getFreshObjectId(input.className, input.paramList.map { translateABSExpToSymExpr(it) })
         is NullExp         -> return org.abs_models.crowbar.data.Const("0")
+        is DataConstructorExp -> if(input.dataConstructor!!.name == "Unit")  return org.abs_models.crowbar.data.Const("0")
+                                 else throw Exception("Translation of data ${input::class} not supported, term is $input" )
         is AsyncCall       -> return CallExpr(input.methodSig.contextDecl.qualifiedName+"."+input.methodSig.name,
                                               input.params.map {  translateABSExpToSymExpr(it) })
         else -> throw Exception("Translation of ${input::class} not supported, term is $input" )

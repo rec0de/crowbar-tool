@@ -28,10 +28,10 @@ class GcdC(LogI log) implements GcdI{
 			ret = b;
 		} else {
 		
-    		[Spec: WhileInv(b >= 0 && a >= 0)]
+    		[Spec: WhileInv(b >= 0 && a > 0)]
 			while(b != 0){
 				if( a > b ) a = a-b;
-				else         b = b-a;
+				else        b = b-a;
 			}
 			ret = a;
 		}
@@ -43,6 +43,7 @@ class GcdC(LogI log) implements GcdI{
 [Spec : ObjInv(this.f >= 0)]
 class LogC(Int f) implements LogI{	
 
+    [Spec: Ensures(result == this.f)] 
 	Int log(Int p1){
 		this.f = this.f + p1;
 		return this.f;

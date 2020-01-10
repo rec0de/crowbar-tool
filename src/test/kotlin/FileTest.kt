@@ -9,12 +9,30 @@ import java.nio.file.Paths
 class FileTest : StringSpec ({
 	"success"{
 		forall(Row1("z3"),
-			   Row1("cvc")) {
+			Row1("cvc")) {
 			println("testing with: $it as backend")
 			smtPath = it
 			val (model, repos) = load(listOf(Paths.get("src/test/resources/success.abs")))
 			val classDecl = model.extractClassDecl("Success", "C", repos)
 			classDecl.executeAll(repos) shouldBe true
+		}
+	}
+	"types"{
+		forall(Row1("z3"),
+			Row1("cvc")) {
+			println("testing with: $it as backend")
+			smtPath = it
+			val (model, repos) = load(listOf(Paths.get("src/test/resources/types.abs")))
+			val classDecl = model.extractClassDecl("Types", "C", repos)
+
+			val iNode = classDecl.extractInitialNode()
+			executeNode(iNode, repos) shouldBe true
+
+			val sNode = classDecl.extractMethodNode("m", repos)
+			executeNode(sNode, repos) shouldBe true
+
+			val fNode = classDecl.extractMethodNode("m2", repos)
+			executeNode(fNode, repos) shouldBe false
 		}
 	}
 	"fails"{
