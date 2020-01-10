@@ -11,7 +11,6 @@ class C {
         Int w = v;
         if(w >= 0) this.f = w;
         else       this.f = -w;
-        return Unit;
     }
 	[Spec: Ensures(result != Unit)] 
     Unit m2(Int v){

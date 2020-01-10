@@ -22,7 +22,10 @@ data class PPAbstractVar(val name : String) : PP, AbstractVar {
     }
 }
 
-interface Stmt: ProgramElement
+interface Stmt: ProgramElement {
+    fun hasReturn(): Boolean = false
+}
+
 data class StmtAbstractVar(val name : String) : Stmt, AbstractVar {
     override fun prettyPrint(): String {
         return name
@@ -47,23 +50,28 @@ data class SeqStmt(val first : Stmt, val second : Stmt) : Stmt {
     override fun prettyPrint(): String {
         return first.prettyPrint()+";"+second.prettyPrint()
     }
+
+    override fun hasReturn(): Boolean = first.hasReturn() || second.hasReturn()
 }
 data class ReturnStmt(val resExpr : Expr) : Stmt {
     override fun prettyPrint(): String {
         return "return "+resExpr.prettyPrint()
     }
+    override fun hasReturn(): Boolean = true
 }
 
 data class IfStmt(val guard : Expr, val thenStmt : Stmt, val elseStmt : Stmt) : Stmt {
     override fun prettyPrint(): String {
         return "if( ${guard.prettyPrint()} ){ ${thenStmt.prettyPrint()} } else { ${elseStmt.prettyPrint()} }"
     }
+    override fun hasReturn(): Boolean = thenStmt.hasReturn() || elseStmt.hasReturn()
 }
 
 data class WhileStmt(val guard : Expr, val bodyStmt : Stmt, val id : PP, val invar : Formula = True) : Stmt {
     override fun prettyPrint(): String {
         return "while{${id.prettyPrint()}}( ${guard.prettyPrint()} ){ ${bodyStmt.prettyPrint()} }"
     }
+    override fun hasReturn(): Boolean = bodyStmt.hasReturn()
 }
 
 data class AwaitStmt(val resExpr : Expr, val id : PP) : Stmt {

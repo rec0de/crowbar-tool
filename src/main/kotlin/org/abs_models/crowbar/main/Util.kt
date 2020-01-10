@@ -183,13 +183,14 @@ fun ClassDecl.extractMethodNode(name : String, repos: Repository) : SymbolicNode
     val objInv: Formula?
     val metpost: Formula?
     val metpre: Formula?
-    val body: Stmt?
+    var body: Stmt?
     try {
         objInv = extractSpec(this, "ObjInv")
         metpost = extractSpec(mDecl, "Ensures")
         metpre = extractInheritedSpec(mDecl.methodSig, "Requires")
         val st = mDecl.block
         body = translateABSStmtToSymStmt(st)
+        if(!body.hasReturn()) body = appendStmt(body, ReturnStmt(unitExpr()))
     } catch (e: Exception) {
         e.printStackTrace()
         System.err.println("error during translation, aborting")

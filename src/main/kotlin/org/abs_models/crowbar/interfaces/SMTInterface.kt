@@ -35,6 +35,8 @@ val smtHeader = """
         (ite (= x y) 1 0))
     (define-fun iNeq((x Int) (y Int)) Int
         (ite (= x y) 0 1))
+    (declare-const Unit Int)
+    (assert (= Unit 0))
     """.trimIndent()
 
 fun generateSMT(formula: Formula) : String {

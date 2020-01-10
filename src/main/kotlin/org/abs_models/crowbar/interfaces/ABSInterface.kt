@@ -40,7 +40,7 @@ fun translateABSExpToSymExpr(input : Exp) : Expr {
         is NullExp              -> return org.abs_models.crowbar.data.Const("0")
         is DataConstructorExp   ->
             when(input.dataConstructor!!.name){
-                "Unit"          -> return org.abs_models.crowbar.data.Const("0")
+                "Unit"          -> return unitExpr()
                 "True"          -> return org.abs_models.crowbar.data.Const("1")
                 "False"         -> return org.abs_models.crowbar.data.Const("0")
                 else            -> throw Exception("Translation of data ${input::class} not supported, term is $input" )
