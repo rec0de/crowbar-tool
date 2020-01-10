@@ -52,6 +52,7 @@ fun extractInheritedSpec(iDecl : InterfaceTypeUse, expectedSpec : String, mSig: 
     for( miSig in iDecl.decl.findChildren(MethodSig::class.java)){
         if(miSig.matches(mSig)) return extractSpec(miSig, expectedSpec, default)
     }
+    if(iDecl.decl.getChild(1) !is org.abs_models.frontend.ast.List<*>) throw Exception("Invalid specification AST ${iDecl.decl}")
     val uses = iDecl.decl.getChild(1) as org.abs_models.frontend.ast.List<InterfaceTypeUse>
     for(use in uses){
         val next = extractInheritedSpec(use, expectedSpec, mSig, default)

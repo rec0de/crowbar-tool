@@ -1,27 +1,24 @@
-import io.kotlintest.data.forall
 import io.kotlintest.shouldBe
 import io.kotlintest.shouldThrow
 import io.kotlintest.specs.StringSpec
-import io.kotlintest.tables.Row1
 import org.abs_models.crowbar.main.*
 import java.nio.file.Paths
 
 class FileTest : StringSpec ({
-	"success"{
-		forall(Row1("z3"),
-			Row1("cvc")) {
-			println("testing with: $it as backend")
-			smtPath = it
+	"typeerror"{
+		shouldThrow<Exception> {
+			load(listOf(Paths.get("src/test/resources/exception.abs")))
+		}
+	}
+	for( smt in listOf("z3","cvc")) {
+		println("testing with: $smt as backend")
+		smtPath = smt
+		"$smt success"{
 			val (model, repos) = load(listOf(Paths.get("src/test/resources/success.abs")))
 			val classDecl = model.extractClassDecl("Success", "C", repos)
 			classDecl.executeAll(repos) shouldBe true
 		}
-	}
-	"types"{
-		forall(Row1("z3"),
-			Row1("cvc")) {
-			println("testing with: $it as backend")
-			smtPath = it
+		"$smt types"{
 			val (model, repos) = load(listOf(Paths.get("src/test/resources/types.abs")))
 			val classDecl = model.extractClassDecl("Types", "C", repos)
 
@@ -33,13 +30,9 @@ class FileTest : StringSpec ({
 
 			val fNode = classDecl.extractMethodNode("m2", repos)
 			executeNode(fNode, repos) shouldBe false
+
 		}
-	}
-	"ints"{
-		forall(Row1("z3"),
-			Row1("cvc")) {
-			println("testing with: $it as backend")
-			smtPath = it
+		"$smt ints"{
 			val (model, repos) = load(listOf(Paths.get("src/test/resources/ints.abs")))
 			val classDecl = model.extractClassDecl("Ints", "C", repos)
 			classDecl.executeAll(repos) shouldBe true
@@ -47,12 +40,7 @@ class FileTest : StringSpec ({
 			val mNode = model.exctractMainNode()
 			executeNode(mNode, repos) shouldBe true
 		}
-	}
-	"fails"{
-		forall(Row1("z3"),
-			   Row1("cvc")) {
-			println("testing with: $it as backend")
-			smtPath = it
+		"$smt fails"{
 			val (model, repos) = load(listOf(Paths.get("src/test/resources/fail.abs")))
 			val classDecl = model.extractClassDecl("Fail", "C", repos)
 
@@ -64,12 +52,7 @@ class FileTest : StringSpec ({
 				executeNode(node, repos) shouldBe false
 			}
 		}
-	}
-	"create"{
-		forall(Row1("z3"),
-			Row1("cvc")) {
-			println("testing with: $it as backend")
-			smtPath = it
+		"$smt create"{
 			val (model, repos) = load(listOf(Paths.get("src/test/resources/create.abs")))
 			val classDecl = model.extractClassDecl("Create", "C", repos)
 
@@ -85,12 +68,7 @@ class FileTest : StringSpec ({
 			val mNode = model.exctractMainNode()
 			executeNode(mNode, repos) shouldBe true
 		}
-	}
-	"reference"{
-	//	forall(Row1("z3"),
-			//Row1("cvc")) {
-			//println("testing with: $it as backend")
-			//smtPath = it
+		"$smt reference"{
 			val (model, repos) = load(listOf(Paths.get("src/test/resources/reference.abs")))
 			val classDecl = model.extractClassDecl("Reference", "C", repos)
 
@@ -111,13 +89,8 @@ class FileTest : StringSpec ({
 
 			val mNode = model.exctractMainNode()
 			executeNode(mNode, repos) shouldBe false
-		//}
-	}
-	"multi"{
-		forall(Row1("z3"),
-			Row1("cvc")) {
-			println("testing with: $it as backend")
-			smtPath = it
+		}
+		"$smt multi"{
 			val (model, repos) = load(listOf(Paths.get("src/test/resources/multi1.abs"), Paths.get("src/test/resources/multi2.abs")))
 			val classDecl = model.extractClassDecl("Multi1", "C", repos)
 			classDecl.executeAll(repos) shouldBe true
@@ -125,31 +98,16 @@ class FileTest : StringSpec ({
 			val mNode = model.exctractMainNode()
 			executeNode(mNode, repos) shouldBe true
 		}
-	}
-	"typeerror"{
-		shouldThrow<Exception> {
-			load(listOf(Paths.get("src/test/resources/exception.abs")))
+		"$smt callsuccess"{
+				val (model, repos) = load(listOf(Paths.get("src/test/resources/callsimplesuccess.abs")))
+				val classDeclC = model.extractClassDecl("CallS", "C", repos)
+				classDeclC.executeAll(repos) shouldBe true
+				val classDeclD = model.extractClassDecl("CallS", "D", repos)
+				classDeclD.executeAll(repos) shouldBe true
+				val mNode = model.exctractMainNode()
+				executeNode(mNode, repos) shouldBe true
 		}
-	}
-	"callsuccess"{
-		forall(Row1("z3"),
-			Row1("cvc")) {
-			println("testing with: $it as backend")
-			smtPath = it
-			val (model, repos) = load(listOf(Paths.get("src/test/resources/callsimplesuccess.abs")))
-			val classDeclC = model.extractClassDecl("CallS", "C", repos)
-			classDeclC.executeAll(repos) shouldBe true
-			val classDeclD = model.extractClassDecl("CallS", "D", repos)
-			classDeclD.executeAll(repos) shouldBe true
-			val mNode = model.exctractMainNode()
-			executeNode(mNode, repos) shouldBe true
-		}
-	}
-	"callfail"{
-		forall(Row1("z3"),
-			Row1("cvc")) {
-			println("testing with: $it as backend")
-			smtPath = it
+		"$smt callfail"{
 			val (model, repos) = load(listOf(Paths.get("src/test/resources/callsimplefail.abs")))
 			val classDeclC = model.extractClassDecl("CallF", "C", repos)
 			val m0Node = classDeclC.extractMethodNode("m", repos)
