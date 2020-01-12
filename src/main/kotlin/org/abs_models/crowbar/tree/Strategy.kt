@@ -1,7 +1,10 @@
 package org.abs_models.crowbar.tree
 
+import org.abs_models.crowbar.data.DeductType
 import org.abs_models.crowbar.main.Repository
 import org.abs_models.crowbar.rule.Rule
+import org.abs_models.crowbar.types.*
+import kotlin.reflect.KClass
 
 interface Strategy{
     fun execute(symbolicNode: SymbolicNode)
@@ -27,3 +30,15 @@ class DefaultStrategy(private val rules : List<Rule>, private val repos : Reposi
         }
     }
 }
+
+fun getStrategy(clazz: KClass<out DeductType>, repos: Repository) : Strategy{
+    when(clazz){
+        PostInvType::class -> return nextPITStrategy(repos)
+        RegAccType::class  -> return nextRAStrategy(repos)
+        else               -> throw Exception("unsupported type $clazz")
+    }
+}
+
+
+fun nextRAStrategy(repos: Repository) : Strategy = DefaultStrategy(listOf(RAReturn, RAFieldAssign(repos), RAVarAssign(repos)),repos)
+fun nextPITStrategy(repos: Repository) : Strategy = DefaultStrategy(listOf(PITVarAssign(repos), PITFieldAssign(repos), PITAllocAssign(repos), PITCallAssign(repos), PITReturn, PITSkip, PITIf, PITAwait, PITSkipSkip, PITWhile), repos)

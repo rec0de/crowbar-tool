@@ -8,8 +8,8 @@ import org.abs_models.crowbar.rule.MatchCondition
 import org.abs_models.crowbar.rule.containsAbstractVar
 import org.abs_models.crowbar.rule.match
 import org.abs_models.crowbar.tree.SymbolicNode
+import org.abs_models.crowbar.tree.nextPITStrategy
 import org.abs_models.crowbar.types.PostInvariantPair
-import org.abs_models.crowbar.types.nextPITStrategy
 
 class BasicTest : StringSpec() {
 
@@ -19,6 +19,15 @@ class BasicTest : StringSpec() {
     private val pattern3 = AddExpr(ExprAbstractVar("A"), Const("1"))
 
     init {
+        "collect"{
+            val stmt = WhileStmt(SExpr(">=", listOf(Field("f"), Const("0"))),
+                                 SeqStmt(AssignStmt(Field("g"), ProgVar("v")), SkipStmt),
+                                 PPId(0))
+            stmt.collectAll(Field::class).size shouldBe 2
+            stmt.collectAll(AssignStmt::class).size shouldBe 1
+            stmt.collectAll(Stmt::class).size shouldBe 4
+            stmt.collectAll(Location::class).size shouldBe 3
+        }
 
         /*"matchAndApply" {
             val cond = MatchCondition()
@@ -64,7 +73,7 @@ class BasicTest : StringSpec() {
                     )), UpdateOnFormula(ElementaryUpdate(ProgVar("v"), Function("+", listOf(ProgVar("v"), Function("1")))),
                             Not(Predicate("=", listOf(ProgVar("v"), ProgVar("w")))))))
 
-            deupdatify(s).prettyPrint() shouldBe "(0+1=0+1+1+w) /\\ (!0+1+1=w)"
+            deupdatify(s).prettyPrint() shouldBe "(0+1=0+1+1+w:Int) /\\ (!0+1+1=w:Int)"
         }
         "apply" {
             apply(ElementaryUpdate(ProgVar("v"), Function("0")),
@@ -100,7 +109,7 @@ class BasicTest : StringSpec() {
             val cond = MatchCondition()
             match(conc, pattern2, cond)
             assert(cond.failure)
-            cond.failReason shouldBe "AbstractVar A failed unification with two terms: v and 1"
+            cond.failReason shouldBe "AbstractVar A failed unification with two terms: v:Int and 1"
         }
         "matchAndFail2"{
             val cond = MatchCondition()

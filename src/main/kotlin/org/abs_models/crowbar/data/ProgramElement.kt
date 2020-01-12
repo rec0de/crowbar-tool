@@ -1,7 +1,14 @@
 package org.abs_models.crowbar.data
 
+import kotlin.reflect.KClass
 
-interface ProgramElement: Anything
+
+interface ProgramElement: Anything{
+    fun<T : Any> collectAll(clazz : KClass<T>) : Set<ProgramElement> {
+        return if(clazz.isInstance(this)) setOf(this)
+        else emptySet()
+    }
+}
 data class ProgramElementAbstractVar(val name : String) : ProgramElement, AbstractVar {
     override fun prettyPrint(): String {
         return name
@@ -35,10 +42,16 @@ data class AssignStmt(val lhs : Location, val rhs : Expr) : Stmt {
     override fun prettyPrint(): String {
         return lhs.prettyPrint()+" = "+rhs.prettyPrint()
     }
+    override fun <T : Any> collectAll(clazz: KClass<T>): Set<ProgramElement> {
+        return super.collectAll(clazz) + lhs.collectAll(clazz) + rhs.collectAll(clazz)
+    }
 }
 data class AllocateStmt(val lhs : Location, val rhs : Expr) : Stmt {
     override fun prettyPrint(): String {
         return lhs.prettyPrint()+" = new "+rhs.prettyPrint()
+    }
+    override fun <T : Any> collectAll(clazz: KClass<T>): Set<ProgramElement> {
+        return super.collectAll(clazz) + lhs.collectAll(clazz) + rhs.collectAll(clazz)
     }
 }
 object SkipStmt : Stmt {
@@ -51,11 +64,17 @@ data class SeqStmt(val first : Stmt, val second : Stmt) : Stmt {
         return first.prettyPrint()+";"+second.prettyPrint()
     }
 
+    override fun <T : Any> collectAll(clazz: KClass<T>): Set<ProgramElement> {
+        return super.collectAll(clazz) + first.collectAll(clazz) + second.collectAll(clazz)
+    }
     override fun hasReturn(): Boolean = first.hasReturn() || second.hasReturn()
 }
 data class ReturnStmt(val resExpr : Expr) : Stmt {
     override fun prettyPrint(): String {
         return "return "+resExpr.prettyPrint()
+    }
+    override fun <T : Any> collectAll(clazz: KClass<T>): Set<ProgramElement> {
+        return super.collectAll(clazz) + resExpr.collectAll(clazz)
     }
     override fun hasReturn(): Boolean = true
 }
@@ -64,12 +83,18 @@ data class IfStmt(val guard : Expr, val thenStmt : Stmt, val elseStmt : Stmt) : 
     override fun prettyPrint(): String {
         return "if( ${guard.prettyPrint()} ){ ${thenStmt.prettyPrint()} } else { ${elseStmt.prettyPrint()} }"
     }
+    override fun <T : Any> collectAll(clazz: KClass<T>): Set<ProgramElement> {
+        return super.collectAll(clazz) + guard.collectAll(clazz) + thenStmt.collectAll(clazz) + elseStmt.collectAll(clazz)
+    }
     override fun hasReturn(): Boolean = thenStmt.hasReturn() || elseStmt.hasReturn()
 }
 
 data class WhileStmt(val guard : Expr, val bodyStmt : Stmt, val id : PP, val invar : Formula = True) : Stmt {
     override fun prettyPrint(): String {
         return "while{${id.prettyPrint()}}( ${guard.prettyPrint()} ){ ${bodyStmt.prettyPrint()} }"
+    }
+    override fun <T : Any> collectAll(clazz: KClass<T>): Set<ProgramElement> {
+        return super.collectAll(clazz) + guard.collectAll(clazz) + bodyStmt.collectAll(clazz)
     }
     override fun hasReturn(): Boolean = bodyStmt.hasReturn()
 }
@@ -78,17 +103,27 @@ data class AwaitStmt(val resExpr : Expr, val id : PP) : Stmt {
     override fun prettyPrint(): String {
         return "await{${id.prettyPrint()}} "+resExpr.prettyPrint()
     }
+    override fun <T : Any> collectAll(clazz: KClass<T>): Set<ProgramElement> {
+        return super.collectAll(clazz) + resExpr.collectAll(clazz)
+    }
 }
 
+//todo: implement this
 data class GetStmt(val lhs : Location, val resExpr : Expr, val id : PP) : Stmt {
     override fun prettyPrint(): String {
         return lhs.prettyPrint()+" = " +resExpr.prettyPrint()+".get{${id.prettyPrint()}}"
+    }
+    override fun <T : Any> collectAll(clazz: KClass<T>): Set<ProgramElement> {
+        return super.collectAll(clazz) + lhs.collectAll(clazz) + resExpr.collectAll(clazz)
     }
 }
 
 data class CallStmt(val lhs : Location, val target : Expr, val resExpr : CallingExpr) : Stmt {
     override fun prettyPrint(): String {
         return "${lhs.prettyPrint()} = ${target.prettyPrint()}.${resExpr.prettyPrint()}"
+    }
+    override fun <T : Any> collectAll(clazz: KClass<T>): Set<ProgramElement> {
+        return super.collectAll(clazz) + target.collectAll(clazz) + resExpr.collectAll(clazz)
     }
 }
 
@@ -111,22 +146,34 @@ data class CallExpr(val met : String, val e : List<Expr>) : CallingExpr{
     override fun prettyPrint(): String {
         return met+"("+e.map { p -> p.prettyPrint() }.fold("", { acc, nx -> "$acc,$nx" }).removePrefix(",") + ")"
     }
+    override fun <T : Any> collectAll(clazz: KClass<T>): Set<ProgramElement> {
+        return e.fold(super.collectAll(clazz), {acc, nx -> acc + nx.collectAll(clazz)})
+    }
 }
 
 data class AddExpr(val e1 : Expr, val e2 : Expr) : Expr {
     override fun prettyPrint(): String {
         return e1.prettyPrint()+"+"+e2.prettyPrint()
     }
+    override fun <T : Any> collectAll(clazz: KClass<T>): Set<ProgramElement> {
+        return super.collectAll(clazz) + e1.collectAll(clazz) + e2.collectAll(clazz)
+    }
 }
 data class PollExpr(val e1 : Expr) : Expr {
     override fun prettyPrint(): String {
         return e1.prettyPrint()+"?"
+    }
+    override fun <T : Any> collectAll(clazz: KClass<T>): Set<ProgramElement> {
+        return super.collectAll(clazz) + e1.collectAll(clazz)
     }
 }
 data class SExpr(val op : String, val e : List<Expr>) : Expr {
     override fun prettyPrint(): String {
         if(e.isEmpty()) return op
         return op+"("+e.map { p -> p.prettyPrint() }.fold("", { acc, nx -> "$acc,$nx" }).removePrefix(",") + ")"
+    }
+    override fun <T : Any> collectAll(clazz: KClass<T>): Set<ProgramElement> {
+        return e.fold(super.collectAll(clazz), {acc, nx -> acc + nx.collectAll(clazz)})
     }
 }
 data class Const(val name : String)  : Expr {

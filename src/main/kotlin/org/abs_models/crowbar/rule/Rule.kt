@@ -3,6 +3,7 @@ package org.abs_models.crowbar.rule
 import org.abs_models.crowbar.data.*
 import org.abs_models.crowbar.data.Function
 import org.abs_models.crowbar.tree.SymbolicTree
+import org.abs_models.crowbar.types.AccVar
 
 //do not use variables starting with pv_ etc.
 //todo: make some less intrusive restrictions
@@ -17,12 +18,14 @@ object FreshGenerator {
     fun getFreshFuture() : Function {
         return Function("fut_"+ (count++), emptyList())
     }
-    //todo: move this out
 	fun getFreshObjectId(className: String, map: List<Expr>): Expr {
         if(map.isEmpty())
             return SExpr("NEW"+(count++), listOf(SExpr(className, emptyList()))+ listOf(Const("0")))
         return SExpr("NEW"+(count++), listOf(SExpr(className, emptyList()))+map)
 	}
+    fun getFreshRAVar() : AccVar{
+        return AccVar("RA_A"+(count++))
+    }
 }
 
 abstract class Rule(

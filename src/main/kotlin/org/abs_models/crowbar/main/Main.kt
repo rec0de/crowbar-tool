@@ -7,10 +7,13 @@ import com.github.ajalt.clikt.parameters.groups.mutuallyExclusiveOptions
 import com.github.ajalt.clikt.parameters.groups.required
 import com.github.ajalt.clikt.parameters.groups.single
 import com.github.ajalt.clikt.parameters.options.*
+import com.github.ajalt.clikt.parameters.types.choice
 import com.github.ajalt.clikt.parameters.types.int
 import com.github.ajalt.clikt.parameters.types.path
 import com.github.ajalt.clikt.parameters.types.restrictTo
 import org.abs_models.crowbar.data.Formula
+import org.abs_models.crowbar.types.PostInvType
+import org.abs_models.crowbar.types.RegAccType
 import org.abs_models.frontend.ast.ClassDecl
 import org.abs_models.frontend.ast.InterfaceDecl
 import org.abs_models.frontend.ast.MethodSig
@@ -87,7 +90,7 @@ sealed class CrowOption{
 class Main : CliktCommand() {
     private val filePath by argument(help="path to ABS file").path().multiple()
 
-    //the casts is convert and validate are added to make the type checker happy
+    //the casts in convert and validate are added to make the type checker happy
     private val target : CrowOption by mutuallyExclusiveOptions<CrowOption>(
         option("--method","-m",help="Verifies a single method <module>.<class.<method>")
                 .convert { CrowOption.MethodOption(it) as CrowOption }
@@ -105,9 +108,10 @@ class Main : CliktCommand() {
         option(help="Verifies the full model").switch("--full" to CrowOption.FullOption)
     ).single().required()
 
-    private val tmp      by   option("--tmp","-t",help="path to a directory used to store the .smt files").path().default(Paths.get(tmpPath))
-    private val smtCmd   by   option("--smt","-s",help="command to start SMT solver").default(smtPath)
-    private val verbose  by   option("--verbose", "-v",help="verbosity output level").int().restrictTo(Verbosity.values().indices).default(Verbosity.NORMAL.ordinal)
+    private val tmp        by   option("--tmp","-t",help="path to a directory used to store the .smt files").path().default(Paths.get(tmpPath))
+    private val smtCmd     by   option("--smt","-s",help="command to start SMT solver").default(smtPath)
+    private val verbose    by   option("--verbose", "-v",help="verbosity output level").int().restrictTo(Verbosity.values().indices).default(Verbosity.NORMAL.ordinal)
+    private val deductType by   option("--deduct","-d",help="Used Deductive Type").choice("PostInv","RegAcc").convert { when(it){"PostInv" -> PostInvType::class; "RegAcc" -> RegAccType::class; else -> throw Exception(); } }.default(PostInvType::class)
 
     override fun run() {
 
@@ -120,42 +124,42 @@ class Main : CliktCommand() {
             is  CrowOption.FullOption -> {
                 var finalClose = true
                 for( classDecl in model.extractAllClasses() ) {
-                    val totalClosed = classDecl.executeAll(repos)
+                    val totalClosed = classDecl.executeAll(repos, deductType)
                     output("Crowbar  : Verification result ${classDecl.qualifiedName}: $totalClosed", Verbosity.SILENT)
                     finalClose = finalClose && totalClosed
                 }
-                val node = model.exctractMainNode()
-                val closed = executeNode(node, repos)
+                val node = model.exctractMainNode(deductType)
+                val closed = executeNode(node, repos, deductType)
                 finalClose = finalClose && closed
                 output("Crowbar  : Verification of main: $closed", Verbosity.SILENT)
                 output("Crowbar  : Final verification result: $finalClose", Verbosity.SILENT)
             }
             is  CrowOption.MainBlockOption -> {
-                val node = model.exctractMainNode()
-                val closed = executeNode(node, repos)
+                val node = model.exctractMainNode(deductType)
+                val closed = executeNode(node, repos, deductType)
                 output("Crowbar  : Verification result: $closed", Verbosity.SILENT)
             }
             is  CrowOption.AllClassOption -> {
                 val tt = target as  CrowOption.AllClassOption
                 val targetPath = tt.path.split(".")
                 val classDecl = model.extractClassDecl(targetPath[0], targetPath[1], repos)
-                val totalClosed = classDecl.executeAll(repos)
+                val totalClosed = classDecl.executeAll(repos, deductType)
                 output("Crowbar  : Final verification result: $totalClosed", Verbosity.SILENT)
             }
             is  CrowOption.MethodOption -> {
                 val tt = target as  CrowOption.MethodOption
                 val targetPath = tt.path.split(".")
                 val classDecl = model.extractClassDecl(targetPath[0], targetPath[1], repos)
-                val node = classDecl.extractMethodNode(targetPath[2],repos)
-                val closed = executeNode(node, repos)
+                val node = classDecl.extractMethodNode(deductType, targetPath[2],repos)
+                val closed = executeNode(node, repos, deductType)
                 output("Crowbar  : Verification result: $closed", Verbosity.SILENT)
             }
             is  CrowOption.InitOption -> {
                 val tt = target as  CrowOption.InitOption
                 val targetPath = tt.path.split(".")
                 val classDecl = model.extractClassDecl(targetPath[0], targetPath[1], repos)
-                val node = classDecl.extractInitialNode()
-                val closed = executeNode(node, repos)
+                val node = classDecl.extractInitialNode(deductType)
+                val closed = executeNode(node, repos, deductType)
                 output("Crowbar  : Verification result: $closed", Verbosity.SILENT)
             }
         }

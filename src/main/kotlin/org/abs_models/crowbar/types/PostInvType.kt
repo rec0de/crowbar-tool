@@ -2,15 +2,106 @@ package org.abs_models.crowbar.types
 
 import org.abs_models.crowbar.data.*
 import org.abs_models.crowbar.data.Function
-import org.abs_models.crowbar.main.Repository
+import org.abs_models.crowbar.interfaces.translateABSExpToSymExpr
+import org.abs_models.crowbar.interfaces.translateABSStmtToSymStmt
+import org.abs_models.crowbar.main.*
 import org.abs_models.crowbar.rule.FreshGenerator
 import org.abs_models.crowbar.rule.MatchCondition
 import org.abs_models.crowbar.rule.Rule
-import org.abs_models.crowbar.tree.*
+import org.abs_models.crowbar.tree.LogicNode
+import org.abs_models.crowbar.tree.SymbolicNode
+import org.abs_models.crowbar.tree.SymbolicTree
+import org.abs_models.frontend.ast.ClassDecl
+import org.abs_models.frontend.ast.Model
+import kotlin.system.exitProcess
 
 
 //Declaration
-interface PostInvType : DeductType
+interface PostInvType : DeductType{
+    companion object : PostInvType
+    override fun extractMethodNode(classDecl: ClassDecl, name : String, repos: Repository) : SymbolicNode {
+        val mDecl = classDecl.methods.firstOrNull { it.methodSig.name == name }
+        if (mDecl == null) {
+            System.err.println("method not found: ${classDecl.qualifiedName}.${name}")
+            exitProcess(-1)
+        }
+        if (mDecl.methodSig.params.any { !repos.isAllowedType(it.type.toString()) }) {
+            System.err.println("parameters with non-Int type not supported")
+            exitProcess(-1)
+        }
+
+        output("Crowbar  : loading specification....")
+        val symb: SymbolicState?
+        val objInv: Formula?
+        val metpost: Formula?
+        val metpre: Formula?
+        var body: Stmt?
+        try {
+            objInv = extractSpec(classDecl, "ObjInv")
+            metpost = extractSpec(mDecl, "Ensures")
+            metpre = extractInheritedSpec(mDecl.methodSig, "Requires")
+            body = getNormalizedStatement(mDecl.block)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            System.err.println("error during translation, aborting")
+            exitProcess(-1)
+        }
+        output("Crowbar-v: method post-condition: ${metpost.prettyPrint()}", Verbosity.V)
+        output("Crowbar-v: object invariant: ${objInv.prettyPrint()}",Verbosity.V)
+
+        symb = SymbolicState(And(objInv,metpre), EmptyUpdate, Modality(body, PostInvariantPair(metpost, objInv)))
+        return SymbolicNode(symb, emptyList())
+    }
+
+
+
+
+
+
+
+    override fun extractInitialNode(classDecl: ClassDecl) : SymbolicNode {
+
+        var body = getNormalizedStatement(classDecl.initBlock)
+        for (fieldDecl in classDecl.fields){
+            if(fieldDecl.hasInitExp()){
+                val nextBody = AssignStmt(Field(fieldDecl.name, fieldDecl.type.simpleName), translateABSExpToSymExpr(fieldDecl.initExp))
+                body = SeqStmt(nextBody,body)
+            }
+        }
+
+        output("Crowbar  : loading specification....")
+        val objInv: Formula?
+        val objPre: Formula?
+        try {
+            objInv = extractSpec(classDecl, "ObjInv")
+            objPre = extractSpec(classDecl, "Requires")
+        } catch (e: Exception) {
+            e.printStackTrace()
+            System.err.println("error during translation, aborting")
+            exitProcess(-1)
+        }
+        if (verbosity >= Verbosity.V) {
+            output("Crowbar-v: object precondition: ${objPre.prettyPrint()}")
+            output("Crowbar-v: object invariant: ${objInv.prettyPrint()}")
+        }
+        val symb = SymbolicState(objPre, EmptyUpdate, Modality(body, PostInvariantPair(True, objInv)))
+        return SymbolicNode(symb, emptyList())
+    }
+
+
+
+
+    override fun exctractMainNode(model: Model) : SymbolicNode {
+
+        if(!model.hasMainBlock()){
+            System.err.println("model has no main block!")
+            exitProcess(-1)
+        }
+
+        val v = appendStmt(translateABSStmtToSymStmt(model.mainBlock), SkipStmt)
+        return SymbolicNode(SymbolicState(True, EmptyUpdate, Modality(v, PostInvariantPair(True, True))), emptyList())
+    }
+}
 data class PostInvAbstractVar(val name : String) : PostInvType, AbstractVar{
     override fun prettyPrint(): String {
         return name
@@ -285,5 +376,3 @@ object PITWhile : Rule(Modality(
 
     }
 }
-
-fun nextPITStrategy(repos: Repository) : Strategy = DefaultStrategy(listOf(PITVarAssign(repos),PITFieldAssign(repos),PITAllocAssign(repos),PITCallAssign(repos),PITReturn,PITSkip,PITIf,PITAwait,PITSkipSkip,PITWhile), repos)

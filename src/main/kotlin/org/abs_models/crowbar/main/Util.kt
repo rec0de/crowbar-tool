@@ -1,22 +1,18 @@
 package org.abs_models.crowbar.main
 
 import org.abs_models.crowbar.data.*
-import org.abs_models.crowbar.data.AssignStmt
-import org.abs_models.crowbar.data.ReturnStmt
-import org.abs_models.crowbar.data.SkipStmt
 import org.abs_models.crowbar.data.Stmt
 import org.abs_models.crowbar.interfaces.translateABSExpToSymExpr
-import org.abs_models.crowbar.interfaces.translateABSStmtToSymStmt
 import org.abs_models.crowbar.tree.LogicNode
 import org.abs_models.crowbar.tree.SymbolicNode
-import org.abs_models.crowbar.types.PostInvariantPair
-import org.abs_models.crowbar.types.nextPITStrategy
+import org.abs_models.crowbar.tree.getStrategy
 import org.abs_models.frontend.ast.*
 import java.io.File
 import java.nio.file.Path
+import kotlin.reflect.KClass
+import kotlin.reflect.full.companionObject
+import kotlin.reflect.full.memberFunctions
 import kotlin.system.exitProcess
-
-
 
 
 fun output(text : String, level : Verbosity = Verbosity.NORMAL){
@@ -125,90 +121,28 @@ fun Model.extractClassDecl(moduleName : String, className : String, repos : Repo
     return classDecl
 }
 
-fun Model.exctractMainNode() : SymbolicNode{
-    if(!model.hasMainBlock()){
-        System.err.println("model has no main block!")
-        exitProcess(-1)
-    }
-
-    val v = appendStmt(translateABSStmtToSymStmt(this.mainBlock), SkipStmt)
-    return SymbolicNode(SymbolicState(True, EmptyUpdate, Modality(v, PostInvariantPair(True, True))), emptyList())
+fun Model.exctractMainNode(usedType: KClass<out DeductType>) : SymbolicNode{
+    val callTarget = usedType.memberFunctions.first { it.name == "exctractMainNode" }
+    val obj = usedType.companionObject!!.objectInstance
+    return callTarget.call(obj, this) as SymbolicNode
 }
 
-fun ClassDecl.extractInitialNode() : SymbolicNode {
-
-    val initBlock = this.initBlock
-    var body = if(initBlock!= null) appendStmt(translateABSStmtToSymStmt(initBlock), ReturnStmt(unitExpr())) else ReturnStmt(unitExpr())
-    for (fieldDecl in this.fields){
-        if(fieldDecl.hasInitExp()){
-            val nextBody = AssignStmt(Field(fieldDecl.name, fieldDecl.type.simpleName), translateABSExpToSymExpr(fieldDecl.initExp))
-            body = SeqStmt(nextBody,body)
-        }
-    }
-
-    output("Crowbar  : loading specification....")
-    val objInv: Formula?
-    val objPre: Formula?
-    try {
-        objInv = extractSpec(this, "ObjInv")
-        objPre = extractSpec(this, "Requires")
-    } catch (e: Exception) {
-        e.printStackTrace()
-        System.err.println("error during translation, aborting")
-        exitProcess(-1)
-    }
-    if (verbosity >= Verbosity.V) {
-        output("Crowbar-v: object precondition: ${objPre.prettyPrint()}")
-        output("Crowbar-v: object invariant: ${objInv.prettyPrint()}")
-    }
-    val symb = SymbolicState(objPre, EmptyUpdate, Modality(body, PostInvariantPair(True, objInv)))
-    return SymbolicNode(symb, emptyList())
+fun ClassDecl.extractInitialNode(usedType: KClass<out DeductType>) : SymbolicNode {
+    val callTarget = usedType.memberFunctions.first { it.name == "extractInitialNode" }
+    val obj = usedType.companionObject!!.objectInstance
+    return callTarget.call(obj, this) as SymbolicNode
 }
 
-fun ClassDecl.extractMethodNode(name : String, repos: Repository) : SymbolicNode {
-
-    if(name == "<init>")
-        return this.extractInitialNode()
-    val mDecl = this.methods.firstOrNull { it.methodSig.name == name }
-    if (mDecl == null) {
-        System.err.println("method not found: ${this.qualifiedName}.${name}")
-        exitProcess(-1)
-    }
-    if (mDecl.methodSig.params.any { !repos.isAllowedType(it.type.toString()) }) {
-        System.err.println("parameters with non-Int type not supported")
-        exitProcess(-1)
-    }
-
-    output("Crowbar  : loading specification....")
-    val symb: SymbolicState?
-    val objInv: Formula?
-    val metpost: Formula?
-    val metpre: Formula?
-    var body: Stmt?
-    try {
-        objInv = extractSpec(this, "ObjInv")
-        metpost = extractSpec(mDecl, "Ensures")
-        metpre = extractInheritedSpec(mDecl.methodSig, "Requires")
-        val st = mDecl.block
-        body = translateABSStmtToSymStmt(st)
-        if(!body.hasReturn()) body = appendStmt(body, ReturnStmt(unitExpr()))
-    } catch (e: Exception) {
-        e.printStackTrace()
-        System.err.println("error during translation, aborting")
-        exitProcess(-1)
-    }
-    output("Crowbar-v: method post-condition: ${metpost.prettyPrint()}", Verbosity.V)
-    output("Crowbar-v: object invariant: ${objInv.prettyPrint()}",Verbosity.V)
-
-    symb = SymbolicState(And(objInv,metpre), EmptyUpdate, Modality(body, PostInvariantPair(metpost, objInv)))
-    return SymbolicNode(symb, emptyList())
-
+fun ClassDecl.extractMethodNode(usedType: KClass<out DeductType>, name : String, repos: Repository) : SymbolicNode {
+    val callTarget = usedType.memberFunctions.first { it.name == "extractMethodNode" }
+    val obj = usedType.companionObject!!.objectInstance
+    return callTarget.call(obj, this, name, repos) as SymbolicNode
 }
 
-fun executeNode(node : SymbolicNode, repos: Repository) : Boolean{
+fun executeNode(node : SymbolicNode, repos: Repository, usedType : KClass<out DeductType>) : Boolean{ //todo: this should handle inference and static leafs now
 
     output("Crowbar  : starting symbolic execution....")
-    val pit = nextPITStrategy(repos)
+    val pit = getStrategy(usedType,repos)
     pit.execute(node)
 
     output("Crowbar-v: symbolic execution tree:",Verbosity.V)
@@ -236,14 +170,14 @@ fun executeNode(node : SymbolicNode, repos: Repository) : Boolean{
     return closed
 }
 
-fun ClassDecl.executeAll(repos: Repository): Boolean{
-    val iNode = extractInitialNode()
-    var totalClosed = executeNode(iNode, repos)
+fun ClassDecl.executeAll(repos: Repository, usedType: KClass<out DeductType>): Boolean{
+    val iNode = extractInitialNode(usedType)
+    var totalClosed = executeNode(iNode, repos, usedType)
     output("Crowbar  : Verification <init>: $totalClosed")
 
     for(m in methods){
-        val node = extractMethodNode(m.methodSig.name, repos)
-        val closed = executeNode(node, repos)
+        val node = extractMethodNode(usedType, m.methodSig.name, repos)
+        val closed = executeNode(node, repos, usedType)
         output("Crowbar  : Verification ${m.methodSig.name}: $closed \n")
         totalClosed = totalClosed && closed
     }
