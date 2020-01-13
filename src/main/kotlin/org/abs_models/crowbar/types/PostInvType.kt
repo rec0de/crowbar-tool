@@ -35,7 +35,7 @@ interface PostInvType : DeductType{
         val objInv: Formula?
         val metpost: Formula?
         val metpre: Formula?
-        var body: Stmt?
+        val body: Stmt?
         try {
             objInv = extractSpec(classDecl, "ObjInv")
             metpost = extractSpec(mDecl, "Ensures")

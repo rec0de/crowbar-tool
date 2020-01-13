@@ -2,6 +2,8 @@ package org.abs_models.crowbar.types
 
 import org.abs_models.crowbar.data.*
 import org.abs_models.crowbar.main.Repository
+import org.abs_models.crowbar.main.extractInheritedSpec
+import org.abs_models.crowbar.main.extractSpec
 import org.abs_models.crowbar.rule.FreshGenerator
 import org.abs_models.crowbar.rule.MatchCondition
 import org.abs_models.crowbar.rule.Rule
@@ -11,11 +13,18 @@ import org.abs_models.crowbar.tree.SymbolicNode
 import org.abs_models.crowbar.tree.SymbolicTree
 import org.abs_models.frontend.ast.ClassDecl
 import org.abs_models.frontend.ast.Model
+import kotlin.system.exitProcess
 
 
-interface RegAcc
-data class ReadAcc(val field : Field) : RegAcc
-data class WriteAcc(val field : Field) : RegAcc
+interface RegAcc{
+	fun prettyPrint() : String
+}
+data class ReadAcc(val field : Field) : RegAcc{
+	override fun prettyPrint() : String = "R"+field.prettyPrint()
+}
+data class WriteAcc(val field : Field) : RegAcc{
+	override fun prettyPrint() : String = "W"+field.prettyPrint()
+}
 
 data class AccInferenceLeaf(val left : RegAccType, val right : RegAccType) : InferenceLeaf{
 	override fun finishedExecution() : Boolean = true
@@ -31,8 +40,37 @@ data class AccInferenceLeaf(val left : RegAccType, val right : RegAccType) : Inf
 
 //Declaration
 interface RegAccType : DeductType{
-	companion object : PostInvType
-	override fun extractMethodNode(classDecl: ClassDecl, name : String, repos: Repository) : SymbolicNode = throw Exception("This type is not executable")
+	companion object : RegAccType {
+		override fun hasAbstractVar(): Boolean = false
+	}
+	override fun extractMethodNode(classDecl: ClassDecl, name : String, repos: Repository) : SymbolicNode {
+
+		val mDecl = classDecl.methods.firstOrNull { it.methodSig.name == name }
+		if (mDecl == null) {
+			System.err.println("method not found: ${classDecl.qualifiedName}.${name}")
+			exitProcess(-1)
+		}
+		if (mDecl.methodSig.params.any { !repos.isAllowedType(it.type.toString()) }) {
+			System.err.println("parameters with non-Int type not supported")
+			exitProcess(-1)
+		}
+		val symb: SymbolicState?
+		val objInv: Formula?
+		val metpre: Formula?
+		val body: Stmt?
+		try {
+			objInv = extractSpec(classDecl, "ObjInv")
+			metpre = extractInheritedSpec(mDecl.methodSig, "Requires")
+			body = getNormalizedStatement(mDecl.block)
+		} catch (e: Exception) {
+			e.printStackTrace()
+			System.err.println("error during translation, aborting")
+			exitProcess(-1)
+		}
+
+		symb = SymbolicState(And(objInv,metpre), EmptyUpdate, Modality(body, FreshGenerator.getFreshRAVar()))
+		return SymbolicNode(symb, emptyList())
+	}
 	override fun extractInitialNode(classDecl: ClassDecl) : SymbolicNode = throw Exception("This type is not executable")
 	override fun exctractMainNode(model: Model) : SymbolicNode = throw Exception("This type cannot be applied to the main block")
 	fun hasAbstractVar() : Boolean // in the sense of BPL unification, not AccVar
@@ -46,24 +84,28 @@ data class RegAccAbstractVar(val name : String) : RegAccType, AbstractVar {
 
 data class AccVar(val name : String) : RegAccType{
 	override fun hasAbstractVar() : Boolean = false
+	override fun prettyPrint() : String = name
 }
 data class AccAtom(val fields : Set<RegAcc>) : RegAccType{
 	override fun hasAbstractVar() : Boolean = false
+	override fun prettyPrint() : String = "acc: "+fields.map { it.prettyPrint() }.toString()
 }
 data class AccSeq(val first : RegAccType, val second : RegAccType) : RegAccType {
 	override fun hasAbstractVar(): Boolean = first.hasAbstractVar() || second.hasAbstractVar()
+	override fun prettyPrint() : String = "${first.prettyPrint()} . ${second.prettyPrint()}"
 }
-data class AccBranch(val left : RegAccType, val right : RegAccType) : RegAccType {
+data class AccBranch(val left : RegAccType, val right : RegAccType): RegAccType {
 	override fun hasAbstractVar(): Boolean = left.hasAbstractVar() || right.hasAbstractVar()
+	override fun prettyPrint() : String = "${left.prettyPrint()} | ${right.prettyPrint()}"
 }
 data class AccRep(val inner : RegAccType) : RegAccType {
 	override fun hasAbstractVar(): Boolean = inner.hasAbstractVar()
+	override fun prettyPrint() : String = "$({inner.prettyPrint()})*"
 }
 
-abstract class RAAssign(protected val repos: Repository,
-                         conclusion : Modality) : Rule(conclusion){
+abstract class RAAssign(conclusion : Modality) : Rule(conclusion){
 
-	protected fun assignFor(loc : Location, rhs : Term) : ElementaryUpdate{
+	private fun assignFor(loc : Location, rhs : Term) : ElementaryUpdate{
 		return if(loc is Field)   ElementaryUpdate(Heap, store(loc, rhs)) else ElementaryUpdate(loc as ProgVar, rhs)
 	}
 	protected fun symbolicNext(loc : Location,
@@ -79,7 +121,7 @@ abstract class RAAssign(protected val repos: Repository,
 		))
 	}
 }
-class RAVarAssign(repos: Repository) : RAAssign(repos, Modality(
+object RAVarAssign : RAAssign(Modality(
 	SeqStmt(AssignStmt(ProgAbstractVar("LHS"), ExprAbstractVar("EXPR")),
 		StmtAbstractVar("CONT")),
 	RegAccAbstractVar("TYPE"))) {
@@ -88,18 +130,18 @@ class RAVarAssign(repos: Repository) : RAAssign(repos, Modality(
 		val lhs = cond.map[ProgAbstractVar("LHS")] as ProgVar
 		val rhs = cond.map[ExprAbstractVar("EXPR")] as Expr
 		val remainder = cond.map[StmtAbstractVar("CONT")] as Stmt
-		val target = cond.map[PostInvAbstractVar("TYPE")] as RegAccType
+		val target = cond.map[RegAccAbstractVar("TYPE")] as RegAccType
 		val myVar = FreshGenerator.getFreshRAVar()
 		val infLeaf = AccInferenceLeaf(
-			myVar,
-			AccSeq(target, AccAtom(generateAccs(rhs)))
+			target,
+			AccSeq(AccAtom(generateAccs(rhs)), myVar)
 		)
-		return listOf(infLeaf, symbolicNext(lhs, exprToTerm(rhs), remainder, target, input.condition, input.update))
+		return listOf(infLeaf, symbolicNext(lhs, exprToTerm(rhs), remainder, myVar, input.condition, input.update))
 	}
 }
 
 
-class RAFieldAssign(repos: Repository) : RAAssign(repos, Modality(
+object RAFieldAssign : RAAssign(Modality(
 	SeqStmt(AssignStmt(ProgFieldAbstractVar("LHS"), ExprAbstractVar("EXPR")),
 		StmtAbstractVar("CONT")),
 	RegAccAbstractVar("TYPE"))) {
@@ -108,13 +150,14 @@ class RAFieldAssign(repos: Repository) : RAAssign(repos, Modality(
 		val lhs = cond.map[ProgFieldAbstractVar("LHS")] as Field
 		val rhs = cond.map[ExprAbstractVar("EXPR")] as Expr
 		val remainder = cond.map[StmtAbstractVar("CONT")] as Stmt
-		val target = cond.map[PostInvAbstractVar("TYPE")] as RegAccType
+		val target = cond.map[RegAccAbstractVar("TYPE")] as RegAccType
 		val myVar = FreshGenerator.getFreshRAVar()
+		val second = AccAtom(generateAccs(rhs) + WriteAcc(lhs))
 		val infLeaf = AccInferenceLeaf(
-			myVar,
-			AccSeq(target, AccAtom(generateAccs(rhs) + WriteAcc(lhs)))
+			target,
+			AccSeq(second, myVar)
 		)
-		return listOf(infLeaf, symbolicNext(lhs, exprToTerm(rhs), remainder, target, input.condition, input.update))
+		return listOf(infLeaf, symbolicNext(lhs, exprToTerm(rhs), remainder, myVar, input.condition, input.update))
 	}
 }
 
@@ -124,12 +167,11 @@ object RAReturn : Rule(Modality(
 	RegAccAbstractVar("TYPE"))) {
 
 	override fun transform(cond: MatchCondition, input : SymbolicState): List<SymbolicTree> {
-		val target = cond.map[PostInvAbstractVar("TYPE")] as RegAccType
-		val myVar = FreshGenerator.getFreshRAVar()
+		val target = cond.map[RegAccAbstractVar("TYPE")] as RegAccType
 		val retExpr = cond.map[ExprAbstractVar("RET")] as Expr
 		val res = AccInferenceLeaf(
-			myVar,
-			AccSeq(target, AccAtom(generateAccs(retExpr)))
+			target,
+			AccAtom(generateAccs(retExpr))
 		)
 		return listOf(res)
 	}

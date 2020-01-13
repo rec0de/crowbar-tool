@@ -1,18 +1,15 @@
 module Test;
 
-data Spec = ObjInv(Bool) | Ensures(Bool);
+data Spec = ObjInv(Bool) | Ensures(Bool) | Requires(Bool) | WhileInv(Bool);
 
-[Spec : ObjInv(this.f >= 0)]
-class C {
-    Int f = 0;
-
-    [Spec : Ensures(result >= 0)]
-    Int m(Int v){
-        Int w = v;
-        if(w >= 0) this.f = w;
-        else       this.f = -w;
-        return v*w;
+class C( Int f ) {
+	Int g= 0;
+    
+    Unit m(Int v){
+        this.g = this.f;
+        this.f = v;
+        v = this.g;
     }
 }
 
-{}
+{ new C(1); }
