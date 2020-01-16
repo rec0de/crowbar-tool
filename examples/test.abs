@@ -3,7 +3,7 @@ module Test;
 data Spec = ObjInv(Bool) | Ensures(Bool) | Requires(Bool) | WhileInv(Bool);
 
 class C( Int f ) {
-	Int g= 0;
+	Int g = 0;
     
     Unit m(Int v){
         this.g = this.f;
