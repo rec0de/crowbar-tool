@@ -123,5 +123,18 @@ class PostInvTest : StringSpec ({
 			val mNode = model.exctractMainNode(postInv)
 			executeNode(mNode, repos, postInv) shouldBe false
 		}
+		"$smt selfcall"{
+			val (model, repos) = load(listOf(Paths.get("src/test/resources/selfcall.abs")))
+			val classDecl = model.extractClassDecl("Self", "C", repos)
+			val m0Node = classDecl.extractMethodNode(postInv, "n", repos)
+			executeNode(m0Node, repos, postInv) shouldBe true
+			val m1Node = classDecl.extractMethodNode(postInv, "m", repos)
+			executeNode(m1Node, repos, postInv) shouldBe true
+			val m2Node = classDecl.extractMethodNode(postInv, "m2", repos)
+			executeNode(m2Node, repos, postInv) shouldBe false
+			val mNode = model.exctractMainNode(postInv)
+			executeNode(mNode, repos, postInv) shouldBe true
+
+		}
 	}
 })

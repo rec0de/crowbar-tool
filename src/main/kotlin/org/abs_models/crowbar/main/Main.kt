@@ -12,6 +12,7 @@ import com.github.ajalt.clikt.parameters.types.int
 import com.github.ajalt.clikt.parameters.types.path
 import com.github.ajalt.clikt.parameters.types.restrictTo
 import org.abs_models.crowbar.data.Formula
+import org.abs_models.crowbar.data.True
 import org.abs_models.crowbar.types.PostInvType
 import org.abs_models.crowbar.types.RegAccType
 import org.abs_models.frontend.ast.ClassDecl
@@ -45,6 +46,7 @@ data class Repository(private val model : Model?,
     }
     private fun populateClassReqs(model: Model) {
         for(moduleDecl in model.moduleDecls) {
+            if(moduleDecl.name.startsWith("ABS.StdLib")) continue
             for (decl in moduleDecl.decls) {
                 if (decl is ClassDecl) {
                     val spec = extractSpec(decl,"Requires")
@@ -55,11 +57,23 @@ data class Repository(private val model : Model?,
     }
     private fun populateMethodReqs(model: Model) {
         for(moduleDecl in model.moduleDecls) {
+            if(moduleDecl.name.startsWith("ABS.StdLib")) continue
             for (decl in moduleDecl.decls) {
                 if (decl is InterfaceDecl) {
                     for (mDecl in decl.allMethodSigs) {
                         val spec = extractSpec(mDecl, "Requires")
                         methodReqs[decl.qualifiedName+"."+mDecl.name] = Pair(spec, mDecl)
+                    }
+                }
+                if(decl is ClassDecl){
+                    for(mImpl in decl.methods){
+                        val iUse = getDeclaration(mImpl.methodSig,mImpl.contextDecl as ClassDecl)
+                        if(iUse == null){
+                            methodReqs[decl.qualifiedName+"."+mImpl.methodSig.name] = Pair(True, mImpl.methodSig)
+                        } else {
+                            val spec = extractSpec(iUse.allMethodSigs.first { it.matches(mImpl.methodSig) }, "Requires")
+                            methodReqs[decl.qualifiedName+"."+mImpl.methodSig.name] = Pair(spec, mImpl.methodSig)
+                        }
                     }
                 }
             }
@@ -68,6 +82,7 @@ data class Repository(private val model : Model?,
 
     private fun populateAllowedTypes(model: Model) {
         for(moduleDecl in model.moduleDecls){
+            if(moduleDecl.name.startsWith("ABS.StdLib")) continue
             for(decl in moduleDecl.decls){
                 if(decl is InterfaceDecl){
                     allowedTypes += decl.qualifiedName

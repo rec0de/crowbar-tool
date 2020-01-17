@@ -200,3 +200,25 @@ fun normalize(st : Stmt) : Stmt {
         else -> st
     }
 }
+
+
+fun getDeclaration(mSig: MethodSig, cDecl : ClassDecl): InterfaceDecl? {
+    for(iiDecl  in cDecl.implementedInterfaceUses.map{ it.decl }){
+        val next = iiDecl as InterfaceDecl
+        val ret = getIDeclaration(mSig,next)
+        if(ret != null) return ret
+    }
+    return null
+}
+
+fun getIDeclaration(mSig: MethodSig, iDecl : InterfaceDecl): InterfaceDecl?{
+    for(mDecl in iDecl.allMethodSigs){
+        if(mDecl.matches(mSig)) return iDecl
+    }
+    for(iiDecl in iDecl.extendedInterfaceUseList){
+        val next = iiDecl.decl as InterfaceDecl
+        val ret = getIDeclaration(mSig,next)
+        if(ret != null) return ret
+    }
+    return null
+}

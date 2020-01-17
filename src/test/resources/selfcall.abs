@@ -1,0 +1,34 @@
+module Self;
+
+data Spec = ObjInv(Bool) | Ensures(Bool) | Requires(Bool) | WhileInv(Bool);
+
+interface I { 
+	[Spec : Requires(v >= 0)] 
+	Unit m(Int v);
+	[Spec : Requires(w >= 0)] 
+	[Spec : Ensures(result > 0)] 
+	Int n(Int w);
+}
+
+[Spec : ObjInv(this.g >= 0)] 
+class C implements I {
+	Int g = 0;
+    
+    Int n(Int w){
+    	return 10;
+    }
+    
+    Unit m(Int v){
+    	Fut<Int> f = this!n(v);
+    }
+    
+    //should fail
+    Unit m2(Int v){
+    	Fut<Int> f = this!n(-v);
+    }
+}
+
+{ 
+	I i = new C(); 
+	i!m(1);
+}

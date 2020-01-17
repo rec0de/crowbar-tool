@@ -38,6 +38,7 @@ fun translateABSExpToSymExpr(input : Exp) : Expr {
         is NegExp               -> return SExpr("!", listOf(translateABSExpToSymExpr(input.operand)))
         is NewExp               -> return FreshGenerator.getFreshObjectId(input.className, input.paramList.map { translateABSExpToSymExpr(it) })
         is NullExp              -> return org.abs_models.crowbar.data.Const("0")
+        is ThisExp              -> return org.abs_models.crowbar.data.Const("1")
         is DataConstructorExp   ->
             return when(input.dataConstructor!!.name){
                 "Unit"          -> unitExpr()
