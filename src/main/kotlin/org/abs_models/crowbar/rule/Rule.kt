@@ -26,6 +26,7 @@ object FreshGenerator {
     fun getFreshRAVar() : AccVar{
         return AccVar("RA_A"+(count++))
     }
+    fun reset(){ count = 0 } //test only
 }
 
 abstract class Rule(

@@ -177,6 +177,33 @@ object RAReturn : Rule(Modality(
 	}
 }
 
+object RASkip : Rule(Modality(
+	SkipStmt,
+	RegAccAbstractVar("TYPE"))) {
+
+	override fun transform(cond: MatchCondition, input : SymbolicState): List<SymbolicTree> {
+		val target = cond.map[RegAccAbstractVar("TYPE")] as RegAccType
+		val res = AccInferenceLeaf(
+			target,
+			target)
+
+		return listOf(res)
+	}
+}
+
+object RASkipSkip : Rule(Modality(
+	SeqStmt(SkipStmt, StmtAbstractVar("CONT")),
+	RegAccAbstractVar("TYPE"))) {
+
+	override fun transform(cond: MatchCondition, input : SymbolicState): List<SymbolicTree> {
+		val cont = cond.map[StmtAbstractVar("CONT")] as Stmt
+		val ratype = cond.map[RegAccAbstractVar("TYPE")] as RegAccType
+		val res = SymbolicNode(SymbolicState(input.condition, input.update, Modality(cont, ratype)))
+		return listOf(res)
+	}
+}
+
+
 fun generateAccs(input: Expr): Set<RegAcc> {
 	return input.collectAll(Field::class).map { ReadAcc(it as Field) }.toSet()
 }

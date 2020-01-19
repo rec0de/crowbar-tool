@@ -162,8 +162,9 @@ fun executeNode(node : SymbolicNode, repos: Repository, usedType : KClass<out De
             closed = closed && l.evaluate()
             output("Crowbar-v: verified? ${l.evaluate()}", Verbosity.V)
         } else {
-            System.err.println("Crowbar-v: static analysis nodes not supported")
-            exitProcess(-1)
+            System.err.println("Crowbar-v: non-logical analysis nodes not supported")
+            throw Exception("Crowbar-v: non-logical analysis nodes not supported")
+            //exitProcess(-1)
         }
     }
 

@@ -11,6 +11,7 @@ interface SymbolicTree{
     fun collectLeaves() : List<SymbolicLeaf>
     fun hasAbstractVar() : Boolean
     fun normalize()
+    fun collectInferenceLeaves() : List<InferenceLeaf> = this.collectLeaves().filterIsInstance<InferenceLeaf>()
 }
 
 interface SymbolicLeaf : SymbolicTree{
@@ -63,3 +64,4 @@ data class SymbolicNode(val content : SymbolicState, var children : List<Symboli
         content.modality.remainder = org.abs_models.crowbar.main.normalize(content.modality.remainder)
     }
 }
+
