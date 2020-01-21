@@ -58,7 +58,7 @@ fun extractInheritedSpec(iDecl : InterfaceTypeUse, expectedSpec : String, mSig: 
 }
 
 fun extractInheritedSpec(mSig : MethodSig, expectedSpec : String, default:Formula = True) : Formula {
-    val direct = extractSpec(mSig.contextDecl, expectedSpec, default)
+    val direct = extractSpec(mSig, expectedSpec, default)
     val conDecl = mSig.contextDecl
     if(conDecl is ClassDecl){
         for( iDecl in conDecl.implementedInterfaceUses){

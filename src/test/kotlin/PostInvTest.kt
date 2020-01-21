@@ -53,6 +53,9 @@ class PostInvTest : StringSpec ({
 				val node = classDecl.extractMethodNode(postInv,m.methodSig.name, repos)
 				executeNode(node, repos, postInv) shouldBe false
 			}
+			val classDecl2 = model.extractClassDecl("Fail", "D", repos)
+			val node2 = classDecl2.extractMethodNode(postInv,"failure", repos)
+			executeNode(node2, repos, postInv) shouldBe false
 		}
 		"$smt create"{
 			val (model, repos) = load(listOf(Paths.get("src/test/resources/create.abs")))

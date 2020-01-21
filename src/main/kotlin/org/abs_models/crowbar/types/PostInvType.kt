@@ -135,8 +135,7 @@ abstract class PITAssign(protected val repos: Repository,
 
 //Type system
 class PITVarAssign(repos: Repository) : PITAssign(repos,Modality(
-    SeqStmt(AssignStmt(ProgAbstractVar("LHS"), ExprAbstractVar("EXPR")),
-        StmtAbstractVar("CONT")),
+    SeqStmt(AssignStmt(ProgAbstractVar("LHS"), ExprAbstractVar("EXPR")), StmtAbstractVar("CONT")),
     PostInvAbstractVar("TYPE"))) {
 
     override fun transform(cond: MatchCondition, input : SymbolicState): List<SymbolicTree> {

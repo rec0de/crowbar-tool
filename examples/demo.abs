@@ -17,6 +17,7 @@ interface LogI {
 
 
 [Spec : Requires(log != null)] 
+[Spec : ObjInv(log != null)] 
 class GcdC(LogI log) implements GcdI{	
 	
 	Int gcd(Int p1, Int p2){
@@ -28,11 +29,12 @@ class GcdC(LogI log) implements GcdI{
 			ret = b;
 		} else {
 		
-    		[Spec: WhileInv(b >= 0 && a > 0)]
+    		[Spec: WhileInv(b >= 0 && a > 0 && log != null)]
 			while(b != 0){
 				if( a > b ) a = a-b;
 				else        b = b-a;
 			}
+            log!log(a);
 			ret = a;
 		}
 		return ret;		
@@ -50,7 +52,7 @@ class LogC(Int f) implements LogI{
 	}
 	
 }
-          
+
 
 {
   LogI log = new LogC(0);

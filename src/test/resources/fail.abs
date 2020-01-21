@@ -52,6 +52,22 @@ class C(Fut<Int> sth, Int k) {
 
 }
 
+//for the bug that the class requires was added to the method requires
+[Spec : Requires(this.f == 0)]
+[Spec : ObjInv(this.f > 0)]
+class D(Int f){
+    Unit inc(){
+      this.f = this.f + 1;
+    }
+
+
+    [Spec : Requires(this.f > 0)]
+    [Spec : Ensures(result == 1)]
+    Int failure(){
+        return 0;
+    }
+}
+
 {
 
 }
