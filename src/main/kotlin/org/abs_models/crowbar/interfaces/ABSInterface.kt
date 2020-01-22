@@ -1,6 +1,7 @@
 package org.abs_models.crowbar.interfaces
 
 import org.abs_models.crowbar.data.*
+import org.abs_models.crowbar.data.Const
 import org.abs_models.crowbar.data.SkipStmt
 import org.abs_models.crowbar.main.extractSpec
 import org.abs_models.crowbar.rule.FreshGenerator
@@ -20,7 +21,7 @@ fun translateABSExpToSymExpr(input : Exp) : Expr {
                 return ReturnVar(input.type.simpleName)
             return ProgVar(input.name, input.type.simpleName)
         }
-        is IntLiteral           -> return org.abs_models.crowbar.data.Const(input.content)
+        is IntLiteral           -> return Const(input.content)
         is GTEQExp              -> return SExpr(">=", listOf(translateABSExpToSymExpr(input.left), translateABSExpToSymExpr(input.right)))
         is LTEQExp              -> return SExpr("<=", listOf(translateABSExpToSymExpr(input.left), translateABSExpToSymExpr(input.right)))
         is GTExp                -> return SExpr(">", listOf(translateABSExpToSymExpr(input.left), translateABSExpToSymExpr(input.right)))
@@ -37,13 +38,13 @@ fun translateABSExpToSymExpr(input : Exp) : Expr {
         is GetExp               -> return readFut(translateABSExpToSymExpr(input.pureExp))
         is NegExp               -> return SExpr("!", listOf(translateABSExpToSymExpr(input.operand)))
         is NewExp               -> return FreshGenerator.getFreshObjectId(input.className, input.paramList.map { translateABSExpToSymExpr(it) })
-        is NullExp              -> return org.abs_models.crowbar.data.Const("0")
-        is ThisExp              -> return org.abs_models.crowbar.data.Const("1")
+        is NullExp              -> return Const("0")
+        is ThisExp              -> return Const("1")
         is DataConstructorExp   ->
             return when(input.dataConstructor!!.name){
                 "Unit"          -> unitExpr()
-                "True"          -> org.abs_models.crowbar.data.Const("1")
-                "False"         -> org.abs_models.crowbar.data.Const("0")
+                "True"          -> Const("1")
+                "False"         -> Const("0")
                 else            -> throw Exception("Translation of data ${input::class} not supported, term is $input" )
             }
         is AsyncCall            -> return CallExpr(input.methodSig.contextDecl.qualifiedName+"."+input.methodSig.name,
@@ -108,6 +109,8 @@ fun translateABSStmtToSymStmt(input: Stmt?) : org.abs_models.crowbar.data.Stmt {
 fun translateABSGuardToSymExpr(input : Guard) : Expr{
     when(input){
         is ExpGuard -> return translateABSExpToSymExpr(input.pureExp)
+        is ClaimGuard -> return SExpr("=",listOf(Const("1"), Const("1")))//todo: proper translation
+        is AndGuard -> return SExpr("&&",listOf(translateABSGuardToSymExpr(input.left),translateABSGuardToSymExpr(input.right)))
         else -> throw Exception("Translation of ${input::class} not supported" )
     }
 }

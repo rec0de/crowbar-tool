@@ -42,6 +42,16 @@ class PostInvTest : StringSpec ({
 			val mNode = model.exctractMainNode(postInv)
 			executeNode(mNode, repos, postInv) shouldBe true
 		}
+		"$smt guards"{
+			val (model, repos) = load(listOf(Paths.get("src/test/resources/guards.abs")))
+			val classDecl = model.extractClassDecl("Guard", "C", repos)
+
+			val m1Node = classDecl.extractMethodNode(postInv,"msucc", repos)
+			executeNode(m1Node, repos, postInv) shouldBe true
+
+			val m2Node = classDecl.extractMethodNode(postInv,"mfail", repos)
+			executeNode(m2Node, repos, postInv) shouldBe false
+		}
 		"$smt fails"{
 			val (model, repos) = load(listOf(Paths.get("src/test/resources/fail.abs")))
 			val classDecl = model.extractClassDecl("Fail", "C", repos)
