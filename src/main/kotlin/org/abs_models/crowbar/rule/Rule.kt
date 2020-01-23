@@ -20,8 +20,8 @@ object FreshGenerator {
     }
 	fun getFreshObjectId(className: String, map: List<Expr>): Expr {
         if(map.isEmpty())
-            return SExpr("NEW"+(count++), listOf(SExpr(className, emptyList()))+ listOf(Const("0")))
-        return SExpr("NEW"+(count++), listOf(SExpr(className, emptyList()))+map)
+            return SExpr("NEW"+(count++)+"_"+map.size, listOf(SExpr(className, emptyList())))
+        return SExpr("NEW"+(count++)+"_"+map.size, listOf(SExpr(className, emptyList()))+map)
 	}
     fun getFreshRAVar() : AccVar{
         return AccVar("RA_A"+(count++))

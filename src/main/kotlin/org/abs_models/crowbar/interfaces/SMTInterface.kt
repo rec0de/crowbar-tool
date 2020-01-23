@@ -47,12 +47,12 @@ fun generateSMT(ante : Formula, succ: Formula) : String {
     var header = smtHeader
     header = fields.fold(header, { acc, nx-> acc +"\n(declare-const ${nx.name} Field)"})
     header = vars.fold(header, {acc, nx-> acc+"\n(declare-const ${nx.name} Int)"}) //hack: dtype goes here
-    header = heaps.fold(header, {acc, nx-> "$acc\n(declare-fun $nx (Int) Int)" })
+    header = heaps.fold(header, {acc, nx-> "$acc\n(declare-fun $nx (${"Int ".repeat(nx.split("_")[1].toInt())}) Int)" })
     fields.forEach { f1 -> fields.minus(f1).forEach{ f2 -> header += "\n (assert (not (= ${f1.name} ${f2.name})))" } }
 
     return """
     $header 
-     (assert ${pre.toSMT(true)} ) 
+    (assert ${pre.toSMT(true)} ) 
     (assert ${post.toSMT(true)}) 
     (check-sat)
     (exit)

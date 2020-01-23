@@ -119,6 +119,8 @@ class PostInvTest : StringSpec ({
 				classDeclC.executeAll(repos,postInv) shouldBe true
 				val classDeclD = model.extractClassDecl("CallS", "D", repos)
 				classDeclD.executeAll(repos,postInv) shouldBe true
+				val classDeclE = model.extractClassDecl("CallS", "E", repos)
+				classDeclE.executeAll(repos,postInv) shouldBe true
 				val mNode = model.exctractMainNode(postInv)
 				executeNode(mNode, repos, postInv) shouldBe true
 		}

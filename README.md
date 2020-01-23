@@ -40,4 +40,3 @@ class C {
   The [heap precondition propagation](https://doi.org/10.1007/978-3-030-30446-1_3) is not implemented, you habe to ensure that yourself.
 * Please make sure that some SMT solver is installed and callable via command line. The tests use the `z3` and `cvc` commands.
 * Crowbar does not yet support any SPL option.
-* Translation into SMT-LIB fails silently if parameter lists of classes have more than one element.

@@ -49,6 +49,15 @@ class D(I other) implements J {
 	}
 	
 }
+
+
+[Spec: Requires(i == j)]
+[Spec: ObjInv(i >= j)]
+class E(Int i, Int j)  {
+    Unit m(){
+        this.i = this.i+1;
+    }
+}
           
 
 {
