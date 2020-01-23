@@ -84,7 +84,7 @@ fun translateABSStmtToSymStmt(input: Stmt?) : org.abs_models.crowbar.data.Stmt {
             return org.abs_models.crowbar.data.AssignStmt(ProgVar(input.varDecl.name,input.varDecl.type.simpleName), translateABSExpToSymExpr(input.varDecl.initExp))
         }
         is AssignStmt -> {
-            val loc:Location = if(input.varNoTransform is FieldUse) Field(input.varNoTransform.name, input.type.simpleName)
+            val loc:Location = if(input.varNoTransform is FieldUse) Field(input.varNoTransform.name, input.varNoTransform.type.simpleName)
                                else ProgVar(input.varNoTransform.name, input.varNoTransform.type.simpleName)
             if(input.valueNoTransform is NewExp) return AllocateStmt(loc,translateABSExpToSymExpr(input.valueNoTransform))
             if(input.valueNoTransform is AsyncCall) {
