@@ -189,6 +189,7 @@ fun exprToTerm(input : Expr) : Term {
     throw Exception("Expression cannot be converted to term: "+input.prettyPrint())
 }
 
+//todo: the comparisons with 1 should be removed once the Bool data type is split from Int
 fun exprToForm(input : Expr) : Formula {
     if(input is SExpr && input.op == "&&" && input.e.size ==2 ) return And(exprToForm(input.e[0]), exprToForm(input.e[1]))
     if(input is SExpr && input.op == "||" && input.e.size ==2 ) return Or(exprToForm(input.e[0]), exprToForm(input.e[1]))
@@ -198,6 +199,7 @@ fun exprToForm(input : Expr) : Formula {
     if(input is SExpr) return Predicate(input.op, input.e.map { ex -> exprToTerm(ex) })
     if(input is Field) return exprToForm(SExpr("=",listOf(input, Const("1"))))
     if(input is ProgVar) return exprToForm(SExpr("=",listOf(input, Const("1"))))
+    if(input is Const) return exprToForm(SExpr("=",listOf(input, Const("1"))))
     throw Exception("Expression cannot be converted to formula: $input")
 }
 

@@ -21,7 +21,7 @@ import org.abs_models.frontend.ast.MethodSig
 import org.abs_models.frontend.ast.Model
 import java.nio.file.Paths
 
-enum class Verbosity { SILENT, NORMAL, V, VV }
+enum class Verbosity { SILENT, NORMAL, V, VV, VVV }
 
 var tmpPath = "/tmp/"
 var smtPath  = "z3"

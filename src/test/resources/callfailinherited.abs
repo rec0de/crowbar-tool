@@ -1,0 +1,15 @@
+module Call;
+
+data Spec = ObjInv(Bool) | Ensures(Bool) | Requires(Bool) | WhileInv(Bool);
+
+interface I {
+	[Spec : Ensures(False)]
+	Int fail();
+}
+
+class C implements I {
+	[Spec : Ensures(True)]
+	Int fail() { return 0; }
+}
+
+{}

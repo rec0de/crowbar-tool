@@ -138,6 +138,12 @@ class PostInvTest : StringSpec ({
 			val mNode = model.exctractMainNode(postInv)
 			executeNode(mNode, repos, postInv) shouldBe false
 		}
+		"$smt failinher"{
+			val (model, repos) = load(listOf(Paths.get("src/test/resources/callfailinherited.abs")))
+			val classDeclC = model.extractClassDecl("Call", "C", repos)
+			val m0Node = classDeclC.extractMethodNode(postInv, "fail", repos)
+			executeNode(m0Node, repos, postInv) shouldBe false
+		}
 		"$smt selfcall"{
 			val (model, repos) = load(listOf(Paths.get("src/test/resources/selfcall.abs")))
 			val classDecl = model.extractClassDecl("Self", "C", repos)
