@@ -163,6 +163,21 @@ class PITFieldAssign(repos: Repository) : PITAssign(repos,Modality(
 }
 
 
+class PITSyncAssign(repos: Repository) : PITAssign(repos, Modality(
+    SeqStmt(SyncStmt(ProgAbstractVar("LHS"), ExprAbstractVar("EXPR")),
+        StmtAbstractVar("CONT")),
+    PostInvAbstractVar("TYPE"))) {
+
+    override fun transform(cond: MatchCondition, input : SymbolicState): List<SymbolicTree> {
+        val lhs = cond.map[ProgAbstractVar("LHS")] as Location
+        val rhs = exprToTerm(cond.map[ExprAbstractVar("EXPR")] as Expr)
+        val remainder = cond.map[StmtAbstractVar("CONT")] as Stmt
+        val target = cond.map[PostInvAbstractVar("TYPE")] as DeductType
+        return listOf(symbolicNext(lhs, rhs, remainder, target, input.condition, input.update))
+    }
+
+}
+
 class PITAllocAssign(repos: Repository) : PITAssign(repos, Modality(
     SeqStmt(AllocateStmt(ProgAbstractVar("LHS"), ExprAbstractVar("EXPR")),
         StmtAbstractVar("CONT")),
@@ -239,12 +254,15 @@ class PITCallAssign(repos: Repository) : PITAssign(repos, Modality(
 
 
         val freshFut = FreshGenerator.getFreshFuture()
+        val read = repos.methodEnss[call.met]
+        val postCond = read?.first ?: True
+        val updateNew = ElementaryUpdate(ReturnVar("<UNKNOWN>"),valueOfFunc(freshFut))
 
         val next = symbolicNext(lhs,
                                             freshFut,
                                             remainder,
                                             target,
-                                            input.condition,
+                                            And(input.condition, UpdateOnFormula(updateNew,postCond)),
                                             input.update)
 
         return listOf(nonenull,pre,next)

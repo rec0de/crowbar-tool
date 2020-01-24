@@ -54,6 +54,14 @@ data class AllocateStmt(val lhs : Location, val rhs : Expr) : Stmt {
         return super.collectAll(clazz) + lhs.collectAll(clazz) + rhs.collectAll(clazz)
     }
 }
+data class SyncStmt(val lhs : Location, val rhs : Expr) : Stmt {
+    override fun prettyPrint(): String {
+        return lhs.prettyPrint()+" =  "+rhs.prettyPrint()+".get"
+    }
+    override fun <T : Any> collectAll(clazz: KClass<T>): Set<ProgramElement> {
+        return super.collectAll(clazz) + lhs.collectAll(clazz) + rhs.collectAll(clazz)
+    }
+}
 object SkipStmt : Stmt {
     override fun prettyPrint(): String {
         return "skip"
@@ -105,16 +113,6 @@ data class AwaitStmt(val resExpr : Expr, val id : PP) : Stmt {
     }
     override fun <T : Any> collectAll(clazz: KClass<T>): Set<ProgramElement> {
         return super.collectAll(clazz) + resExpr.collectAll(clazz)
-    }
-}
-
-//todo: implement this
-data class GetStmt(val lhs : Location, val resExpr : Expr, val id : PP) : Stmt {
-    override fun prettyPrint(): String {
-        return lhs.prettyPrint()+" = " +resExpr.prettyPrint()+".get{${id.prettyPrint()}}"
-    }
-    override fun <T : Any> collectAll(clazz: KClass<T>): Set<ProgramElement> {
-        return super.collectAll(clazz) + lhs.collectAll(clazz) + resExpr.collectAll(clazz)
     }
 }
 

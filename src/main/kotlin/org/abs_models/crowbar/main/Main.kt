@@ -36,7 +36,8 @@ data class Repository(private val model : Model?,
                                                                               "ABS.StdLib.Fut<ABS.StdLib.Bool>",
                                                                               "ABS.StdLib.Fut<ABS.StdLib.Unit>"),
                       val classReqs : MutableMap<String,Pair<Formula,ClassDecl>> = mutableMapOf(),
-                      val methodReqs : MutableMap<String,Pair<Formula,MethodSig>> = mutableMapOf()){
+                      val methodReqs : MutableMap<String,Pair<Formula,MethodSig>> = mutableMapOf(),
+                      val methodEnss : MutableMap<String,Pair<Formula,MethodSig>> = mutableMapOf()){
     init{
         if(model != null) {
             populateClassReqs(model)
@@ -62,7 +63,9 @@ data class Repository(private val model : Model?,
                 if (decl is InterfaceDecl) {
                     for (mDecl in decl.allMethodSigs) {
                         val spec = extractSpec(mDecl, "Requires")
+                        val spec2 = extractSpec(mDecl, "Ensures")
                         methodReqs[decl.qualifiedName+"."+mDecl.name] = Pair(spec, mDecl)
+                        methodEnss[decl.qualifiedName+"."+mDecl.name] = Pair(spec2, mDecl)
                     }
                 }
                 if(decl is ClassDecl){

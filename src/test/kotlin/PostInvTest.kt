@@ -157,5 +157,22 @@ class PostInvTest : StringSpec ({
 			executeNode(mNode, repos, postInv) shouldBe true
 
 		}
+		"$smt valueof"{
+			val (model, repos) = load(listOf(Paths.get("src/test/resources/valueof.abs")))
+			val classDecl = model.extractClassDecl("Values", "C", repos)
+
+			val iNode = classDecl.extractInitialNode(postInv)
+			executeNode(iNode, repos, postInv) shouldBe true
+
+			var sNode = classDecl.extractMethodNode(postInv,"success", repos)
+			executeNode(sNode, repos, postInv) shouldBe true
+
+			sNode = classDecl.extractMethodNode(postInv,"internal", repos)
+			executeNode(sNode, repos, postInv) shouldBe true
+
+			sNode = classDecl.extractMethodNode(postInv,"fail", repos)
+			executeNode(sNode, repos, postInv) shouldBe false
+
+		}
 	}
 })

@@ -37,6 +37,9 @@ class C {
 * Method preconditions are split into parameter preconditions in the interface and heap preconditions in the class.
 
   If you call a method asynchronously on this and you want to use parameter preconditions, it must be exposed.
-  The [heap precondition propagation](https://doi.org/10.1007/978-3-030-30446-1_3) is not implemented, you habe to ensure that yourself.
+  The [heap precondition propagation](https://doi.org/10.1007/978-3-030-30446-1_3) is not implemented, you have to ensure that yourself.
+  
+  Right now, the restrictions on pre- and postconditions in general are not checked
 * Please make sure that some SMT solver is installed and callable via command line. The tests use the `z3` and `cvc` commands.
 * Crowbar does not yet support any SPL option.
+* Name clashes with internal expressions are not checked yet

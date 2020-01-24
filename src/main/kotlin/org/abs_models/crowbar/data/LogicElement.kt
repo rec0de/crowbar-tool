@@ -1,10 +1,12 @@
 package org.abs_models.crowbar.data
 
+
 interface LogicElement: Anything {
-    fun getFields() : Set<Field>
-    fun getProgVars() : Set<ProgVar>
+    fun getFields() : Set<Field> = emptySet()
+    fun getProgVars() : Set<ProgVar> = emptySet()
+    fun getFuncs() : Set<Function> = emptySet()
+    fun getHeapNews(): Set<String> = emptySet()
     fun toSMT(isInForm : Boolean) : String //isInForm is set when a predicate is expected, this is required for the interpretation of Bool Terms as Int Terms
-    fun getHeapNews(): Set<String>
 }
 interface Formula: LogicElement
 interface Term : LogicElement
@@ -16,9 +18,6 @@ data class FormulaAbstractVar(val name : String) : Formula, AbstractVar {
     override fun prettyPrint(): String {
         return name
     }
-    override fun getFields() : Set<Field> = emptySet()
-    override fun getProgVars() : Set<ProgVar> = emptySet()
-    override fun getHeapNews() : Set<String> = emptySet()
     override fun toSMT(isInForm : Boolean) : String = name
 }
 
@@ -30,6 +29,7 @@ data class Function(val name : String, val params : List<Term> = emptyList()) : 
     }
     override fun getFields() : Set<Field> = params.fold(emptySet(),{ acc, nx -> acc + nx.getFields()})
     override fun getProgVars() : Set<ProgVar> = params.fold(emptySet(),{ acc, nx -> acc + nx.getProgVars()})
+    override fun getFuncs() : Set<Function> = params.fold(setOf(this),{ acc, nx -> acc + nx.getFuncs()})
     override fun getHeapNews() : Set<String> {
         return if(name.startsWith("NEW")) setOf(name) else emptySet()
     }
@@ -63,6 +63,7 @@ data class UpdateOnTerm(val update : UpdateElement, val target : Term) : Term {
         return "{"+update.prettyPrint()+"}"+target.prettyPrint()
     }
     override fun getFields() : Set<Field> = update.getFields()+target.getFields()
+    override fun getFuncs() : Set<Function> = update.getFuncs()+target.getFuncs()
     override fun getProgVars() : Set<ProgVar> = update.getProgVars()+target.getProgVars()
     override fun getHeapNews() : Set<String>  = update.getHeapNews()+target.getHeapNews()
     override fun toSMT(isInForm : Boolean) : String = throw Exception("Updates are not translatable to Z3")
@@ -72,6 +73,7 @@ data class Impl(val left : Formula, val right : Formula) : Formula {
         return "(${left.prettyPrint()}) -> (${right.prettyPrint()})"
     }
     override fun getFields() : Set<Field> = left.getFields()+right.getFields()
+    override fun getFuncs() : Set<Function> = left.getFuncs()+right.getFuncs()
     override fun getProgVars() : Set<ProgVar> = left.getProgVars()+right.getProgVars()
     override fun getHeapNews() : Set<String>  = left.getHeapNews()+right.getHeapNews()
     override fun toSMT(isInForm : Boolean) : String = if(isInForm) "(=> ${left.toSMT(isInForm)} ${right.toSMT(isInForm)})" else Or(Not(left),right).toSMT(isInForm)
@@ -85,6 +87,7 @@ data class And(val left : Formula, val right : Formula) : Formula {
     override fun getFields() : Set<Field> = left.getFields()+right.getFields()
     override fun getProgVars() : Set<ProgVar> = left.getProgVars()+right.getProgVars()
     override fun getHeapNews() : Set<String>  = left.getHeapNews()+right.getHeapNews()
+    override fun getFuncs() : Set<Function> = left.getFuncs()+right.getFuncs()
     override fun toSMT(isInForm : Boolean) : String = if(isInForm) "(and ${left.toSMT(isInForm)} ${right.toSMT(isInForm)})" else "(iAnd ${left.toSMT(isInForm)} ${right.toSMT(isInForm)})"
 }
 data class Or(val left : Formula, val right : Formula) : Formula {
@@ -96,6 +99,7 @@ data class Or(val left : Formula, val right : Formula) : Formula {
     override fun getFields() : Set<Field> = left.getFields()+right.getFields()
     override fun getProgVars() : Set<ProgVar> = left.getProgVars()+right.getProgVars()
     override fun getHeapNews() : Set<String>  = left.getHeapNews()+right.getHeapNews()
+    override fun getFuncs() : Set<Function> = left.getFuncs()+right.getFuncs()
     override fun toSMT(isInForm : Boolean) : String = if(isInForm) "(or ${left.toSMT(isInForm)} ${right.toSMT(isInForm)})" else "(iOr ${left.toSMT(isInForm)} ${right.toSMT(isInForm)})"
 }
 data class Not(val left : Formula) : Formula {
@@ -105,6 +109,7 @@ data class Not(val left : Formula) : Formula {
     override fun getFields() : Set<Field> = left.getFields()
     override fun getProgVars() : Set<ProgVar> = left.getProgVars()
     override fun getHeapNews() : Set<String>  = left.getHeapNews()
+    override fun getFuncs() : Set<Function> = left.getFuncs()
     override fun toSMT(isInForm : Boolean) : String = if(isInForm) "(not ${left.toSMT(isInForm)})" else "(iNot ${left.toSMT(isInForm)})"
 }
 data class Predicate(val name : String, val params : List<Term> = emptyList()) : Formula {
@@ -116,6 +121,7 @@ data class Predicate(val name : String, val params : List<Term> = emptyList()) :
     override fun getFields() : Set<Field> = params.fold(emptySet(),{ acc, nx -> acc + nx.getFields()})
     override fun getProgVars() : Set<ProgVar> = params.fold(emptySet(),{ acc, nx -> acc + nx.getProgVars()})
     override fun getHeapNews() : Set<String> = params.fold(emptySet(),{ acc, nx -> acc + nx.getHeapNews()})
+    override fun getFuncs() : Set<Function> = params.fold(emptySet(),{ acc, nx -> acc + nx.getFuncs()})
     override fun toSMT(isInForm : Boolean) : String {
         if(params.isEmpty()) return name
         var back = name
@@ -145,39 +151,32 @@ data class UpdateOnFormula(val update : UpdateElement, val target : Formula) : F
     override fun getFields() : Set<Field> = update.getFields()+target.getFields()
     override fun getProgVars() : Set<ProgVar> = update.getProgVars()+target.getProgVars()
     override fun getHeapNews() : Set<String>  = update.getHeapNews()+target.getHeapNews()
+    override fun getFuncs() : Set<Function> = update.getFuncs()+target.getFuncs()
     override fun toSMT(isInForm : Boolean) : String = throw Exception("Updates are not translatable to Z3")
 }
 object True : Formula {
     override fun prettyPrint(): String {
         return "true"
     }
-    override fun getFields() : Set<Field> = emptySet()
-    override fun getProgVars() : Set<ProgVar> = emptySet()
-    override fun getHeapNews() : Set<String> = emptySet()
     override fun toSMT(isInForm : Boolean) : String = if(isInForm) "true" else "1"
 }
 object False : Formula {
     override fun prettyPrint(): String {
         return "false"
     }
-    override fun getFields() : Set<Field> = emptySet()
-    override fun getProgVars() : Set<ProgVar> = emptySet()
-    override fun getHeapNews() : Set<String> = emptySet()
     override fun toSMT(isInForm : Boolean) : String = if(isInForm) "false" else "0"
 }
 
 
 
 
-object Heap : ProgVar("heap","Heap"){
-    override fun getProgVars() : Set<ProgVar> = emptySet()
-    override fun getHeapNews() : Set<String> = emptySet()
-}
+object Heap : ProgVar("heap","Heap")
+
 fun store(field: Field, value : Term) : Function = Function("store", listOf(Heap, field, value))
 fun select(field : Field) : Function = Function("select", listOf(Heap, field))
 fun anon(heap : Term) : Function = Function("anon", listOf(heap))
 fun poll(term : Term) : Function = Function("poll", listOf(term))
-fun readFut(term : Expr) : Expr = SExpr("read", listOf(term))
+fun readFut(term : Expr) : Expr = SExpr("valueOf", listOf(term))
 
 fun exprToTerm(input : Expr) : Term {
     if(input is ProgVar) return input
@@ -254,6 +253,9 @@ fun subst(input: LogicElement, map: Map<LogicElement,LogicElement>) : LogicEleme
     }
 }
 fun subst(input: LogicElement, elem : ProgVar, term : Term) : LogicElement = subst(input, mapOf(Pair(elem,term)))
+
+
+fun valueOfFunc(t : Term) = Function("valueOf", listOf(t))
 
 /*
 fun subst(input: LogicElement, elem : ProgVar, term : Term) : LogicElement {

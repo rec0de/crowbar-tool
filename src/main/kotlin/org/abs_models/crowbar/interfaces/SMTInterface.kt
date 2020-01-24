@@ -15,7 +15,7 @@ val smtHeader = """
     (define-sort MHeap () (Array Field Int))
     (declare-const heap MHeap)
     (declare-fun   anon (MHeap) MHeap)
-    (declare-fun   read (Int) Int)
+    (declare-fun   valueOf (Int) Int)
     (define-fun iOr((x Int) (y Int)) Int
         (ite (or (= x 1) (= y 1)) 1 0))
     (define-fun iAnd((x Int) (y Int)) Int
@@ -42,12 +42,14 @@ fun generateSMT(ante : Formula, succ: Formula) : String {
     val pre = deupdatify(ante)
     val post = deupdatify(Not(succ))
     val fields = pre.getFields() + post.getFields()
-    val vars = pre.getProgVars() + post.getProgVars()
+    val vars = (pre.getProgVars() + post.getProgVars()).filter { it.name != "heap" }
     val heaps = pre.getHeapNews() + post.getHeapNews()
+    val futs = (pre.getFuncs() + post.getFuncs()).filter { it.name.startsWith("fut_") }
     var header = smtHeader
     header = fields.fold(header, { acc, nx-> acc +"\n(declare-const ${nx.name} Field)"})
     header = vars.fold(header, {acc, nx-> acc+"\n(declare-const ${nx.name} Int)"}) //hack: dtype goes here
     header = heaps.fold(header, {acc, nx-> "$acc\n(declare-fun $nx (${"Int ".repeat(nx.split("_")[1].toInt())}) Int)" })
+    header = futs.fold(header, { acc, nx-> acc +"\n(declare-const ${nx.name} Int)"})
     fields.forEach { f1 -> fields.minus(f1).forEach{ f2 -> header += "\n (assert (not (= ${f1.name} ${f2.name})))" } }
 
     return """

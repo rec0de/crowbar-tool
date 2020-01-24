@@ -49,6 +49,8 @@ fun translateABSExpToSymExpr(input : Exp) : Expr {
             }
         is AsyncCall            -> return CallExpr(input.methodSig.contextDecl.qualifiedName+"."+input.methodSig.name,
                                               input.params.map {  translateABSExpToSymExpr(it) })
+        is FnApp                -> if(input.name == "valueOf") return readFut(translateABSExpToSymExpr(input.params.getChild(0)))
+                                   else throw Exception("Translation of FnApp is not fully supported, term is $input" )
         else                    -> throw Exception("Translation of ${input::class} not supported, term is $input" )
     }
 }
@@ -59,7 +61,7 @@ fun translateABSStmtToSymStmt(input: Stmt?) : org.abs_models.crowbar.data.Stmt {
         is org.abs_models.frontend.ast.SkipStmt -> return SkipStmt
         is ExpressionStmt ->{
             when(input.exp) {
-                is GetExp       -> return org.abs_models.crowbar.data.AssignStmt(FreshGenerator.getFreshProgVar(input.type.simpleName), translateABSExpToSymExpr(input.exp))
+                is GetExp       -> return SyncStmt(FreshGenerator.getFreshProgVar(input.type.simpleName), translateABSExpToSymExpr(input.exp))
                 is NewExp       -> return AllocateStmt(FreshGenerator.getFreshProgVar(input.type.simpleName), translateABSExpToSymExpr(input.exp))
                 is AsyncCall    -> { 
                     val v = input.exp as AsyncCall
@@ -77,6 +79,7 @@ fun translateABSStmtToSymStmt(input: Stmt?) : org.abs_models.crowbar.data.Stmt {
         }
         is VarDeclStmt -> {
             if(input.varDecl.initExp is NewExp) return AllocateStmt(ProgVar(input.varDecl.name, input.varDecl.initExp.type.simpleName),translateABSExpToSymExpr(input.varDecl.initExp))
+            if(input.varDecl.initExp is GetExp) return SyncStmt(ProgVar(input.varDecl.name, input.varDecl.initExp.type.simpleName),translateABSExpToSymExpr(input.varDecl.initExp))
             if(input.varDecl.initExp is AsyncCall) {
                 val v = input.varDecl.initExp as AsyncCall
                 return CallStmt(ProgVar(input.varDecl.name, input.varDecl.initExp.type.simpleName), translateABSExpToSymExpr(v.callee), translateABSExpToSymExpr(v) as CallExpr)
@@ -87,6 +90,7 @@ fun translateABSStmtToSymStmt(input: Stmt?) : org.abs_models.crowbar.data.Stmt {
             val loc:Location = if(input.varNoTransform is FieldUse) Field(input.varNoTransform.name, input.varNoTransform.type.simpleName)
                                else ProgVar(input.varNoTransform.name, input.varNoTransform.type.simpleName)
             if(input.valueNoTransform is NewExp) return AllocateStmt(loc,translateABSExpToSymExpr(input.valueNoTransform))
+            if(input.valueNoTransform is GetExp) return SyncStmt(loc,translateABSExpToSymExpr(input.valueNoTransform))
             if(input.valueNoTransform is AsyncCall) {
                 val v = input.valueNoTransform as AsyncCall
                 return CallStmt(loc, translateABSExpToSymExpr(v.callee), translateABSExpToSymExpr(v) as CallExpr)
@@ -107,10 +111,10 @@ fun translateABSStmtToSymStmt(input: Stmt?) : org.abs_models.crowbar.data.Stmt {
 }
 
 fun translateABSGuardToSymExpr(input : Guard) : Expr{
-    when(input){
-        is ExpGuard -> return translateABSExpToSymExpr(input.pureExp)
-        is ClaimGuard -> return SExpr("=",listOf(Const("1"), Const("1")))//todo: proper translation
-        is AndGuard -> return SExpr("&&",listOf(translateABSGuardToSymExpr(input.left),translateABSGuardToSymExpr(input.right)))
+    return when(input){
+        is ExpGuard -> translateABSExpToSymExpr(input.pureExp)
+        is ClaimGuard -> SExpr("=",listOf(Const("1"), Const("1")))//todo: proper translation
+        is AndGuard -> SExpr("&&",listOf(translateABSGuardToSymExpr(input.left),translateABSGuardToSymExpr(input.right)))
         else -> throw Exception("Translation of ${input::class} not supported" )
     }
 }
