@@ -245,7 +245,7 @@ class PITCallAssign(repos: Repository) : PITAssign(repos, Modality(
                                             remainder,
                                             target,
                                             input.condition,
-                                            ChainUpdate(input.update, assignFor(lhs, freshFut)))
+                                            input.update)
 
         return listOf(nonenull,pre,next)
     }
