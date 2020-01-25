@@ -1,0 +1,39 @@
+module ParamCalls;
+
+data Spec = ObjInv(Bool) | Ensures(Bool) | Requires(Bool) | WhileInv(Bool);
+
+interface I {
+	[Spec : Ensures(result == x)]
+	Int firstArg(Int x, Int y);
+	[Spec : Ensures(result == x)]
+	Int fail(Int x, Int y);
+}
+	
+interface J {
+	[Spec : Ensures(result == x + 1)]
+	Int succ(Int x);
+	[Spec : Ensures(result == 1)]
+	Int succZero();
+}
+
+class C implements I {
+	Int firstArg(Int x, Int y) { return x; }
+	Int fail(Int x, Int y) {
+		I self = this;
+		Fut<Int> fi = self!firstArg(y, x);
+		await fi?;
+		return fi.get;
+	}
+}
+	
+class D implements J {
+	Int succ(Int x) { return x + 1; }
+	Int succZero() {
+		J self = this;
+		Fut<Int> fi = self!succ(0);
+		await fi?;
+		return fi.get;
+	}
+}
+
+{}

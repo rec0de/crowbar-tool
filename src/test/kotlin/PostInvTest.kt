@@ -203,5 +203,24 @@ class PostInvTest : StringSpec ({
 			executeNode(sNode, repos, postInv) shouldBe false
 
 		}
+		"$smt paramensures"{
+			val (model, repos) = load(listOf(Paths.get("src/test/resources/params.abs")))
+			var classDecl = model.extractClassDecl("ParamCalls", "C", repos)
+
+			var sNode = classDecl.extractMethodNode(postInv,"firstArg", repos)
+			executeNode(sNode, repos, postInv) shouldBe true
+
+			sNode = classDecl.extractMethodNode(postInv,"fail", repos)
+			executeNode(sNode, repos, postInv) shouldBe false
+
+
+			classDecl = model.extractClassDecl("ParamCalls", "D", repos)
+
+			sNode = classDecl.extractMethodNode(postInv,"succ", repos)
+			executeNode(sNode, repos, postInv) shouldBe true
+
+			sNode = classDecl.extractMethodNode(postInv,"succZero", repos)
+			executeNode(sNode, repos, postInv) shouldBe true
+		}
 	}
 })

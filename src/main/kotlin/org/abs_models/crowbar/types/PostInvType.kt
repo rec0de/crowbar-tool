@@ -241,13 +241,22 @@ class PITCallAssign(repos: Repository) : PITAssign(repos, Modality(
         val freshFut = FreshGenerator.getFreshFuture()
         val read = repos.methodEnss[call.met]
         val postCond = read?.first ?: True
+
+        val targetPostDecl = read!!.second
+        val substPostMap = mutableMapOf<LogicElement,LogicElement>()
+        for(i in 0 until targetDecl.numParam){
+            val pName = ProgVar(targetPostDecl.getParam(i).name,targetPostDecl.getParam(i).type.simpleName)
+            val pValue = exprToTerm(call.e[i])
+            substPostMap[pName] = pValue
+        }
+
         val updateNew = ElementaryUpdate(ReturnVar("<UNKNOWN>"),valueOfFunc(freshFut))
 
         val next = symbolicNext(lhs,
                                             freshFut,
                                             remainder,
                                             target,
-                                            And(input.condition, UpdateOnFormula(updateNew,postCond)),
+                                            And(input.condition, UpdateOnFormula(input.update,UpdateOnFormula(updateNew,subst(postCond, substPostMap) as Formula))),
                                             input.update)
 
         return listOf(nonenull,pre,next)
