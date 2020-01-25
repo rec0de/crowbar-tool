@@ -16,22 +16,7 @@ class MatchCondition{
 }
 
 fun containsAbstractVar(concrete: Anything) : Boolean{
-
-    if(concrete is AbstractVar)
-        return true
-
-    for(field in concrete::class.java.declaredFields) {
-        field.isAccessible = true
-
-        if(!Anything::class.java.isAssignableFrom(field.type)) {
-            return false
-        }else{
-            val next = field.get(concrete) as Anything
-            if(next == concrete) return false //strange effect with companion objects
-            if(containsAbstractVar(next)) return true
-        }
-    }
-    return false
+    return concrete.collectAll(AbstractVar::class).isNotEmpty()
 }
 
 
@@ -65,54 +50,70 @@ fun apply(pattern : Anything, matchCond : MatchCondition) : Any{
 
 
 fun match(concrete : Anything, pattern : Anything, matchCond : MatchCondition) {
+
+    fun inMatch(concrete : Anything, pattern : Anything, matchCond : MatchCondition) {
+        if (pattern is AbstractVar) {
+            //The following checks that we have the right kind of AbstractVar by checking the implemented super class
+            //todo: this is buggy because the superclasses[0] access returns Java.lang.Object
+            if (pattern::class.superclasses[0].isInstance(concrete)) {
+                //This catches abstract variables bound multiple times
+                if (matchCond.map.containsKey(pattern) && matchCond.map[pattern] != concrete) {
+                    matchCond.failReason = "AbstractVar ${pattern.prettyPrint()} failed unification with two terms: ${matchCond.map[pattern]!!.prettyPrint()} and ${concrete.prettyPrint()}"
+                    return
+                }
+                matchCond.map[pattern] = concrete
+                return
+            } else {
+                matchCond.failReason = "AbstractVar ${pattern.prettyPrint()} failed unification because of a type error: ${concrete.prettyPrint()}"
+                return
+            }
+        }
+
+        //Mismatch in the outermost constructor
+        if (concrete::class != pattern::class) {
+            matchCond.failReason = "Constructor mismatch: ${concrete.prettyPrint()} and ${pattern.prettyPrint()}"
+            return
+        }
+
+        //Iterate over fields
+        for (field in concrete::class.java.declaredFields) {
+            field.isAccessible = true
+
+            if (List::class.java.isAssignableFrom(field.type)) {
+                @Suppress("UNCHECKED_CAST")
+                val f1: List<Anything> = field.get(concrete) as List<Anything>
+                @Suppress("UNCHECKED_CAST")
+                val f2: List<Anything> = field.get(pattern) as List<Anything>
+                for (i in f1.indices) {
+                    inMatch(f1[i], f2[i], matchCond)
+                    if (matchCond.failure) return
+                }
+            }
+            //Because we do not match classes from outside our Anything hierarchy, we must compare them using equality
+            //This is for, e.g., Strings used for variable names and constants
+            else if (!Anything::class.java.isAssignableFrom(field.type)) {
+                val f1 = field.get(concrete)
+                val f2 = field.get(pattern)
+                if (f1 != f2) {
+                    matchCond.failReason = "Value mismatch: ${concrete.prettyPrint()} and ${pattern.prettyPrint()}"
+                    return
+                }
+            } else {
+                val next1 = field.get(concrete) as Anything
+                val next2 = field.get(pattern) as Anything
+                if (next1 != concrete && next2 != concrete) {
+                    inMatch(next1, next2, matchCond)
+                    if (matchCond.failure) return
+                }
+            }
+        }
+    }
+
+
+
     if(containsAbstractVar(concrete)){
         matchCond.failReason = "Concrete statement contains abstract variables: ${concrete.prettyPrint()}"
         return
     }
-
-    if(pattern is AbstractVar){
-         //The following checks that we have the right kind of AbstractVar by checking the implemented super class
-        //todo: this is buggy because the funny superclasses[0] access returns Java.lang.Object
-         if(pattern::class.superclasses[0].isInstance(concrete)) {
-             //This catches abstract variables bound multiple times
-             if(matchCond.map.containsKey(pattern) && matchCond.map[pattern] != concrete) {
-                 matchCond.failReason = "AbstractVar ${pattern.prettyPrint()} failed unification with two terms: ${matchCond.map[pattern]!!.prettyPrint()} and ${concrete.prettyPrint()}"
-                 return
-             }
-             matchCond.map[pattern] = concrete
-             return
-         }else{
-             matchCond.failReason = "AbstractVar ${pattern.prettyPrint()} failed unification because of a type error: ${concrete.prettyPrint()}"
-             return
-         }
-    }
-
-    //Mismatch in the outermost constructor
-    if(concrete::class != pattern::class) {
-        matchCond.failReason = "Constructor mismatch: ${concrete.prettyPrint()} and ${pattern.prettyPrint()}"
-        return
-    }
-
-    //Iterate over fields
-    for(field in concrete::class.java.declaredFields){
-        field.isAccessible = true
-
-        //Because we do not match classes from outside our Anything hierarchy, we must compare them using equality
-        //This is for, e.g., Strings used for variable names and constants
-        if(!Anything::class.java.isAssignableFrom(field.type)){
-            val f1 = field.get(concrete)
-            val f2 = field.get(pattern)
-            if(f1 != f2) {
-                matchCond.failReason = "Value mismatch: ${concrete.prettyPrint()} and ${pattern.prettyPrint()}"
-                return
-            }
-        } else {
-            val next1 = field.get(concrete) as Anything
-            val next2 = field.get(pattern) as Anything
-            if(next1 != concrete && next2 != concrete) {
-                val last = match(next1, next2, matchCond)
-                if (matchCond.failure) return
-            }
-        }
-    }
+    inMatch(concrete, pattern, matchCond)
 }

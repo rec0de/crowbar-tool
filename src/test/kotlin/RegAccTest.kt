@@ -26,13 +26,13 @@ class RegAccTest : StringSpec ({
 			shouldThrow<Exception> { executeNode(s2Node, repos, regAcc)}
 			s2Node.collectInferenceLeaves().size shouldBe 4
 			s2Node.collectInferenceLeaves().map { it.debugString(0) }.shouldBe(
-				listOf("RA_A1 = acc: [Rthis.f : Int, Rthis.g : Int, Wthis.g : Unit] . RA_A2", "RA_A2 = acc: [Wthis.g : Unit] . RA_A3", "RA_A3 = acc: [Rthis.f : Int] . RA_A4", "RA_A4 = acc: []"))
+				listOf("RA_A1 = acc: [Rthis.f : Int, Rthis.g : Int, Wthis.g : Int] . RA_A2", "RA_A2 = acc: [Wthis.g : Int] . RA_A3", "RA_A3 = acc: [Rthis.f : Int] . RA_A4", "RA_A4 = acc: []"))
 
 			val s3Node = classDecl.extractMethodNode(regAcc,"m3", repos)
 			shouldThrow<Exception> { executeNode(s3Node, repos, regAcc)}
 			s3Node.collectInferenceLeaves().size shouldBe 3
 			s3Node.collectInferenceLeaves().map { it.debugString(0) }.shouldBe(
-				listOf("RA_A5 = acc: [Wthis.g : Unit] . RA_A6", "RA_A6 = acc: [Rthis.g : Int, Wthis.f : Unit] . RA_A7", "RA_A7 = acc: []"))
+				listOf("RA_A5 = acc: [Wthis.g : Int] . RA_A6", "RA_A6 = acc: [Rthis.g : Int, Wthis.f : Int] . RA_A7", "RA_A7 = acc: []"))
 			FreshGenerator.reset()
 		}
 	}

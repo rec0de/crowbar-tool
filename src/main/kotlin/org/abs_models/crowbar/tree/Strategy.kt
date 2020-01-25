@@ -11,7 +11,7 @@ interface Strategy{
 }
 
 
-class DefaultStrategy(private val rules : List<Rule>, private val repos : Repository) : Strategy{
+class DefaultStrategy(private val rules: List<Rule>) : Strategy{
 
     override fun execute(symbolicNode: SymbolicNode){
         symbolicNode.children = emptyList()
@@ -34,11 +34,11 @@ class DefaultStrategy(private val rules : List<Rule>, private val repos : Reposi
 fun getStrategy(clazz: KClass<out DeductType>, repos: Repository) : Strategy{
     return when(clazz){
         PostInvType::class -> nextPITStrategy(repos)
-        RegAccType::class  -> nextRAStrategy(repos)
+        RegAccType::class  -> nextRAStrategy()
         else               -> throw Exception("unsupported type $clazz")
     }
 }
 
 
-fun nextRAStrategy(repos: Repository) : Strategy = DefaultStrategy(listOf(RAReturn, RAFieldAssign, RAVarAssign, RASkip, RASkipSkip),repos)
-fun nextPITStrategy(repos: Repository) : Strategy = DefaultStrategy(listOf(PITSyncAssign(repos),PITVarAssign(repos), PITFieldAssign(repos), PITAllocAssign(repos), PITCallAssign(repos), PITReturn, PITSkip, PITIf, PITAwait, PITSkipSkip, PITWhile), repos)
+fun nextRAStrategy(): Strategy = DefaultStrategy(listOf(RAReturn, RAFieldAssign, RAVarAssign, RASkip, RASkipSkip))
+fun nextPITStrategy(repos: Repository) : Strategy = DefaultStrategy(listOf(PITSyncAssign(repos), PITLocAssign(repos), PITAllocAssign(repos), PITCallAssign(repos), PITReturn, PITSkip, PITIf, PITAwait, PITSkipSkip, PITWhile))

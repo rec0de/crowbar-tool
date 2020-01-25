@@ -167,6 +167,9 @@ class PostInvTest : StringSpec ({
 			var sNode = classDecl.extractMethodNode(postInv,"success", repos)
 			executeNode(sNode, repos, postInv) shouldBe true
 
+			sNode = classDecl.extractMethodNode(postInv,"readToField", repos)
+			executeNode(sNode, repos, postInv) shouldBe true
+
 			sNode = classDecl.extractMethodNode(postInv,"internal", repos)
 			executeNode(sNode, repos, postInv) shouldBe true
 

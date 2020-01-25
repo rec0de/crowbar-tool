@@ -21,8 +21,14 @@ interface I2 {
 }
 
 [Spec : Requires(o != null)]
-[Spec : ObjInv(o != null)]
+[Spec : ObjInv(o != null && s >= 0)]
 class C(I2 o) implements I1 {
+    Int s = 0;
+    Unit readToField(){
+		Fut<Int> fi = o!g();
+		this!internal(fi);
+		s = fi.get;
+    }
 	Int success() {
 		Fut<Int> fi = o!g();
 		this!internal(fi);

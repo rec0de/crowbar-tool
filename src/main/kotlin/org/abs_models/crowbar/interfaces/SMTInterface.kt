@@ -1,8 +1,7 @@
 package org.abs_models.crowbar.interfaces
 
-import org.abs_models.crowbar.data.Formula
-import org.abs_models.crowbar.data.Not
-import org.abs_models.crowbar.data.deupdatify
+import org.abs_models.crowbar.data.*
+import org.abs_models.crowbar.data.Function
 import org.abs_models.crowbar.main.Verbosity
 import org.abs_models.crowbar.main.tmpPath
 import org.abs_models.crowbar.main.verbosity
@@ -38,13 +37,15 @@ val smtHeader = """
     (assert (= Unit 0))
     """.trimIndent()
 
+@Suppress("UNCHECKED_CAST")
 fun generateSMT(ante : Formula, succ: Formula) : String {
     val pre = deupdatify(ante)
     val post = deupdatify(Not(succ))
-    val fields = pre.getFields() + post.getFields()
-    val vars = (pre.getProgVars() + post.getProgVars()).filter { it.name != "heap" }
-    val heaps = pre.getHeapNews() + post.getHeapNews()
-    val futs = (pre.getFuncs() + post.getFuncs()).filter { it.name.startsWith("fut_") }
+
+    val fields =  (pre.iterate { it is Field } + post.iterate { it is Field }) as Set<Field>
+    val vars =  ((pre.iterate { it is ProgVar } + post.iterate { it is ProgVar  }) as Set<ProgVar>).filter { it.name != "heap"}
+    val heaps =  ((pre.iterate { it is Function } + post.iterate{ it is Function }) as Set<Function>).map { it.name }.filter { it.startsWith("NEW") }
+    val futs =  ((pre.iterate { it is Function } + post.iterate { it is Function }) as Set<Function>).filter { it.name.startsWith("fut_") }
     var header = smtHeader
     header = fields.fold(header, { acc, nx-> acc +"\n(declare-const ${nx.name} Field)"})
     header = vars.fold(header, {acc, nx-> acc+"\n(declare-const ${nx.name} Int)"}) //hack: dtype goes here

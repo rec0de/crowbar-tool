@@ -134,42 +134,26 @@ abstract class PITAssign(protected val repos: Repository,
 }
 
 //Type system
-class PITVarAssign(repos: Repository) : PITAssign(repos,Modality(
-    SeqStmt(AssignStmt(ProgAbstractVar("LHS"), ExprAbstractVar("EXPR")), StmtAbstractVar("CONT")),
+class PITLocAssign(repos: Repository) : PITAssign(repos,Modality(
+    SeqStmt(AssignStmt(LocationAbstractVar("LHS"), ExprAbstractVar("EXPR")), StmtAbstractVar("CONT")),
     PostInvAbstractVar("TYPE"))) {
 
     override fun transform(cond: MatchCondition, input : SymbolicState): List<SymbolicTree> {
-        val lhs = cond.map[ProgAbstractVar("LHS")] as ProgVar
+        val lhs = cond.map[LocationAbstractVar("LHS")] as Location
         val rhs = exprToTerm(cond.map[ExprAbstractVar("EXPR")] as Expr)
         val remainder = cond.map[StmtAbstractVar("CONT")] as Stmt
         val target = cond.map[PostInvAbstractVar("TYPE")] as DeductType
         return listOf(symbolicNext(lhs,rhs,remainder, target, input.condition, input.update))
     }
 }
-
-
-class PITFieldAssign(repos: Repository) : PITAssign(repos,Modality(
-        SeqStmt(AssignStmt(ProgFieldAbstractVar("LHS"), ExprAbstractVar("EXPR")),
-                StmtAbstractVar("CONT")),
-        PostInvAbstractVar("TYPE"))) {
-
-    override fun transform(cond: MatchCondition, input : SymbolicState): List<SymbolicTree> {
-        val lhs = cond.map[ProgFieldAbstractVar("LHS")] as Field
-        val rhs = exprToTerm(cond.map[ExprAbstractVar("EXPR")] as Expr)
-        val remainder = cond.map[StmtAbstractVar("CONT")] as Stmt
-        val target = cond.map[PostInvAbstractVar("TYPE")] as DeductType
-        return listOf(symbolicNext(lhs,rhs,remainder, target, input.condition, input.update))
-    }
-}
-
 
 class PITSyncAssign(repos: Repository) : PITAssign(repos, Modality(
-    SeqStmt(SyncStmt(ProgAbstractVar("LHS"), ExprAbstractVar("EXPR")),
+    SeqStmt(SyncStmt(LocationAbstractVar("LHS"), ExprAbstractVar("EXPR")),
         StmtAbstractVar("CONT")),
     PostInvAbstractVar("TYPE"))) {
 
     override fun transform(cond: MatchCondition, input : SymbolicState): List<SymbolicTree> {
-        val lhs = cond.map[ProgAbstractVar("LHS")] as Location
+        val lhs = cond.map[LocationAbstractVar("LHS")] as Location
         val rhs = exprToTerm(cond.map[ExprAbstractVar("EXPR")] as Expr)
         val remainder = cond.map[StmtAbstractVar("CONT")] as Stmt
         val target = cond.map[PostInvAbstractVar("TYPE")] as DeductType
@@ -179,12 +163,12 @@ class PITSyncAssign(repos: Repository) : PITAssign(repos, Modality(
 }
 
 class PITAllocAssign(repos: Repository) : PITAssign(repos, Modality(
-    SeqStmt(AllocateStmt(ProgAbstractVar("LHS"), ExprAbstractVar("EXPR")),
+    SeqStmt(AllocateStmt(LocationAbstractVar("LHS"), ExprAbstractVar("EXPR")),
         StmtAbstractVar("CONT")),
     PostInvAbstractVar("TYPE"))) {
 
     override fun transform(cond: MatchCondition, input : SymbolicState): List<SymbolicTree> {
-        val lhs = cond.map[ProgAbstractVar("LHS")] as Location
+        val lhs = cond.map[LocationAbstractVar("LHS")] as Location
         val rhs = exprToTerm(cond.map[ExprAbstractVar("EXPR")] as Expr) as Function
         val remainder = cond.map[StmtAbstractVar("CONT")] as Stmt
         val target = cond.map[PostInvAbstractVar("TYPE")] as DeductType
@@ -221,12 +205,12 @@ class PITAllocAssign(repos: Repository) : PITAssign(repos, Modality(
 
 
 class PITCallAssign(repos: Repository) : PITAssign(repos, Modality(
-    SeqStmt(CallStmt(ProgAbstractVar("LHS"), ExprAbstractVar("CALLEE"), CallExprAbstractVar("CALL")),
+    SeqStmt(CallStmt(LocationAbstractVar("LHS"), ExprAbstractVar("CALLEE"), CallExprAbstractVar("CALL")),
         StmtAbstractVar("CONT")),
     PostInvAbstractVar("TYPE"))) {
 
     override fun transform(cond: MatchCondition, input : SymbolicState): List<SymbolicTree> {
-        val lhs = cond.map[ProgAbstractVar("LHS")] as Location
+        val lhs = cond.map[LocationAbstractVar("LHS")] as Location
         val callee = exprToTerm(cond.map[ExprAbstractVar("CALLEE")] as Expr)
         val call = cond.map[CallExprAbstractVar("CALL")] as CallExpr
         val remainder = cond.map[StmtAbstractVar("CONT")] as Stmt

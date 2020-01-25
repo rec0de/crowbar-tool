@@ -13,10 +13,12 @@ import org.abs_models.crowbar.types.PostInvariantPair
 
 class BasicTest : StringSpec() {
 
-    private val conc = AddExpr(ProgVar("v"), AddExpr(Const("1"), ProgVar("v")))
-    private val pattern = AddExpr(ExprAbstractVar("A"), AddExpr(Const("1"), ExprAbstractVar("A")))
-    private val pattern2 = AddExpr(ExprAbstractVar("A"), AddExpr(ExprAbstractVar("A"), Const("1")))
-    private val pattern3 = AddExpr(ExprAbstractVar("A"), Const("1"))
+    private fun addExpr(e1 : Expr, e2 : Expr): Expr = SExpr("+", listOf(e1,e2))
+
+    private val conc = addExpr(ProgVar("v"), addExpr(Const("1"), ProgVar("v")))
+    private val pattern = addExpr(ExprAbstractVar("A"), addExpr(Const("1"), ExprAbstractVar("A")))
+    private val pattern2 = addExpr(ExprAbstractVar("A"), addExpr(ExprAbstractVar("A"), Const("1")))
+    private val pattern3 = addExpr(ExprAbstractVar("A"), Const("1"))
 
     init {
         "collect"{
@@ -115,7 +117,7 @@ class BasicTest : StringSpec() {
             val cond = MatchCondition()
             match(pattern, conc, cond)
             assert(cond.failure)
-            cond.failReason shouldBe "Concrete statement contains abstract variables: ${pattern.prettyPrint()}"
+            cond.failReason shouldBe "Concrete statement contains abstract variables: +(A,+(1,A))"
         }
         "matchAndFail3"{
             val cond = MatchCondition()
