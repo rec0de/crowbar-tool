@@ -47,7 +47,7 @@ data class Repository(private val model : Model?,
     }
     private fun populateClassReqs(model: Model) {
         for(moduleDecl in model.moduleDecls) {
-            if(moduleDecl.name.startsWith("ABS.StdLib")) continue
+            if(moduleDecl.name.startsWith("ABS.")) continue
             for (decl in moduleDecl.decls) {
                 if (decl is ClassDecl) {
                     val spec = extractSpec(decl,"Requires")
@@ -58,7 +58,7 @@ data class Repository(private val model : Model?,
     }
     private fun populateMethodReqs(model: Model) {
         for(moduleDecl in model.moduleDecls) {
-            if(moduleDecl.name.startsWith("ABS.StdLib")) continue
+            if(moduleDecl.name.startsWith("ABS.")) continue
             for (decl in moduleDecl.decls) {
                 if (decl is InterfaceDecl) {
                     for (mDecl in decl.allMethodSigs) {
@@ -76,6 +76,9 @@ data class Repository(private val model : Model?,
                         } else {
                             val spec = extractSpec(iUse.allMethodSigs.first { it.matches(mImpl.methodSig) }, "Requires")
                             methodReqs[decl.qualifiedName+"."+mImpl.methodSig.name] = Pair(spec, mImpl.methodSig)
+
+                            val spec2 = extractSpec(iUse.allMethodSigs.first { it.matches(mImpl.methodSig) }, "Ensures")
+                            methodEnss[decl.qualifiedName+"."+mImpl.methodSig.name] = Pair(spec2, mImpl.methodSig)
                         }
                     }
                 }
@@ -85,7 +88,7 @@ data class Repository(private val model : Model?,
 
     private fun populateAllowedTypes(model: Model) {
         for(moduleDecl in model.moduleDecls){
-            if(moduleDecl.name.startsWith("ABS.StdLib")) continue
+            if(moduleDecl.name.startsWith("ABS.")) continue
             for(decl in moduleDecl.decls){
                 if(decl is InterfaceDecl){
                     allowedTypes += decl.qualifiedName

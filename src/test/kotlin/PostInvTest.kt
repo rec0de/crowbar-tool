@@ -177,5 +177,31 @@ class PostInvTest : StringSpec ({
 			executeNode(sNode, repos, postInv) shouldBe false
 
 		}
+		"$smt ensures-this"{
+			val (model, repos) = load(listOf(Paths.get("src/test/resources/ensures.abs")))
+			val classDecl = model.extractClassDecl("ThisCalls", "C", repos)
+
+			val iNode = classDecl.extractInitialNode(postInv)
+			executeNode(iNode, repos, postInv) shouldBe true
+
+			var sNode = classDecl.extractMethodNode(postInv,"one", repos)
+			executeNode(sNode, repos, postInv) shouldBe true
+
+			sNode = classDecl.extractMethodNode(postInv,"pos", repos)
+			executeNode(sNode, repos, postInv) shouldBe true
+
+			sNode = classDecl.extractMethodNode(postInv,"callOneOnThis", repos)
+			executeNode(sNode, repos, postInv) shouldBe true
+
+			sNode = classDecl.extractMethodNode(postInv,"callOneIndirectlyOnThis", repos)
+			executeNode(sNode, repos, postInv) shouldBe true
+
+			sNode = classDecl.extractMethodNode(postInv,"callOneOnOther", repos)
+			executeNode(sNode, repos, postInv) shouldBe true
+
+			sNode = classDecl.extractMethodNode(postInv,"failOneOnThis", repos)
+			executeNode(sNode, repos, postInv) shouldBe false
+
+		}
 	}
 })
