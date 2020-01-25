@@ -111,6 +111,7 @@ data class PostInvariantPair(val post : Formula, val objInvariant : Formula) : P
     override fun prettyPrint(): String {
         return post.prettyPrint()+", "+objInvariant.prettyPrint()
     }
+    override fun iterate(f: (Anything) -> Boolean) : Set<Anything> = super.iterate(f) + post.iterate (f) + objInvariant.iterate (f)
 }
 
 abstract class PITAssign(protected val repos: Repository,

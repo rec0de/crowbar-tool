@@ -1,0 +1,48 @@
+module ThisCalls;
+
+data Spec = ObjInv(Bool) | Ensures(Bool) | Requires(Bool) | WhileInv(Bool);
+
+interface I {
+	[Spec : Ensures(result == 1)]
+	Int one();
+	[Spec : Ensures(result > 0)]
+	Int pos();
+	[Spec : Ensures(result == 1)]
+	Int callOneOnThis();
+	[Spec : Ensures(result == 1)]
+	Int callOneOnOther();
+}
+
+[Spec : Requires(other != null)]
+[Spec : ObjInv(other != null)]
+class C(I other) implements I {
+	Int one() { return 1; }
+	
+	[Spec : Ensures(result < 2)]
+	Int pos() { return 1; }
+	
+	Int callOneOnThis() {
+		Fut<Int> f1 = this!one();
+		await f1?;
+		return  f1.get;
+	}
+	[Spec : Ensures(result == 1)]
+	Int failOneOnThis() {
+		Fut<Int> f1 = this!pos(); // this fails, because we ignore the ensures clause inside the class itself (for now)
+		await f1?;
+		return  f1.get;
+	}
+	Int callOneOnOther() {
+		Fut<Int> f1 = other!one();
+		await f1?;
+		return f1.get;
+	}
+	Int callOneIndirectlyOnThis() {
+		I self = this;
+		Fut<Int> f1 = self!one();
+		await f1?;
+		return f1.get;
+	}
+}
+
+{}

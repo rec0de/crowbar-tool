@@ -16,14 +16,14 @@ import org.abs_models.frontend.ast.Model
 import kotlin.system.exitProcess
 
 
-interface RegAcc{
-	fun prettyPrint() : String
-}
+interface RegAcc : Anything
 data class ReadAcc(val field : Field) : RegAcc{
 	override fun prettyPrint() : String = "R"+field.prettyPrint()
+	override fun iterate(f: (Anything) -> Boolean) : Set<Anything> = super.iterate(f) + field.iterate (f)
 }
 data class WriteAcc(val field : Field) : RegAcc{
 	override fun prettyPrint() : String = "W"+field.prettyPrint()
+	override fun iterate(f: (Anything) -> Boolean) : Set<Anything> = super.iterate(f) + field.iterate (f)
 }
 
 data class AccInferenceLeaf(val left : RegAccType, val right : RegAccType) : InferenceLeaf{
@@ -89,18 +89,23 @@ data class AccVar(val name : String) : RegAccType{
 data class AccAtom(val fields : Set<RegAcc>) : RegAccType{
 	override fun hasAbstractVar() : Boolean = false
 	override fun prettyPrint() : String = "acc: "+fields.map { it.prettyPrint() }.toString()
+	override fun iterate(f: (Anything) -> Boolean) : Set<Anything> = fields.fold(super.iterate(f),{ acc, nx -> acc + nx.iterate(f)})
+
 }
 data class AccSeq(val first : RegAccType, val second : RegAccType) : RegAccType {
 	override fun hasAbstractVar(): Boolean = first.hasAbstractVar() || second.hasAbstractVar()
 	override fun prettyPrint() : String = "${first.prettyPrint()} . ${second.prettyPrint()}"
+	override fun iterate(f: (Anything) -> Boolean) : Set<Anything> = super.iterate(f) + first.iterate (f) + second.iterate (f)
 }
 data class AccBranch(val left : RegAccType, val right : RegAccType): RegAccType {
 	override fun hasAbstractVar(): Boolean = left.hasAbstractVar() || right.hasAbstractVar()
 	override fun prettyPrint() : String = "${left.prettyPrint()} | ${right.prettyPrint()}"
+	override fun iterate(f: (Anything) -> Boolean) : Set<Anything> = super.iterate(f) + left.iterate (f) + right.iterate (f)
 }
 data class AccRep(val inner : RegAccType) : RegAccType {
 	override fun hasAbstractVar(): Boolean = inner.hasAbstractVar()
 	override fun prettyPrint() : String = "$({inner.prettyPrint()})*"
+	override fun iterate(f: (Anything) -> Boolean) : Set<Anything> = super.iterate(f) + inner.iterate (f)
 }
 
 abstract class RAAssign(conclusion : Modality) : Rule(conclusion){
