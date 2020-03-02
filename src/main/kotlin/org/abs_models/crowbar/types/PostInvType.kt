@@ -64,7 +64,7 @@ interface PostInvType : DeductType{
         var body = getNormalizedStatement(classDecl.initBlock)
         for (fieldDecl in classDecl.fields){
             if(fieldDecl.hasInitExp()){
-                val nextBody = AssignStmt(Field(fieldDecl.name, fieldDecl.type.simpleName), translateABSExpToSymExpr(fieldDecl.initExp))
+                val nextBody = AssignStmt(Field(fieldDecl.name+"_f", fieldDecl.type.simpleName), translateABSExpToSymExpr(fieldDecl.initExp))
                 body = SeqStmt(nextBody,body)
             }
         }
@@ -182,7 +182,7 @@ class PITAllocAssign(repos: Repository) : PITAssign(repos, Modality(
         val targetDecl = repos.classReqs[classNameExpr.name]!!.second
         val substMap = mutableMapOf<LogicElement,LogicElement>()
         for(i in 0 until targetDecl.numParam){
-            val pName = select(Field(targetDecl.getParam(i).name, targetDecl.getParam(i).type.simpleName))
+            val pName = select(Field(targetDecl.getParam(i).name+"_f", targetDecl.getParam(i).type.simpleName))
             val pValue = nextRhs.params[i]
             substMap[pName] = pValue
         }

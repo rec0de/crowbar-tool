@@ -141,6 +141,9 @@ class Main : CliktCommand() {
         verbosity = Verbosity.values()[verbose]
         val (model, repos) = load(filePath)
 
+        //todo: check all VarDecls and Field Decls here
+        //      no 'result', no 'heap', no '_f' suffix
+
         when(target){
             is  CrowOption.FullOption -> {
                 var finalClose = true

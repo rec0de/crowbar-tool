@@ -1,0 +1,26 @@
+module FieldVarClash;
+
+data Spec = ObjInv(Bool) | Ensures(Bool) | Requires(Bool) | WhileInv(Bool);
+
+interface I {
+	[Spec : Requires(x == 0)]
+	Unit set_x(Int x);
+
+	[Spec : Requires(arg == 0)]
+	Unit set_arg(Int arg);
+}
+
+[Spec : ObjInv(x == 0)]
+class C implements I {
+	Int x = 0;
+
+	Unit set_x(Int x){
+		this.x = x;
+	}
+
+	Unit set_arg(Int arg){
+		this.x = arg;
+	}
+}
+
+{}

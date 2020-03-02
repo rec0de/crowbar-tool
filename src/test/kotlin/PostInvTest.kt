@@ -222,5 +222,13 @@ class PostInvTest : StringSpec ({
 			sNode = classDecl.extractMethodNode(postInv,"succZero", repos)
 			executeNode(sNode, repos, postInv) shouldBe true
 		}
+		"$smt fieldvarclash"{
+			val (model, repos) = load(listOf(Paths.get("src/test/resources/fieldvarclash.abs")))
+			val classDecl = model.extractClassDecl("FieldVarClash", "C", repos)
+			classDecl.executeAll(repos, postInv) shouldBe true
+
+			val mNode = model.exctractMainNode(postInv)
+			executeNode(mNode, repos, postInv) shouldBe true
+		}
 	}
 })
