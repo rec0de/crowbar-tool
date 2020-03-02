@@ -1,0 +1,157 @@
+module TestModule;
+
+// Translation of underspecified C code into an ABS model (https://doi.org/10.1007/978-3-030-31517-7_15)
+// Verifies that the result is 1 or 2 
+// Author: @DrRerNate
+
+data Spec = ObjInv(Bool) | Ensures(Bool) | Requires(Bool) | WhileInv(Bool);
+
+interface Global {
+	[Spec : Ensures(result == 0 || result == 1)] 
+        Int get_x();
+	[Spec : Requires(p == 0 || p == 1)] 
+        Unit set_x(Int p);
+}
+
+[Spec : ObjInv(this.x == 0 || this.x == 1)]
+class Global implements Global {
+        Int x = 0;
+        
+        Int get_x(){
+                return this.x;
+        }
+        Unit set_x(Int p){
+                this.x = p;
+        }
+}
+
+interface I_set_x {
+	[Spec : Ensures(result == 1)] 
+        Int call();
+
+	[Spec : Requires(x == 1)]
+	Unit set_global_x_val(Int x);
+}
+
+[Spec : Requires(global != null)]
+[Spec : Requires(ret_val == 1)]
+[Spec : ObjInv(global != null)]
+[Spec : ObjInv(ret_val == 1)]
+class C_set_x(Global global, Int ret_val) implements I_set_x {
+        Bool ready = False;
+        Bool go = False;
+        
+        Int call(){
+                Bool returnFlag = False;
+                Int res = 0;
+                {
+                        this.go = False;
+                        Fut<Unit> tmp_8 = this!set_global_x_val(1);
+                        this.ready = False;
+                        await this.ready;
+                        this.go = True;
+                        await tmp_8?;
+                        this.go = False;
+                        this.go = True;
+                        res = this.ret_val;
+                        returnFlag = True;
+                }
+                return res;
+        }
+
+	
+        Unit set_global_x_val(Int x){
+                this.ready = True;
+                await this.go;
+                Fut<Unit> se = this.global!set_x(x);
+                se.get;
+        }
+}
+
+interface I_main {
+	[Spec : Ensures(result == 1 || result == 2)]
+        Int call();
+
+	[Spec : Ensures(result == 0 || result == 1)]
+	Int get_global_x();
+
+	[Spec : Requires(ret_val == 1)]
+	[Spec : Ensures(result == 1)]
+	Int call_set_x_val(Int ret_val);
+
+	[Spec : Requires(x == 0)]
+	Unit set_global_x_val(Int x);
+
+	[Spec : Ensures(result == valueOf(futArg1) + valueOf(futArg2))]
+	Int op_plus_fut_fut(Fut<Int> futArg1, Fut<Int> futArg2);
+}
+
+[Spec : Requires(global != null)]
+[Spec : ObjInv(global != null)]
+class C_main(Global global) implements I_main {
+        Bool ready = False;
+        Bool go = False;
+        
+        Int call(){
+                Bool returnFlag = False;
+                Int res = 0;
+                {
+                        this.go = False;
+                        Fut<Unit> tmp_13 = this!set_global_x_val(0);
+                        this.ready = False;
+                        await this.ready;
+                        this.go = True;
+                        await tmp_13?;
+                        this.go = False;
+                        Fut<Int> tmp_14 = this!get_global_x();
+                        this.ready = False;
+                        await this.ready;
+                        Fut<Int> tmp_15 = this!call_set_x_val(1);
+                        this.ready = False;
+                        await this.ready;
+                        Fut<Int> tmp_16 = this!op_plus_fut_fut(tmp_14, tmp_15);
+                        this.ready = False;
+                        await this.ready;
+                        this.go = True;
+                        await tmp_16?;
+                        res = tmp_16.get;
+                        returnFlag = True;
+                }
+                return res;
+        }
+        Int get_global_x(){
+                this.ready = True;
+                await this.go;
+                Fut<Int> futureRes = this.global!get_x();
+                Int res = futureRes.get;
+                return res;
+        }
+        Int call_set_x_val(Int ret_val){
+                this.ready = True;
+                await this.go;
+                I_set_x tmp_1 = new C_set_x(this.global, ret_val);
+                Fut<Int> tmp_2 = tmp_1!call();
+                Int tmp_3 = tmp_2.get;
+                return tmp_3;
+        }
+        Unit set_global_x_val(Int x){
+                this.ready = True;
+                await this.go;
+                Fut<Unit> se = this.global!set_x(x);
+                se.get;
+        }
+        Int op_plus_fut_fut(Fut<Int> futArg1, Fut<Int> futArg2){
+                this.ready = True;
+                await this.go & futArg1? & futArg2?;
+                Int arg1 = futArg1.get;
+                Int arg2 = futArg2.get;
+                return ( arg1 + arg2 );
+        }
+}
+
+{
+        Global global = new Global();
+        I_main main = new C_main(global);
+        Fut<Int> f = main!call();
+        Int r = f.get;
+}
