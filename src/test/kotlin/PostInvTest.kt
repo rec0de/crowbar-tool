@@ -230,5 +230,15 @@ class PostInvTest : StringSpec ({
 			val mNode = model.exctractMainNode(postInv)
 			executeNode(mNode, repos, postInv) shouldBe true
 		}
+		"$smt recidentity"{
+			val (model, repos) = load(listOf(Paths.get("src/test/resources/identity.abs")))
+			val classDecl = model.extractClassDecl("Iden", "C", repos)
+
+			var sNode = classDecl.extractMethodNode(postInv,"id", repos)
+			executeNode(sNode, repos, postInv) shouldBe true
+
+			sNode = classDecl.extractMethodNode(postInv,"nid", repos)
+			executeNode(sNode, repos, postInv) shouldBe false
+		}
 	}
 })

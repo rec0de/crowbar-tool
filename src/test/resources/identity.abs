@@ -1,0 +1,37 @@
+module Iden;
+
+data Spec = ObjInv(Bool) | Ensures(Bool) | Requires(Bool) | WhileInv(Bool);
+
+interface I {
+  [Spec : Ensures(result == x)]
+  Int id(Int x);
+  [Spec : Ensures(result != x)]
+  Int nid(Int x);
+}
+
+class C implements I {
+  Int id(Int x) {
+    Int r = x;
+    if (x > 0) {
+      I o = new C();
+      Fut<Int> frec = o!id(x-1);
+      Int rec = frec.get;
+      r = rec + 1;
+    }
+  return r;
+  }
+  
+  //should fail
+  Int nid(Int x) {
+    Int r = x;
+    if (x > 0) {
+      I o = new C();
+      Fut<Int> frec = o!nid(x-1);
+      Int rec = frec.get;
+      r = rec + 1;
+    }
+  return r;
+  }
+}
+
+{}
