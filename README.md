@@ -11,7 +11,7 @@ Instead, symbolic execution generates a set of first-order formulas that are pas
 
 ## Example
 
-Clone the code, generate an executable jar with `./gradlew shadowJar`, save the following ABS code and call `java -jar crowbar-0.1-all.jar <file> --class=Test.C`
+Clone the code, generate an executable jar with `./gradlew shadowJar`, save the following ABS code and call `java -jar ./build/libs/crowbar-0.1-all.jar --class="Test.C" <file>`
 ```
 module Test;
 

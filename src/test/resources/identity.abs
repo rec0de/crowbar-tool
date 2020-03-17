@@ -1,5 +1,7 @@
 module Iden;
 
+// Author: @DrRerNate
+
 data Spec = ObjInv(Bool) | Ensures(Bool) | Requires(Bool) | WhileInv(Bool);
 
 interface I {
@@ -7,6 +9,8 @@ interface I {
   Int id(Int x);
   [Spec : Ensures(result != x)]
   Int nid(Int x);
+  [Spec : Ensures(result != x)]
+  Int nnid(Int x);
 }
 
 class C implements I {
@@ -26,7 +30,19 @@ class C implements I {
     Int r = x;
     if (x > 0) {
       I o = new C();
-      Fut<Int> frec = o!nid(x-1);
+      Fut<Int> frec = o!id(x-1);
+      Int rec = frec.get;
+      r = rec + 1;
+    }
+  return r;
+  }
+
+  //should fail
+  Int nnid(Int x) {
+    Int r = x;
+    if (x > 0) {
+      I o = new C();
+      Fut<Int> frec = o!nnid(x-1);
       Int rec = frec.get;
       r = rec + 1;
     }

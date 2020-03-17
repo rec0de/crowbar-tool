@@ -44,7 +44,7 @@ class C_set_x(Global global, Int ret_val) implements I_set_x {
         Int call(){
                 Bool returnFlag = False;
                 Int res = 0;
-                {
+
                         this.go = False;
                         Fut<Unit> tmp_8 = this!set_global_x_val(1);
                         this.ready = False;
@@ -55,7 +55,7 @@ class C_set_x(Global global, Int ret_val) implements I_set_x {
                         this.go = True;
                         res = this.ret_val;
                         returnFlag = True;
-                }
+
                 return res;
         }
 
@@ -95,7 +95,7 @@ class C_main(Global global) implements I_main {
         Int call(){
                 Bool returnFlag = False;
                 Int res = 0;
-                {
+
                         this.go = False;
                         Fut<Unit> tmp_13 = this!set_global_x_val(0);
                         this.ready = False;
@@ -116,7 +116,7 @@ class C_main(Global global) implements I_main {
                         await tmp_16?;
                         res = tmp_16.get;
                         returnFlag = True;
-                }
+
                 return res;
         }
         Int get_global_x(){

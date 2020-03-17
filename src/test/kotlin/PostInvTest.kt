@@ -239,6 +239,9 @@ class PostInvTest : StringSpec ({
 
 			sNode = classDecl.extractMethodNode(postInv,"nid", repos)
 			executeNode(sNode, repos, postInv) shouldBe false
+
+			sNode = classDecl.extractMethodNode(postInv,"nnid", repos)
+			executeNode(sNode, repos, postInv) shouldBe false
 		}
 	}
 })
