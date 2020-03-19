@@ -1,0 +1,59 @@
+module CallSField;
+
+//Verifies that Euclid's algorithm returns a positive number if run on positives input
+
+data Spec = ObjInv(Bool) | Ensures(Bool) | Requires(Bool) | WhileInv(Bool);
+
+interface GcdI { 
+	[Spec : Requires(p1 >= 0)] 
+	[Spec : Requires(p2 >= 0)] 
+	[Spec : Ensures(result >= 0)] 
+	Int gcd(Int p1, Int p2);
+}
+
+
+interface SubI { 
+	[Spec : Ensures(result == c - d)] 
+	Int sub(Int c, Int d);
+}
+
+class SubC implements SubI {
+	Int sub(Int c, Int d) {return c - d;}
+}
+
+[Spec : Requires(sub != null)] 
+[Spec : ObjInv(sub != null)] 
+class GcdC(SubI sub) implements GcdI{	
+	Int a = 0;
+	Int b = 0;	
+	Int gcd(Int p1, Int p2){
+		a = p1;
+		b = p2;
+		Int ret = 0;
+	
+		if (a == 0){
+			ret = b;
+		} else {
+		
+    		[Spec: WhileInv(this.b >= 0 && this.a > 0 && sub != null)]
+			while(b != 0){
+				if( a > b ) {
+				 	Fut<Int> res = sub!sub(a,b);
+				 	a = res.get;
+				}else{
+				 	Fut<Int> res = sub!sub(b,a);
+					b = res.get;
+				}
+			}
+			ret = a;
+		}
+		return ret;		
+	}
+}
+
+
+{
+  SubI log = new SubC();
+  GcdI gcd  = new GcdC(log);
+  Fut<Int> f = gcd!gcd(10,5);
+}
