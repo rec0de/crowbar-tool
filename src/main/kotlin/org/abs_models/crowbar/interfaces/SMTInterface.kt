@@ -2,6 +2,7 @@ package org.abs_models.crowbar.interfaces
 
 import org.abs_models.crowbar.data.*
 import org.abs_models.crowbar.data.Function
+import org.abs_models.crowbar.main.FunctionRepos
 import org.abs_models.crowbar.main.Verbosity
 import org.abs_models.crowbar.main.tmpPath
 import org.abs_models.crowbar.main.verbosity
@@ -32,7 +33,8 @@ val smtHeader = """
     (define-fun iEq((x Int) (y Int)) Int
         (ite (= x y) 1 0))
     (define-fun iNeq((x Int) (y Int)) Int
-        (ite (= x y) 0 1))
+        (ite (= x y) 0 1)) 
+    (define-fun iite((x Int) (y Int) (z Int)) Int (ite (= x 1) y z))
     (declare-const Unit Int)
     (assert (= Unit 0))
     """.trimIndent()
@@ -47,6 +49,7 @@ fun generateSMT(ante : Formula, succ: Formula) : String {
     val heaps =  ((pre.iterate { it is Function } + post.iterate{ it is Function }) as Set<Function>).map { it.name }.filter { it.startsWith("NEW") }
     val futs =  ((pre.iterate { it is Function } + post.iterate { it is Function }) as Set<Function>).filter { it.name.startsWith("fut_") }
     var header = smtHeader
+    header += FunctionRepos
     header = fields.fold(header, { acc, nx-> acc +"\n(declare-const ${nx.name} Field)"})
     header = vars.fold(header, {acc, nx-> acc+"\n(declare-const ${nx.name} Int)"}) //hack: dtype goes here
     header = heaps.fold(header, {acc, nx-> "$acc\n(declare-fun $nx (${"Int ".repeat(nx.split("_")[1].toInt())}) Int)" })

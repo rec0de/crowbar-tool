@@ -3,6 +3,7 @@ package org.abs_models.crowbar.interfaces
 import org.abs_models.crowbar.data.*
 import org.abs_models.crowbar.data.Const
 import org.abs_models.crowbar.data.SkipStmt
+import org.abs_models.crowbar.main.FunctionRepos
 import org.abs_models.crowbar.main.extractSpec
 import org.abs_models.crowbar.rule.FreshGenerator
 import org.abs_models.frontend.ast.*
@@ -50,7 +51,9 @@ fun translateABSExpToSymExpr(input : Exp) : Expr {
         is AsyncCall            -> return CallExpr(input.methodSig.contextDecl.qualifiedName+"."+input.methodSig.name,
                                               input.params.map {  translateABSExpToSymExpr(it) })
         is FnApp                -> if(input.name == "valueOf") return readFut(translateABSExpToSymExpr(input.params.getChild(0)))
-                                   else throw Exception("Translation of FnApp is not fully supported, term is $input" )
+                                   else if(FunctionRepos.isKnown(input.name)) return SExpr(input.name,input.params.map { translateABSExpToSymExpr(it) })
+                                   else throw Exception("Translation of FnApp is not fully supported, term is $input with function ${input.name}" )
+        is IfExp                -> return SExpr("iite", listOf(translateABSExpToSymExpr(input.condExp),translateABSExpToSymExpr(input.thenExp),translateABSExpToSymExpr(input.elseExp)))
         else                    -> throw Exception("Translation of ${input::class} not supported, term is $input" )
     }
 }

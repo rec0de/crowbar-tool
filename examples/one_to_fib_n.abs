@@ -1,0 +1,273 @@
+module TestModule;
+
+// Translation of underspecified C code into an ABS model (https://doi.org/10.1007/978-3-030-31517-7_15)
+// Author: @DrRerNate
+
+data Spec = ObjInv(Bool)| Ensures(Bool)| Requires(Bool)| WhileInv(Bool);
+
+def Int fib(Int n) = 
+        if ( n <= 2 ) then 1 else ( fib(( n - 1 )) + fib(( n - 2 )) );
+
+interface Global {
+        [Spec : Ensures(( ( result == 0 ) || ( result == 1 ) ))]
+        Int get_x();
+        [Spec : Requires(( ( value == 0 ) || ( value == 1 ) ))]
+        Unit set_x(Int value);
+}
+
+[Spec : ObjInv(( ( this.x == 0 ) || ( this.x == 1 ) ))]
+class Global implements Global {
+        Int x = 0;
+        
+        [Spec : Ensures(( ( result == 0 ) || ( result == 1 ) ))]
+        Int get_x(){
+                return this.x;
+        }
+        [Spec : Requires(( ( value == 0 ) || ( value == 1 ) ))]
+        Unit set_x(Int value){
+                this.x = value;
+        }
+        }
+
+interface I_set_x {
+        [Spec : Ensures(( result == ret_val ))]
+        Int call(Int ret_val);
+        [Spec : Requires(( ( value == 0 ) || ( value == 1 ) ))]
+        Unit set_global_x_val(Int value);
+}
+
+[Spec : Requires(( this.global != null ))] [Spec : ObjInv(( this.global != null ))]
+class C_set_x(Global global) implements I_set_x {
+        
+        
+        [Spec : Ensures(( result == ret_val ))]
+        Int call(Int ret_val){
+                Bool returnFlag = False;
+                Int funcResult = 0;
+                {
+                        Fut<Unit> tmp_2 = this!set_global_x_val(1);
+                        await tmp_2?;
+                        funcResult = ret_val;
+                        returnFlag = True;
+                }
+                return funcResult;
+        }
+        [Spec : Requires(( ( value == 0 ) || ( value == 1 ) ))]
+        Unit set_global_x_val(Int value){
+                Fut<Unit> futureResult = this.global!set_x(value);
+                futureResult.get;
+        }
+        }
+
+interface I_two_unspec {
+        [Spec : Ensures(( ( result == 1 ) || ( result == 2 ) ))]
+        Int call();
+        [Spec : Requires(( ( value == 0 ) || ( value == 1 ) ))]
+        Unit set_global_x_val(Int value);
+        [Spec : Ensures(( ( result == 0 ) || ( result == 1 ) ))]
+        Int get_global_x();
+        [Spec : Ensures(( result == arg1 ))]
+        Int call_set_x_val_0(Int arg1);
+        [Spec : Ensures(( result == ( valueOf(fut_arg1) + valueOf(fut_arg2) ) ))]
+        Int op_plus_fut_fut(Fut<Int> fut_arg1, Fut<Int> fut_arg2);
+}
+
+[Spec : Requires(( this.global != null ))] [Spec : ObjInv(( this.global != null ))]
+class C_two_unspec(Global global) implements I_two_unspec {
+        
+        
+        [Spec : Ensures(( ( result == 1 ) || ( result == 2 ) ))]
+        Int call(){
+                Bool returnFlag = False;
+                Int funcResult = 0;
+                {
+                        Fut<Unit> tmp_4 = this!set_global_x_val(0);
+                        await tmp_4?;
+                        Fut<Int> tmp_5 = this!get_global_x();
+                        Fut<Int> tmp_6 = this!call_set_x_val_0(1);
+                        Fut<Int> tmp_7 = this!op_plus_fut_fut(tmp_5, tmp_6);
+                        await tmp_7?;
+                        funcResult = tmp_7.get;
+                        returnFlag = True;
+                }
+                return funcResult;
+        }
+        [Spec : Requires(( ( value == 0 ) || ( value == 1 ) ))]
+        Unit set_global_x_val(Int value){
+                Fut<Unit> futureResult = this.global!set_x(value);
+                futureResult.get;
+        }
+        [Spec : Ensures(( ( result == 0 ) || ( result == 1 ) ))]
+        Int get_global_x(){
+                Fut<Int> futureResult = this.global!get_x();
+                Int funcResult = futureResult.get;
+                return funcResult;
+        }
+        [Spec : Ensures(( result == arg1 ))]
+        Int call_set_x_val_0(Int arg1){
+                I_set_x tmp_8 = new C_set_x(this.global);
+                Fut<Int> tmp_9 = tmp_8!call(arg1);
+                Int tmp_10 = tmp_9.get;
+                return tmp_10;
+        }
+        [Spec : Ensures(( result == ( valueOf(fut_arg1) + valueOf(fut_arg2) ) ))]
+        Int op_plus_fut_fut(Fut<Int> fut_arg1, Fut<Int> fut_arg2){
+                await fut_arg1? & fut_arg2?;
+                Int arg1 = fut_arg1.get;
+                Int arg2 = fut_arg2.get;
+                return ( arg1 + arg2 );
+        }
+        }
+
+interface I_add_zero {
+        [Spec : Ensures(( ( result == val ) || ( result == ( val - 1 ) ) ))]
+        Int call(Int val);
+        [Spec : Ensures(( result == arg1 ))]
+        Int call_set_x_val_0(Int arg1);
+        [Spec : Requires(( ( value == 0 ) || ( value == 1 ) ))]
+        Unit set_global_x_val(Int value);
+        [Spec : Ensures(( result == ( arg1 - valueOf(fut_arg2) ) ))]
+        Int op_minus_val_fut(Int arg1, Fut<Int> fut_arg2);
+        [Spec : Ensures(( ( result == 0 ) || ( result == 1 ) ))]
+        Int get_global_x();
+        [Spec : Ensures(( result == ( valueOf(fut_arg1) + valueOf(fut_arg2) ) ))]
+        Int op_plus_fut_fut(Fut<Int> fut_arg1, Fut<Int> fut_arg2);
+}
+
+[Spec : Requires(( this.global != null ))] [Spec : ObjInv(( this.global != null ))]
+class C_add_zero(Global global) implements I_add_zero {
+        
+        
+        [Spec : Ensures(( ( result == val ) || ( result == ( val - 1 ) ) ))]
+        Int call(Int val){
+                Bool returnFlag = False;
+                Int funcResult = 0;
+                {
+                        Fut<Unit> tmp_12 = this!set_global_x_val(0);
+                        await tmp_12?;
+                        Fut<Int> tmp_13 = this!get_global_x();
+                        Fut<Int> tmp_14 = this!op_minus_val_fut(val, tmp_13);
+                        Fut<Int> tmp_15 = this!call_set_x_val_0(0);
+                        Fut<Int> tmp_16 = this!op_plus_fut_fut(tmp_14, tmp_15);
+                        await tmp_16?;
+                        funcResult = tmp_16.get;
+                        returnFlag = True;
+                }
+                return funcResult;
+        }
+        [Spec : Ensures(( result == arg1 ))]
+        Int call_set_x_val_0(Int arg1){
+                I_set_x tmp_17 = new C_set_x(this.global);
+                Fut<Int> tmp_18 = tmp_17!call(arg1);
+                Int tmp_19 = tmp_18.get;
+                return tmp_19;
+        }
+        [Spec : Requires(( ( value == 0 ) || ( value == 1 ) ))]
+        Unit set_global_x_val(Int value){
+                Fut<Unit> futureResult = this.global!set_x(value);
+                futureResult.get;
+        }
+        [Spec : Ensures(( result == ( arg1 - valueOf(fut_arg2) ) ))]
+        Int op_minus_val_fut(Int arg1, Fut<Int> fut_arg2){
+                await fut_arg2?;
+                Int arg2 = fut_arg2.get;
+                return ( arg1 - arg2 );
+        }
+        [Spec : Ensures(( ( result == 0 ) || ( result == 1 ) ))]
+        Int get_global_x(){
+                Fut<Int> futureResult = this.global!get_x();
+                Int funcResult = futureResult.get;
+                return funcResult;
+        }
+        [Spec : Ensures(( result == ( valueOf(fut_arg1) + valueOf(fut_arg2) ) ))]
+        Int op_plus_fut_fut(Fut<Int> fut_arg1, Fut<Int> fut_arg2){
+                await fut_arg1? & fut_arg2?;
+                Int arg1 = fut_arg1.get;
+                Int arg2 = fut_arg2.get;
+                return ( arg1 + arg2 );
+        }
+        }
+
+interface I_one_to_fib_n {
+        [Spec : Ensures(( ( result >= 1 ) && ( result <= fib(n) ) ))]
+        Int call(Int n);
+        [Spec : Ensures(( ( result == 1 ) || ( result == 2 ) ))]
+        Int call_two_unspec_0();
+        [Spec : Ensures(( result == ( valueOf(fut_arg1) + valueOf(fut_arg2) ) ))]
+        Int op_plus_fut_fut(Fut<Int> fut_arg1, Fut<Int> fut_arg2);
+        [Spec : Ensures(( ( result >= 1 ) && ( result <= fib(arg1) ) ))]
+        Int call_one_to_fib_n_val_0(Int arg1);
+        [Spec : Ensures(( ( result == valueOf(fut_arg1) ) || ( result == ( valueOf(fut_arg1) - 1 ) ) ))]
+        Int call_add_zero_fut_0(Fut<Int> fut_arg1);
+}
+
+[Spec : Requires(( this.global != null ))] [Spec : ObjInv(( this.global != null ))]
+class C_one_to_fib_n(Global global) implements I_one_to_fib_n {
+        
+        
+        [Spec : Ensures(( ( result >= 1 ) && ( result <= fib(n) ) ))]
+        Int call(Int n){
+                Bool returnFlag = False;
+                Int funcResult = 0;
+                {
+                        Int tmp_20 = if ( n > 3 ) then 1 else 0;
+                        if ( ( tmp_20 != 0 ) ){
+                                Fut<Int> tmp_21 = this!call_one_to_fib_n_val_0(( n - 2 ));
+                                Fut<Int> tmp_22 = this!call_one_to_fib_n_val_0(( n - 1 ));
+                                Fut<Int> tmp_23 = this!call_add_zero_fut_0(tmp_22);
+                                Fut<Int> tmp_24 = this!op_plus_fut_fut(tmp_21, tmp_23);
+                                await tmp_24?;
+                                funcResult = tmp_24.get;
+                                returnFlag = True;
+                        } else {
+                                Int tmp_31 = if ( n == 3 ) then 1 else 0;
+                                if ( ( tmp_31 != 0 ) ){
+                                        Fut<Int> tmp_32 = this!call_two_unspec_0();
+                                        await tmp_32?;
+                                        funcResult = tmp_32.get;
+                                        returnFlag = True;
+                                } else {
+                                        funcResult = 1;
+                                        returnFlag = True;
+                                }
+                        }
+                }
+                return funcResult;
+        }
+        [Spec : Ensures(( ( result == 1 ) || ( result == 2 ) ))]
+        Int call_two_unspec_0(){
+                I_two_unspec tmp_33 = new C_two_unspec(this.global);
+                Fut<Int> tmp_34 = tmp_33!call();
+                Int tmp_35 = tmp_34.get;
+                return tmp_35;
+        }
+        [Spec : Ensures(( result == ( valueOf(fut_arg1) + valueOf(fut_arg2) ) ))]
+        Int op_plus_fut_fut(Fut<Int> fut_arg1, Fut<Int> fut_arg2){
+                await fut_arg1? & fut_arg2?;
+                Int arg1 = fut_arg1.get;
+                Int arg2 = fut_arg2.get;
+                return ( arg1 + arg2 );
+        }
+        [Spec : Ensures(( ( result >= 1 ) && ( result <= fib(arg1) ) ))]
+        Int call_one_to_fib_n_val_0(Int arg1){
+                I_one_to_fib_n tmp_25 = new C_one_to_fib_n(this.global);
+                Fut<Int> tmp_26 = tmp_25!call(arg1);
+                Int tmp_27 = tmp_26.get;
+                return tmp_27;
+        }
+        [Spec : Ensures(( ( result == valueOf(fut_arg1) ) || ( result == ( valueOf(fut_arg1) - 1 ) ) ))]
+        Int call_add_zero_fut_0(Fut<Int> fut_arg1){
+                await fut_arg1?;
+                Int arg1 = fut_arg1.get;
+                I_add_zero tmp_28 = new C_add_zero(this.global);
+                Fut<Int> tmp_29 = tmp_28!call(arg1);
+                Int tmp_30 = tmp_29.get;
+                return tmp_30;
+        }
+        }
+
+
+{
+        
+}
+
