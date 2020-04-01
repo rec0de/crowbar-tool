@@ -27,16 +27,6 @@ var tmpPath = "/tmp/"
 var smtPath  = "z3"
 var verbosity = Verbosity.NORMAL
 
-//todo: this is for development purposes only and will be removed once the translation is automatic
-object FunctionRepos{
-    private val known : Map<String, String> = mapOf(Pair("fib","(define-fun-rec fib ((n Int)) Int\n" +
-    "    (ite (<= n 2) 1\n" +
-    "           (+ (fib (- n 1)) (fib (- n 2)))))"))
-    fun isKnown(str: String) = known.containsKey(str)
-    fun get(str: String) = known.getValue(str)
-    override fun toString() = known.values.fold("",{acc, it -> "$acc \n $it"})
-}
-
 //todo: once allowedTypes is not needed anymore, the repository needs to be passed to fewer places
 data class Repository(private val model : Model?,
                       val allowedTypes : MutableList<String> =  mutableListOf("ABS.StdLib.Int",
@@ -51,7 +41,6 @@ data class Repository(private val model : Model?,
     init{
         if(model != null) {
             populateClassReqs(model)
-            populateMethodReqs(model)
             populateAllowedTypes(model)
         }
     }
@@ -66,7 +55,7 @@ data class Repository(private val model : Model?,
             }
         }
     }
-    private fun populateMethodReqs(model: Model) {
+    fun populateMethodReqs(model: Model) {
         for(moduleDecl in model.moduleDecls) {
             if(moduleDecl.name.startsWith("ABS.")) continue
             for (decl in moduleDecl.decls) {
@@ -150,7 +139,8 @@ class Main : CliktCommand() {
         smtPath = smtCmd
         verbosity = Verbosity.values()[verbose]
         val (model, repos) = load(filePath)
-
+        FunctionRepos.init(model, repos)
+        repos.populateMethodReqs(model)
         //todo: check all VarDecls and Field Decls here
         //      no 'result', no 'heap', no '_f' suffix
 

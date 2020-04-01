@@ -51,8 +51,9 @@ fun translateABSExpToSymExpr(input : Exp) : Expr {
         is AsyncCall            -> return CallExpr(input.methodSig.contextDecl.qualifiedName+"."+input.methodSig.name,
                                               input.params.map {  translateABSExpToSymExpr(it) })
         is FnApp                -> if(input.name == "valueOf") return readFut(translateABSExpToSymExpr(input.params.getChild(0)))
-                                   else if(FunctionRepos.isKnown(input.name)) return SExpr(input.name,input.params.map { translateABSExpToSymExpr(it) })
-                                   else throw Exception("Translation of FnApp is not fully supported, term is $input with function ${input.name}" )
+                                   else if(FunctionRepos.isKnown(input.decl.qualifiedName)) {
+                                        return SExpr(input.decl.qualifiedName.replace(".","-"),input.params.map { translateABSExpToSymExpr(it) })
+                                    } else throw Exception("Translation of FnApp is not fully supported, term is $input with function ${input.name}" )
         is IfExp                -> return SExpr("iite", listOf(translateABSExpToSymExpr(input.condExp),translateABSExpToSymExpr(input.thenExp),translateABSExpToSymExpr(input.elseExp)))
         else                    -> throw Exception("Translation of ${input::class} not supported, term is $input" )
     }
