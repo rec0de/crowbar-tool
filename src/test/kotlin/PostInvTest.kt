@@ -243,5 +243,72 @@ class PostInvTest : StringSpec ({
 			sNode = classDecl.extractMethodNode(postInv,"nnid", repos)
 			executeNode(sNode, repos, postInv) shouldBe false
 		}
+		"$smt examples"{
+			var (model, repos) = load(listOf(Paths.get("examples/c2abs.abs")))
+			var classDecl = model.extractClassDecl("TestModule", "C_main", repos)
+			classDecl.executeAll(repos, postInv) shouldBe true
+
+			classDecl = model.extractClassDecl("TestModule", "Global", repos)
+			classDecl.executeAll(repos, postInv) shouldBe true
+
+			classDecl = model.extractClassDecl("TestModule", "C_set_x", repos)
+			classDecl.executeAll(repos, postInv) shouldBe true
+
+			var mNode = model.exctractMainNode(postInv)
+			executeNode(mNode, repos, postInv) shouldBe true
+
+			var any = load(listOf(Paths.get("examples/gcd.abs")))
+			model = any.first
+			repos = any.second
+			classDecl = model.extractClassDecl("CallS", "GcdC", repos)
+			classDecl.executeAll(repos, postInv) shouldBe true
+
+			classDecl = model.extractClassDecl("CallS", "LogC", repos)
+			classDecl.executeAll(repos, postInv) shouldBe true
+
+			mNode = model.exctractMainNode(postInv)
+			executeNode(mNode, repos, postInv) shouldBe true
+
+			any = load(listOf(Paths.get("examples/gcdfield.abs")))
+			model = any.first
+			repos = any.second
+			classDecl = model.extractClassDecl("CallSField", "GcdC", repos)
+			classDecl.executeAll(repos, postInv) shouldBe true
+
+			mNode = model.exctractMainNode(postInv)
+			executeNode(mNode, repos, postInv) shouldBe true
+
+			any = load(listOf(Paths.get("examples/one_to_fib_n.abs")))
+			model = any.first
+			repos = any.second
+
+			classDecl = model.extractClassDecl("TestModule", "Global", repos)
+			classDecl.executeAll(repos, postInv) shouldBe true
+
+			classDecl = model.extractClassDecl("TestModule", "C_set_x", repos)
+			classDecl.executeAll(repos, postInv) shouldBe true
+
+			classDecl = model.extractClassDecl("TestModule", "C_two_unspec", repos)
+			classDecl.executeAll(repos, postInv) shouldBe true
+
+			classDecl = model.extractClassDecl("TestModule", "C_add_zero", repos)
+			classDecl.executeAll(repos, postInv) shouldBe true
+
+			classDecl = model.extractClassDecl("TestModule", "C_one_to_fib_n", repos)
+			classDecl.executeAll(repos, postInv) shouldBe true
+
+			mNode = model.exctractMainNode(postInv)
+			executeNode(mNode, repos, postInv) shouldBe true
+		}
+		"$smt functional"{
+			val (model, repos) = load(listOf(Paths.get("src/test/resources/func.abs")))
+			val classDecl = model.extractClassDecl("Func", "C", repos)
+
+			var sNode = classDecl.extractMethodNode(postInv,"m", repos)
+			executeNode(sNode, repos, postInv) shouldBe true
+
+			sNode = classDecl.extractMethodNode(postInv,"n", repos)
+			executeNode(sNode, repos, postInv) shouldBe false
+		}
 	}
 })

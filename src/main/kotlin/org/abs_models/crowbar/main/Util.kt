@@ -41,6 +41,12 @@ fun load(paths : List<Path>) : Pair<Model,Repository> {
         throw Exception("Compilation failed with type errors")
 
     val repos = Repository(model)
+
+
+    //initialization: first read the types, then the function definitions and then the specifications
+    FunctionRepos.init(model, repos)
+    repos.populateClassReqs(model)
+    repos.populateMethodReqs(model)
     return Pair(model, repos)
 }
 

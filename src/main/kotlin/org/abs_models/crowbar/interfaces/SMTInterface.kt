@@ -2,13 +2,11 @@ package org.abs_models.crowbar.interfaces
 
 import org.abs_models.crowbar.data.*
 import org.abs_models.crowbar.data.Function
-import org.abs_models.crowbar.main.FunctionRepos
-import org.abs_models.crowbar.main.Verbosity
-import org.abs_models.crowbar.main.tmpPath
-import org.abs_models.crowbar.main.verbosity
+import org.abs_models.crowbar.main.*
 import java.io.File
 import java.util.concurrent.TimeUnit
 
+//(set-option :timeout ${timeoutS*1000})
 val smtHeader = """
     (set-logic ALL)
     (define-sort Field () Int)
@@ -85,7 +83,7 @@ fun String.runCommand(
 fun evaluateSMT(smtRep : String) : Boolean {
     val path = "${tmpPath}out.smt2"
     File(path).writeText(smtRep)
-    val res = "${org.abs_models.crowbar.main.smtPath} $path".runCommand()
+    val res = "$smtPath $path".runCommand()
     return res != null && res.trim() == "unsat"
 }
 

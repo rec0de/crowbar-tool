@@ -25,6 +25,7 @@ enum class Verbosity { SILENT, NORMAL, V, VV, VVV }
 
 var tmpPath = "/tmp/"
 var smtPath  = "z3"
+//var timeoutS  = 100
 var verbosity = Verbosity.NORMAL
 
 //todo: once allowedTypes is not needed anymore, the repository needs to be passed to fewer places
@@ -40,11 +41,10 @@ data class Repository(private val model : Model?,
                       val methodEnss : MutableMap<String,Pair<Formula,MethodSig>> = mutableMapOf()){
     init{
         if(model != null) {
-            populateClassReqs(model)
             populateAllowedTypes(model)
         }
     }
-    private fun populateClassReqs(model: Model) {
+    fun populateClassReqs(model: Model) {
         for(moduleDecl in model.moduleDecls) {
             if(moduleDecl.name.startsWith("ABS.")) continue
             for (decl in moduleDecl.decls) {
@@ -128,6 +128,7 @@ class Main : CliktCommand() {
         option(help="Verifies the full model").switch("--full" to CrowOption.FullOption)
     ).single().required()
 
+   // private val timeout     by   option("--timeout","-to",help="timeout for a single SMT prover invocation in seconds").int().default(timeoutS)
     private val tmp        by   option("--tmp","-t",help="path to a directory used to store the .smt files").path().default(Paths.get(tmpPath))
     private val smtCmd     by   option("--smt","-s",help="command to start SMT solver").default(smtPath)
     private val verbose    by   option("--verbose", "-v",help="verbosity output level").int().restrictTo(Verbosity.values().indices).default(Verbosity.NORMAL.ordinal)
@@ -138,9 +139,9 @@ class Main : CliktCommand() {
         tmpPath = "$tmp/"
         smtPath = smtCmd
         verbosity = Verbosity.values()[verbose]
+    //    timeoutS = timeout
+
         val (model, repos) = load(filePath)
-        FunctionRepos.init(model, repos)
-        repos.populateMethodReqs(model)
         //todo: check all VarDecls and Field Decls here
         //      no 'result', no 'heap', no '_f' suffix
 
