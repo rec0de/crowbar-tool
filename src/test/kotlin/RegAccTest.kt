@@ -1,10 +1,6 @@
-import io.kotlintest.shouldBe
-import io.kotlintest.shouldThrow
 import io.kotlintest.specs.StringSpec
-import org.abs_models.crowbar.main.*
-import org.abs_models.crowbar.rule.FreshGenerator
+import org.abs_models.crowbar.main.smtPath
 import org.abs_models.crowbar.types.RegAccType
-import java.nio.file.Paths
 
 class RegAccTest : StringSpec ({
 
@@ -12,7 +8,7 @@ class RegAccTest : StringSpec ({
 	for( smt in listOf("z3","cvc")) {
 		println("testing with: $smt as backend")
 		smtPath = smt
-
+/*
 		"$smt simple"{
 			val (model, repos) = load(listOf(Paths.get("src/test/resources/simpleregacc.abs")))
 			val classDecl = model.extractClassDecl("RegAcc", "C", repos)
@@ -34,6 +30,6 @@ class RegAccTest : StringSpec ({
 			s3Node.collectInferenceLeaves().map { it.debugString(0) }.shouldBe(
 				listOf("RA_A5 = acc: [Wthis.g : Int] . RA_A6", "RA_A6 = acc: [Rthis.g : Int, Wthis.f : Int] . RA_A7", "RA_A7 = acc: []"))
 			FreshGenerator.reset()
-		}
+		}*/
 	}
 })

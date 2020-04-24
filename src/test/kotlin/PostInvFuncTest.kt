@@ -14,9 +14,28 @@ class PostInvFuncTest : StringSpec({
 			var funcDecl = model.extractFunctionDecl("M", "mult", repos)
 			var mNode = funcDecl.exctractFunctionNode(postInv)
 			executeNode(mNode, repos, postInv) shouldBe true
+
 			funcDecl = model.extractFunctionDecl("M", "multFail", repos)
 			mNode = funcDecl.exctractFunctionNode(postInv)
 			executeNode(mNode, repos, postInv) shouldBe false
+
+			funcDecl = model.extractFunctionDecl("M", "fac", repos)
+			mNode = funcDecl.exctractFunctionNode(postInv)
+			executeNode(mNode, repos, postInv) shouldBe true
+
+			funcDecl = model.extractFunctionDecl("M", "facFail", repos)
+			mNode = funcDecl.exctractFunctionNode(postInv)
+			executeNode(mNode, repos, postInv) shouldBe false
+
+			val classDecl = model.extractClassDecl("M", "C", repos)
+
+			mNode = classDecl.extractMethodNode(postInv,"m", repos)
+			executeNode(mNode, repos, postInv) shouldBe true
+			mNode = classDecl.extractMethodNode(postInv,"mFail", repos)
+			executeNode(mNode, repos, postInv) shouldBe false
+			mNode = classDecl.extractMethodNode(postInv,"mFailCall", repos)
+			executeNode(mNode, repos, postInv) shouldBe false
+
 		}
 	}
 })

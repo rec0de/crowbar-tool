@@ -1,9 +1,21 @@
 module M;
 
+
+[Spec : Requires(n > 0)]
+[Spec : Ensures(result > 0)]
+def Int fac(Int n) = if(n == 1) then 1 else n*fac(n-1);
+
+
+[Spec : Requires(n > 0)]
+[Spec : Ensures(result > 0)]
+def Int facFail(Int n) = if(n == 0) then 1 else n*facFail(n-1);
+
 [Spec : Requires(x != 0)]
 [Spec : Requires(y != 0)]
 [Spec : Ensures(result != 0)]
-def Int mult(Int x, Int y) = x*(y);
+def Int mult(Int x, Int y) = x*y;
+
+def Int multUnspec(Int x, Int y) = x*y;
 
 [Spec : Requires(x != 0)]
 [Spec : Requires(y != 0)]
@@ -15,17 +27,30 @@ data Spec = ObjInv(Bool) | Ensures(Bool) | Requires(Bool) | WhileInv(Bool);
 interface I {
 	[Spec : Requires(y == 1)]
 	[Spec : Requires(x != 0)]
-	[Spec : Ensures(result == x)]
+	[Spec : Ensures(result != 0)]
 	Int m(Int x, Int y);
+
+	[Spec : Requires(y == 1)]
+	[Spec : Requires(x != 0)]
+	[Spec : Ensures(result != 0)]
+	Int mSuccNoSpec(Int x, Int y);
+
 	[Spec : Requires(y == 1)]
 	[Spec : Requires(x != 0)]
 	[Spec : Ensures(result == x)]
 	Int mFail(Int x, Int y);
+
+	[Spec : Requires(y == 1)]
+	[Spec : Requires(x != 0)]
+	[Spec : Ensures(result == x)]
+	Int mFailCall(Int x, Int y);
 }
 
 class C implements I {
 	Int m(Int x, Int y) { return mult(x,y); }
-	Int mFail(Int x, Int y) { return mult(x,y-1); }
+	Int mSuccNoSpec(Int x, Int y) { return multUnspec(x,y); }
+	Int mFail(Int x, Int y) { return mult(x,y); }
+	Int mFailCall(Int x, Int y) { return mult(x,y-1); }
 }
 
 {
