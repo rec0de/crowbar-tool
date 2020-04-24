@@ -170,18 +170,18 @@ class Main : CliktCommand() {
                 var finalClose = true
                 for( classDecl in model.extractAllClasses() ) {
                     val totalClosed = classDecl.executeAll(repos, deductType)
-                    output("Crowbar  : Verification result ${classDecl.qualifiedName}: $totalClosed", Verbosity.SILENT)
+                    output("Crowbar  : Verification result ${classDecl.qualifiedName}: $totalClosed\n", Verbosity.SILENT)
                     finalClose = finalClose && totalClosed
                 }
                 for( sNode in FunctionRepos.extractAll(deductType)){
                     val closed = executeNode(sNode.second, repos, deductType)
-                    output("Crowbar  : Verification result ${sNode.first}: $closed", Verbosity.SILENT)
+                    output("Crowbar  : Verification result ${sNode.first}: $closed\n", Verbosity.SILENT)
                     finalClose = finalClose && closed
                 }
                 val node = model.exctractMainNode(deductType)
                 val closed = executeNode(node, repos, deductType)
                 finalClose = finalClose && closed
-                output("Crowbar  : Verification of main: $closed", Verbosity.SILENT)
+                output("Crowbar  : Verification of main: $closed\n", Verbosity.SILENT)
                 output("Crowbar  : Final verification result: $finalClose", Verbosity.SILENT)
                 if(FunctionRepos.hasContracts()){
                     output("Crowbar  : Verification relies on functional contracts. This feature is experimental. To remove this warning, remove all specifications of function definitions.", Verbosity.SILENT)

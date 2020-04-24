@@ -231,7 +231,7 @@ fun ClassDecl.executeAll(repos: Repository, usedType: KClass<out DeductType>): B
     for(m in methods){
         val node = extractMethodNode(usedType, m.methodSig.name, repos)
         val closed = executeNode(node, repos, usedType)
-        output("Crowbar  : Verification ${m.methodSig.name}: $closed \n")
+        output("Crowbar  : Verification ${m.methodSig.name}: $closed")
         totalClosed = totalClosed && closed
     }
     return totalClosed

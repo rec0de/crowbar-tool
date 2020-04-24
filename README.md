@@ -15,22 +15,38 @@ Clone the code, generate an executable jar with `./gradlew shadowJar`, save the 
 ```
 module Test;
 
-data Spec = ObjInv(Bool) | Ensures(Bool);
+data Spec = ObjInv(Bool)        //Object Invariants
+          | Ensures(Bool)       //Pre-conditions of method and classes
+          | Requires(Bool)      //Post-conditions
+          | WhileInv(Bool);     //Loop invariants
 
-[Spec : ObjInv(this.f >= 0)]
-class C {
-    Int f = 0;
+[Spec : Requires(n > 0)]
+[Spec : Ensures(result > 0)]
+def Int fac(Int n) = if(n == 1) then 1 else n*fac(n-1);
 
+interface I{
     [Spec : Ensures(result >= 0)]
+    Int m(Int v);
+}
+
+[Spec : Requires(this.init > 0)]
+[Spec : ObjInv(this.f > 0 && this.init > 0)]
+class C(Int init) implements I {
+    Int f = init;
+
     Int m(Int v){
         Int w = v;
-        if(w >= 0) this.f = w;
-        else       this.f = -w;
+        if(w > 0)  this.f = fac(w);
+        else       this.f = fac(-w+init);
         return v*w;
     }
 }
 
-{}
+{
+    I i = new C(10);
+    i!m(fac(5));
+}
+
 ```
 
 ## Misc.
