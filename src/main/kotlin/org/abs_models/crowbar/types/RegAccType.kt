@@ -12,6 +12,7 @@ import org.abs_models.crowbar.tree.SymbolicLeaf
 import org.abs_models.crowbar.tree.SymbolicNode
 import org.abs_models.crowbar.tree.SymbolicTree
 import org.abs_models.frontend.ast.ClassDecl
+import org.abs_models.frontend.ast.FunctionDecl
 import org.abs_models.frontend.ast.Model
 import kotlin.system.exitProcess
 
@@ -71,6 +72,7 @@ interface RegAccType : DeductType{
 		symb = SymbolicState(And(objInv,metpre), EmptyUpdate, Modality(body, FreshGenerator.getFreshRAVar()))
 		return SymbolicNode(symb, emptyList())
 	}
+	override fun exctractFunctionNode(fDecl: FunctionDecl): SymbolicNode = throw Exception("This type is not executable")
 	override fun extractInitialNode(classDecl: ClassDecl) : SymbolicNode = throw Exception("This type is not executable")
 	override fun exctractMainNode(model: Model) : SymbolicNode = throw Exception("This type cannot be applied to the main block")
 	fun hasAbstractVar() : Boolean // in the sense of BPL unification, not AccVar

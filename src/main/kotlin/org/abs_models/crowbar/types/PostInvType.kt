@@ -1,7 +1,14 @@
 package org.abs_models.crowbar.types
 
 import org.abs_models.crowbar.data.*
+import org.abs_models.crowbar.data.AssignStmt
+import org.abs_models.crowbar.data.AwaitStmt
 import org.abs_models.crowbar.data.Function
+import org.abs_models.crowbar.data.IfStmt
+import org.abs_models.crowbar.data.ReturnStmt
+import org.abs_models.crowbar.data.SkipStmt
+import org.abs_models.crowbar.data.Stmt
+import org.abs_models.crowbar.data.WhileStmt
 import org.abs_models.crowbar.interfaces.translateABSExpToSymExpr
 import org.abs_models.crowbar.interfaces.translateABSStmtToSymStmt
 import org.abs_models.crowbar.main.*
@@ -11,8 +18,7 @@ import org.abs_models.crowbar.rule.Rule
 import org.abs_models.crowbar.tree.LogicNode
 import org.abs_models.crowbar.tree.SymbolicNode
 import org.abs_models.crowbar.tree.SymbolicTree
-import org.abs_models.frontend.ast.ClassDecl
-import org.abs_models.frontend.ast.Model
+import org.abs_models.frontend.ast.*
 import kotlin.system.exitProcess
 
 
@@ -100,6 +106,34 @@ interface PostInvType : DeductType{
 
         val v = appendStmt(translateABSStmtToSymStmt(model.mainBlock), SkipStmt)
         return SymbolicNode(SymbolicState(True, EmptyUpdate, Modality(v, PostInvariantPair(True, True))), emptyList())
+    }
+
+
+    override fun exctractFunctionNode(fDecl: FunctionDecl): SymbolicNode {
+        val symb: SymbolicState?
+        val funpost: Formula?
+        val funpre: Formula?
+        var body: Stmt? = null
+        try {
+            funpre = extractSpec(fDecl, "Requires")
+            funpost = extractSpec(fDecl, "Ensures")
+            val fDef = fDecl.functionDef
+            if(fDef is BuiltinFunctionDef){
+                throw Exception("error during translation, cannot handle builtin yet")
+            }else if(fDef is ExpFunctionDef){
+                body = ReturnStmt(translateABSExpToSymExpr(fDef.rhs))
+            }
+        }catch (e: Exception) {
+            e.printStackTrace()
+            System.err.println("error during translation, aborting")
+            throw e
+        }
+        if(body != null) {
+            symb = SymbolicState(funpre, EmptyUpdate, Modality(body, PostInvariantPair(funpost, True)))
+            return SymbolicNode(symb, emptyList())
+        }else{
+            throw Exception("error during translation of function contract")
+        }
     }
 }
 data class PostInvAbstractVar(val name : String) : PostInvType, AbstractVar{

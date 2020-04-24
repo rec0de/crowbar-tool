@@ -15,11 +15,9 @@ import org.abs_models.crowbar.data.Formula
 import org.abs_models.crowbar.data.True
 import org.abs_models.crowbar.types.PostInvType
 import org.abs_models.crowbar.types.RegAccType
-import org.abs_models.frontend.ast.ClassDecl
-import org.abs_models.frontend.ast.InterfaceDecl
-import org.abs_models.frontend.ast.MethodSig
-import org.abs_models.frontend.ast.Model
+import org.abs_models.frontend.ast.*
 import java.nio.file.Paths
+import kotlin.system.exitProcess
 
 enum class Verbosity { SILENT, NORMAL, V, VV, VVV }
 
@@ -103,6 +101,8 @@ sealed class CrowOption{
     data class MethodOption(val path : String) : CrowOption()
     data class InitOption(val path : String) : CrowOption()
     data class AllClassOption(val path : String) : CrowOption()
+    data class FunctionOption(val path : String) : CrowOption()
+    object AllFunctionOption : CrowOption()
     object MainBlockOption : CrowOption()
     object FullOption : CrowOption()
 }
@@ -121,11 +121,16 @@ class Main : CliktCommand() {
                 .validate { require((it as CrowOption.InitOption).path.split(".").size == 2,
                     lazyMessage = {"invalid fully qualified class name $it"}) },
         option("--class","-c",help="Verifies the initial block and all methods of <module>.<class>")
-                .convert {  CrowOption.AllClassOption(it) as CrowOption }
-                .validate { require((it as CrowOption.AllClassOption).path.split(".").size == 2,
-                                    lazyMessage = {"invalid fully qualified class name $it"}) },
+            .convert {  CrowOption.AllClassOption(it) as CrowOption }
+            .validate { require((it as CrowOption.AllClassOption).path.split(".").size == 2,
+                lazyMessage = {"invalid fully qualified class name $it"}) },
+        option("--function","-f",help="Verifies the function <module>.<function> (experimental)")
+            .convert {  CrowOption.FunctionOption(it) as CrowOption }
+            .validate { require((it as CrowOption.FunctionOption).path.split(".").size == 2,
+                lazyMessage = {"invalid fully qualified function name $it"}) },
         option(help="Verifies the main block of the model").switch("--main" to CrowOption.MainBlockOption),
         option(help="Verifies the full model").switch("--full" to CrowOption.FullOption)
+ //       option(help="Verifies the full functional layer (experimental)").switch("--full-function" to CrowOption.FullOption)
     ).single().required()
 
    // private val timeout     by   option("--timeout","-to",help="timeout for a single SMT prover invocation in seconds").int().default(timeoutS)
@@ -146,6 +151,20 @@ class Main : CliktCommand() {
         //      no 'result', no 'heap', no '_f' suffix
 
         when(target){
+            is  CrowOption.AllFunctionOption -> {
+                System.err.println("option non implemented yet")
+                exitProcess(-1)
+            }
+            is  CrowOption.FunctionOption -> {
+                output("Crowbar  : This is an experimental feature and under development", Verbosity.SILENT)
+                val tt = target as  CrowOption.FunctionOption
+                val targetPath = tt.path.split(".")
+                val funcDecl: FunctionDecl = model.extractFunctionDecl(targetPath[0], targetPath[1], repos)
+                println(funcDecl.numAnnotation)
+                val functionNode = funcDecl.exctractFunctionNode(deductType)
+                val closed = executeNode(functionNode, repos, deductType)
+                output("Crowbar  : Verification result: $closed", Verbosity.SILENT)
+            }
             is  CrowOption.FullOption -> {
                 var finalClose = true
                 for( classDecl in model.extractAllClasses() ) {

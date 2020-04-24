@@ -79,16 +79,32 @@ fun extractInheritedSpec(mSig : MethodSig, expectedSpec : String, default:Formul
 
 fun<T : ASTNode<out ASTNode<*>>?> extractSpec(decl : ASTNode<T>, expectedSpec : String, default:Formula = True, multipleAllowed:Boolean = true) : Formula {
     var ret : Formula? = null
-    for(annotation in decl.nodeAnnotations){
-        if(!annotation.type.toString().endsWith(".Spec")) continue
-        if(annotation.value !is DataConstructorExp) {
-            throw Exception("Could not extract any specification from $decl because of the expected value")
+    //TODO: this seems to be a problem with annotations in the functional layer in the ABS AST
+    //TODO: refactor the code duplication
+    if(decl is FunctionDecl){
+        for(annotation in decl.annotationList){
+            if(!annotation.type.toString().endsWith(".Spec")) continue
+            if(annotation.value !is DataConstructorExp) {
+                throw Exception("Could not extract any specification from $decl because of the expected value")
+            }
+            val annotated = annotation.value as DataConstructorExp
+            if(annotated.constructor != expectedSpec) continue
+            val next = exprToForm(translateABSExpToSymExpr(annotated.getParam(0) as Exp))
+            ret = if(ret == null) next else And(ret, next)
+            if(!multipleAllowed) break
         }
-        val annotated = annotation.value as DataConstructorExp
-        if(annotated.constructor != expectedSpec) continue
-        val next = exprToForm(translateABSExpToSymExpr(annotated.getParam(0) as Exp))
-        ret = if(ret == null) next else And(ret, next)
-        if(!multipleAllowed) break
+    }else {
+        for (annotation in decl.nodeAnnotations) {
+            if(!annotation.type.toString().endsWith(".Spec")) continue
+            if(annotation.value !is DataConstructorExp) {
+                throw Exception("Could not extract any specification from $decl because of the expected value")
+            }
+            val annotated = annotation.value as DataConstructorExp
+            if(annotated.constructor != expectedSpec) continue
+            val next = exprToForm(translateABSExpToSymExpr(annotated.getParam(0) as Exp))
+            ret = if (ret == null) next else And(ret, next)
+            if (!multipleAllowed) break
+        }
     }
     val next = if(decl is MethodImpl) extractInheritedSpec(decl.methodSig,expectedSpec,default) else null
     if(ret != null && next == null) return ret
@@ -112,6 +128,26 @@ fun Model.extractAllClasses() : List<ClassDecl>{
     return l
 }
 
+fun Model.extractFunctionDecl(moduleName : String, funcName : String, repos : Repository) : FunctionDecl {
+    val moduleDecl = moduleDecls.firstOrNull { it.name == moduleName }
+    if(moduleDecl == null){
+        System.err.println("module not found: $moduleName")
+        exitProcess(-1)
+    }
+    val funcDecl : FunctionDecl? = moduleDecl.decls.firstOrNull { it is FunctionDecl && it.name == funcName } as FunctionDecl?
+    if(funcDecl == null){
+        System.err.println("function not found: ${moduleName}.${funcDecl}")
+        exitProcess(-1)
+    }
+
+    if(    funcDecl.params.any { !repos.isAllowedType(it.type.toString()) }
+        ||  !repos.isAllowedType(funcDecl.type.toString())  ){
+        System.err.println("parameters and return types with non-Int type not supported")
+        exitProcess(-1)
+    }
+    return funcDecl
+}
+
 fun Model.extractClassDecl(moduleName : String, className : String, repos : Repository) : ClassDecl {
     val moduleDecl = moduleDecls.firstOrNull { it.name == moduleName }
     if(moduleDecl == null){
@@ -132,6 +168,11 @@ fun Model.extractClassDecl(moduleName : String, className : String, repos : Repo
     return classDecl
 }
 
+fun FunctionDecl.exctractFunctionNode(usedType: KClass<out DeductType>) : SymbolicNode{
+    val callTarget = usedType.memberFunctions.first { it.name == "exctractFunctionNode" }
+    val obj = usedType.companionObject!!.objectInstance
+    return callTarget.call(obj, this) as SymbolicNode
+}
 fun Model.exctractMainNode(usedType: KClass<out DeductType>) : SymbolicNode{
     val callTarget = usedType.memberFunctions.first { it.name == "exctractMainNode" }
     val obj = usedType.companionObject!!.objectInstance

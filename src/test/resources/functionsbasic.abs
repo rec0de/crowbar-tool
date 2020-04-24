@@ -1,0 +1,34 @@
+module M;
+
+[Spec : Requires(x != 0)]
+[Spec : Requires(y != 0)]
+[Spec : Ensures(result != 0)]
+def Int mult(Int x, Int y) = x*(y);
+
+[Spec : Requires(x != 0)]
+[Spec : Requires(y != 0)]
+[Spec : Ensures(result != 0)]
+def Int multFail(Int x, Int y) = x*(y-y);
+
+data Spec = ObjInv(Bool) | Ensures(Bool) | Requires(Bool) | WhileInv(Bool);
+
+interface I {
+	[Spec : Requires(y == 1)]
+	[Spec : Requires(x != 0)]
+	[Spec : Ensures(result == x)]
+	Int m(Int x, Int y);
+	[Spec : Requires(y == 1)]
+	[Spec : Requires(x != 0)]
+	[Spec : Ensures(result == x)]
+	Int mFail(Int x, Int y);
+}
+
+class C implements I {
+	Int m(Int x, Int y) { return mult(x,y); }
+	Int mFail(Int x, Int y) { return mult(x,y-1); }
+}
+
+{
+ I i = new C();
+ i!m(5,1);
+}
