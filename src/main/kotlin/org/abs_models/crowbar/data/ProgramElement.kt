@@ -96,7 +96,7 @@ data class AwaitStmt(val resExpr : Expr, val id : PP) : Stmt {
 
 data class CallStmt(val lhs : Location, val target : Expr, val resExpr : CallingExpr) : Stmt {
     override fun prettyPrint(): String {
-        return "${lhs.prettyPrint()} = ${target.prettyPrint()}.${resExpr.prettyPrint()}"
+        return "${lhs.prettyPrint()} = ${target.prettyPrint()}!${resExpr.prettyPrint()}"
     }
     override fun iterate(f: (Anything) -> Boolean) : Set<Anything> = super.iterate(f) + target.iterate(f) + resExpr.iterate(f)
 }

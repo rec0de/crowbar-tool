@@ -22,7 +22,7 @@ interface LogI {
 [Spec : Requires(log != null)] 
 [Spec : ObjInv(log != null)] 
 class GcdC(LogI log) implements GcdI{	
-	
+
 	Int gcd(Int p1, Int p2){
 		Int a = p1;
 		Int b = p2;
@@ -48,7 +48,7 @@ class GcdC(LogI log) implements GcdI{
 [Spec : ObjInv(this.f >= 0)]
 class LogC(Int f) implements LogI{	
 
-    [Spec: Ensures(result == this.f)] 
+    [Spec: Ensures(result == this.f)]
 	Int log(Int p1){
 		this.f = this.f + p1;
 		return this.f;
