@@ -15,6 +15,8 @@ import com.github.ajalt.clikt.parameters.types.path
 import com.github.ajalt.clikt.parameters.types.restrictTo
 import org.abs_models.crowbar.data.Formula
 import org.abs_models.crowbar.data.True
+import org.abs_models.crowbar.interfaces.directlySafe
+import org.abs_models.crowbar.interfaces.filterAtomic
 import org.abs_models.crowbar.types.PostInvType
 import org.abs_models.crowbar.types.RegAccType
 import org.abs_models.frontend.ast.*
@@ -140,7 +142,7 @@ class Main : CliktCommand() {
     private val smtCmd     by   option("--smt","-s",help="command to start SMT solver").default(smtPath)
     private val verbose    by   option("--verbose", "-v",help="verbosity output level").int().restrictTo(Verbosity.values().indices).default(Verbosity.NORMAL.ordinal)
     private val deductType by   option("--deduct","-d",help="Used Deductive Type").choice("PostInv","RegAcc").convert { when(it){"PostInv" -> PostInvType::class; "RegAcc" -> RegAccType::class; else -> throw Exception(); } }.default(PostInvType::class)
-
+    private val freedom    by   option("--freedom","-fr",help="Performs a simple check for potentially deadlocking methods").flag()
     override fun run() {
 
         tmpPath = "$tmp/"
@@ -151,6 +153,11 @@ class Main : CliktCommand() {
         val (model, repos) = load(filePath)
         //todo: check all VarDecls and Field Decls here
         //      no 'result', no 'heap', no '_f' suffix
+
+        if(freedom) {
+            val freedom = runFreeAnalysis(model)
+            output("Crowbar  : Result of freedom analysis: $freedom", Verbosity.SILENT)
+        }
 
         when(target){
             is  CrowOption.AllFunctionOption -> {
@@ -216,6 +223,33 @@ class Main : CliktCommand() {
                 output("Crowbar  : Verification result: $closed", Verbosity.SILENT)
             }
         }
+    }
+
+    private fun runFreeAnalysis(model: Model) : Boolean{
+        val mets = mutableListOf<MethodImpl>()
+        val sigs = mutableListOf<MethodSig>()
+        val safe = mutableListOf<MethodSig>()
+        for(decl in model.moduleDecls){
+            for(cDecl in decl.decls.filterIsInstance<ClassDecl>().map{it as ClassDecl}){
+                for(mImpl in cDecl.methods){
+                        if(decl.name.startsWith("ABS."))
+                             safe.add(mImpl.methodSig)
+                        else {
+                            mets.add(mImpl)
+                            sigs.add(mImpl.methodSig)
+                        }
+                }
+            }
+        }
+        safe.addAll(mets.filter { triviallyFree(it) }.map { it.methodSig })
+        sigs.removeAll (mets.filter { triviallyFree(it) }.map { it.methodSig })
+        sigs.removeAll(mets.filter { directlySafe(it.block, sigs, mutableListOf()) }.map { it.methodSig })
+        output("Crowbar  : Potentially deadlocking methods: \n\t${sigs.joinToString("\n\t")}")
+        return sigs.isEmpty()
+    }
+
+    private fun triviallyFree(methodImpl: MethodImpl) : Boolean{
+        return filterAtomic(methodImpl.block) { it is GetExp || it is AwaitStmt }.isEmpty()
     }
 
 

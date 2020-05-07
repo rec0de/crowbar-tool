@@ -122,3 +122,84 @@ fun translateABSGuardToSymExpr(input : Guard) : Expr{
         else -> throw Exception("Translation of ${input::class} not supported" )
     }
 }
+
+
+fun filterAtomic(input: Stmt?, app : (Stmt) -> Boolean) : Set<Stmt> {
+    if(input == null) return emptySet()
+    return when(input){
+        is Block ->     input.stmts.fold(emptySet() , { acc, nx -> acc + filterAtomic(nx, app) })
+        is WhileStmt -> filterAtomic(input.body, app)
+        is IfStmt ->    filterAtomic(input.then, app) +filterAtomic(input.`else`, app)
+        else -> if(app(input)) setOf(input) else emptySet()
+    }
+}
+
+
+fun directSafe(exp: Exp, safeCalls: List<MethodSig>, safeSyncs: MutableList<VarOrFieldDecl>) : Boolean {
+    when(exp) {
+        is GetExp       -> return exp.pureExp is VarOrFieldUse && safeSyncs.contains((exp.pureExp as VarOrFieldUse).decl)
+        is NewExp       -> return true
+        is AsyncCall    -> {
+            return safeCalls.contains(exp.methodSig)
+        }
+        else -> return true
+    }
+}
+
+fun directSafeGuard(guard: Guard, safeSyncs: MutableList<VarOrFieldDecl>) : Boolean {
+
+    when(guard) {
+        is ClaimGuard -> {
+            if(guard.`var` is VarOrFieldUse) return safeSyncs.contains((guard.`var` as VarOrFieldUse).decl)
+            else return false
+        }
+        is AndGuard -> return directSafeGuard(guard.left,safeSyncs) && directSafeGuard(guard.right,safeSyncs)
+        is DurationGuard -> return true
+        else -> return false
+    }
+}
+
+fun directlySafe(input: Stmt?, safeCalls: List<MethodSig>, safeSyncs: MutableList<VarOrFieldDecl>) : Boolean {
+    if(input == null) return true
+    when(input){
+        is org.abs_models.frontend.ast.SkipStmt -> return true
+        is ExpressionStmt -> return directSafe(input.exp, safeCalls, safeSyncs)
+        is VarDeclStmt -> {
+            val res = directSafe(input.varDecl.initExp, safeCalls, safeSyncs)
+            if(res) safeSyncs.add(input.varDecl)
+            return res
+        }
+        is AssignStmt -> {
+            val res = directSafe(input.valueNoTransform, safeCalls, safeSyncs)
+            safeSyncs.remove(input.varNoTransform.decl)
+            if(res) safeSyncs.add(input.varNoTransform.decl)
+            return res
+        }
+        is Block -> {
+            for(stmt in input.stmts){
+                val res = directlySafe(stmt, safeCalls, safeSyncs)
+                if(!res) return false
+            }
+            return true
+        }
+
+        is WhileStmt -> {
+            return directlySafe(input.body, safeCalls, safeSyncs)
+        }
+        is AwaitStmt -> {
+            return directSafeGuard(input.guard, safeSyncs)
+        }
+        is ReturnStmt -> return directSafe(input.retExp, safeCalls, safeSyncs)
+        is IfStmt -> {
+            val left = mutableListOf<VarOrFieldDecl>()
+            val right = mutableListOf<VarOrFieldDecl>()
+            left.addAll(safeSyncs)
+            right.addAll(safeSyncs)
+            val res = directlySafe(input.then, safeCalls, left) && directlySafe(input.`else`, safeCalls, right)
+            safeSyncs.removeAll { true }
+            safeSyncs.addAll(left.intersect(right))
+            return res
+        }
+        else -> throw Exception("Analysis of ${input::class} not supported" )
+    }
+}
