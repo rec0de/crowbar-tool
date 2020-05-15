@@ -31,29 +31,38 @@ data class StmtAbstractVar(val name : String) : Stmt, AbstractVar {
         return name
     }
 }
+
 data class AssignStmt(val lhs : Location, val rhs : Expr) : Stmt {
     override fun prettyPrint(): String {
         return lhs.prettyPrint()+" = "+rhs.prettyPrint()
     }
     override fun iterate(f: (Anything) -> Boolean) : Set<Anything> = super.iterate(f) + lhs.iterate(f) + rhs.iterate(f)
 }
+
 data class AllocateStmt(val lhs : Location, val rhs : Expr) : Stmt {
     override fun prettyPrint(): String {
         return lhs.prettyPrint()+" = new "+rhs.prettyPrint()
     }
     override fun iterate(f: (Anything) -> Boolean) : Set<Anything> = super.iterate(f) + lhs.iterate(f) + rhs.iterate(f)
 }
+
 data class SyncStmt(val lhs : Location, val rhs : Expr) : Stmt {
     override fun prettyPrint(): String {
         return lhs.prettyPrint()+" =  "+rhs.prettyPrint()+".get"
     }
     override fun iterate(f: (Anything) -> Boolean) : Set<Anything> = super.iterate(f) + lhs.iterate(f) + rhs.iterate(f)
 }
+
 object SkipStmt : Stmt {
     override fun prettyPrint(): String {
         return "skip"
     }
 }
+
+object ScopeMarker : Stmt {
+    override fun prettyPrint() = ""
+}
+
 data class SeqStmt(val first : Stmt, val second : Stmt) : Stmt {
     override fun prettyPrint(): String {
         return first.prettyPrint()+";"+second.prettyPrint()
@@ -61,6 +70,7 @@ data class SeqStmt(val first : Stmt, val second : Stmt) : Stmt {
     override fun iterate(f: (Anything) -> Boolean) : Set<Anything> = super.iterate(f) + first.iterate(f) + second.iterate(f)
     override fun hasReturn(): Boolean = first.hasReturn() || second.hasReturn()
 }
+
 data class ReturnStmt(val resExpr : Expr) : Stmt {
     override fun prettyPrint(): String {
         return "return "+resExpr.prettyPrint()

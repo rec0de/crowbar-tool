@@ -59,12 +59,6 @@ interface PostInvType : DeductType{
         return SymbolicNode(symb, emptyList())
     }
 
-
-
-
-
-
-
     override fun extractInitialNode(classDecl: ClassDecl) : SymbolicNode {
 
         var body = getNormalizedStatement(classDecl.initBlock)
@@ -94,9 +88,6 @@ interface PostInvType : DeductType{
         return SymbolicNode(symb, emptyList())
     }
 
-
-
-
     override fun exctractMainNode(model: Model) : SymbolicNode {
 
         if(!model.hasMainBlock()){
@@ -107,7 +98,6 @@ interface PostInvType : DeductType{
         val v = appendStmt(translateABSStmtToSymStmt(model.mainBlock), SkipStmt)
         return SymbolicNode(SymbolicState(True, EmptyUpdate, Modality(v, PostInvariantPair(True, True))), emptyList())
     }
-
 
     override fun exctractFunctionNode(fDecl: FunctionDecl): SymbolicNode {
         val symb: SymbolicState?
@@ -136,11 +126,13 @@ interface PostInvType : DeductType{
         }
     }
 }
+
 data class PostInvAbstractVar(val name : String) : PostInvType, AbstractVar{
     override fun prettyPrint(): String {
         return name
     }
 }
+
 data class PostInvariantPair(val post : Formula, val objInvariant : Formula) : PostInvType {
     override fun prettyPrint(): String {
         return post.prettyPrint()+", "+objInvariant.prettyPrint()
@@ -154,6 +146,7 @@ abstract class PITAssign(protected val repos: Repository,
     protected fun assignFor(loc : Location, rhs : Term) : ElementaryUpdate{
         return if(loc is Field)   ElementaryUpdate(Heap, store(loc, rhs)) else ElementaryUpdate(loc as ProgVar, rhs)
     }
+
     protected fun symbolicNext(loc : Location,
                      rhs : Term,
                      remainder : Stmt,
@@ -323,6 +316,18 @@ object PITSkipSkip : Rule(Modality(
     }
 }
 
+object PITScopeSkip : Rule(Modality(
+        SeqStmt(ScopeMarker, StmtAbstractVar("CONT")),
+        PostInvAbstractVar("TYPE"))) {
+
+    override fun transform(cond: MatchCondition, input : SymbolicState): List<SymbolicTree> {
+        val cont = cond.map[StmtAbstractVar("CONT")] as Stmt
+        val pitype = cond.map[PostInvAbstractVar("TYPE")] as DeductType
+        val res = SymbolicNode(SymbolicState(input.condition, input.update, Modality(cont, pitype)))
+        return listOf(res)
+    }
+ }
+
 object PITReturn : Rule(Modality(
         ReturnStmt(ExprAbstractVar("RET")),
         PostInvariantPair(FormulaAbstractVar("POST"), FormulaAbstractVar("OBJ")))) {
@@ -350,23 +355,24 @@ object PITIf : Rule(Modality(
 
     override fun transform(cond: MatchCondition, input : SymbolicState): List<SymbolicTree> {
 
+        val contBody = SeqStmt(ScopeMarker, cond.map[StmtAbstractVar("CONT")] as Stmt) // Add a ScopeMarker statement to detect scope closure
+
         //then
         val guardYes = exprToForm(cond.map[ExprAbstractVar("LHS")] as Expr)
-        val bodyYes = SeqStmt(cond.map[StmtAbstractVar("THEN")] as Stmt, cond.map[StmtAbstractVar("CONT")] as Stmt)
+        val bodyYes = SeqStmt(cond.map[StmtAbstractVar("THEN")] as Stmt, contBody)
         val updateYes = input.update
         val typeYes = cond.map[PostInvAbstractVar("TYPE")] as DeductType
         val resThen = SymbolicState(And(input.condition, UpdateOnFormula(updateYes, guardYes)), updateYes, Modality(bodyYes, typeYes))
 
         //else
         val guardNo = Not(exprToForm(cond.map[ExprAbstractVar("LHS")] as Expr))
-        val bodyNo = SeqStmt(cond.map[StmtAbstractVar("ELSE")] as Stmt, cond.map[StmtAbstractVar("CONT")] as Stmt)
+        val bodyNo = SeqStmt(cond.map[StmtAbstractVar("ELSE")] as Stmt, contBody)
         val updateNo = input.update
         val typeNo = cond.map[PostInvAbstractVar("TYPE")] as DeductType
         val resElse = SymbolicState(And(input.condition, UpdateOnFormula(updateNo, guardNo)), updateNo, Modality(bodyNo, typeNo))
         return listOf(SymbolicNode(resThen),SymbolicNode(resElse))
     }
 }
-
 
 object PITAwait : Rule(Modality(
         SeqStmt(AwaitStmt(ExprAbstractVar("GUARD"),PPAbstractVar("PP")), StmtAbstractVar("CONT")),
@@ -411,7 +417,7 @@ object PITWhile : Rule(Modality(
         //Preserves Case
         val preserves = SymbolicState(And(targetInv,guard),
                                       EmptyUpdate,
-                                      Modality(appendStmt(body,SkipStmt), PostInvariantPair(targetInv,target)))
+                                      Modality(appendStmt(body,SeqStmt(ScopeMarker, SkipStmt)), PostInvariantPair(targetInv,target)))
 
         //Use Case
         val use = SymbolicState(And(targetInv,Not(guard)),
