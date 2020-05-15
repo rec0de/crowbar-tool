@@ -38,7 +38,7 @@ val smtHeader = """
     """.trimIndent()
 
 @Suppress("UNCHECKED_CAST")
-fun generateSMT(ante : Formula, succ: Formula) : String {
+fun generateSMT(ante : Formula, succ: Formula, model: Boolean = false) : String {
     val pre = deupdatify(ante)
     val post = deupdatify(Not(succ))
 
@@ -54,11 +54,14 @@ fun generateSMT(ante : Formula, succ: Formula) : String {
     header = futs.fold(header, { acc, nx-> acc +"\n(declare-const ${nx.name} Int)"})
     fields.forEach { f1 -> fields.minus(f1).forEach{ f2 -> header += "\n (assert (not (= ${f1.name} ${f2.name})))" } }
 
+    val modelCmd = if(model) "(get-model)" else ""
+
     return """
     $header 
     (assert ${pre.toSMT(true)} ) 
     (assert ${post.toSMT(true)}) 
     (check-sat)
+    $modelCmd
     (exit)
     """.trimIndent()
 }
@@ -80,10 +83,14 @@ fun String.runCommand(
     null
 }
 
-fun evaluateSMT(smtRep : String) : Boolean {
+fun plainSMTCommand(smtRep: String) : String? {
     val path = "${tmpPath}out.smt2"
     File(path).writeText(smtRep)
-    val res = "$smtPath $path".runCommand()
+    return "$smtPath $path".runCommand()
+}
+
+fun evaluateSMT(smtRep : String) : Boolean {
+    val res = plainSMTCommand(smtRep)
     return res != null && res.trim() == "unsat"
 }
 
