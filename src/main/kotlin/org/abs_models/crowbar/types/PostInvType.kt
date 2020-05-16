@@ -18,6 +18,21 @@ import org.abs_models.crowbar.rule.Rule
 import org.abs_models.crowbar.tree.LogicNode
 import org.abs_models.crowbar.tree.SymbolicNode
 import org.abs_models.crowbar.tree.SymbolicTree
+import org.abs_models.crowbar.tree.NodeInfo
+import org.abs_models.crowbar.tree.NoInfo
+import org.abs_models.crowbar.tree.InfoScopeClose
+import org.abs_models.crowbar.tree.InfoLoopInitial
+import org.abs_models.crowbar.tree.InfoLoopPreserves
+import org.abs_models.crowbar.tree.InfoLoopUse
+import org.abs_models.crowbar.tree.InfoInvariant
+import org.abs_models.crowbar.tree.InfoClassPrecondition
+import org.abs_models.crowbar.tree.InfoAwaitUse
+import org.abs_models.crowbar.tree.InfoIfThen
+import org.abs_models.crowbar.tree.InfoIfElse
+import org.abs_models.crowbar.tree.InfoLocAssign
+import org.abs_models.crowbar.tree.InfoObjAlloc
+import org.abs_models.crowbar.tree.InfoReturn
+import org.abs_models.crowbar.tree.InfoSkip
 import org.abs_models.frontend.ast.*
 import kotlin.system.exitProcess
 
@@ -152,12 +167,13 @@ abstract class PITAssign(protected val repos: Repository,
                      remainder : Stmt,
                      target : DeductType,
                      iForm : Formula,
-                     iUp : UpdateElement) : SymbolicNode{
+                     iUp : UpdateElement,
+                     infoObj: NodeInfo) : SymbolicNode{
         return SymbolicNode(SymbolicState(
             iForm,
             ChainUpdate(iUp, assignFor(loc,rhs)),
             Modality(remainder, target)
-        ))
+        ), info = infoObj)
     }
 }
 
@@ -168,10 +184,12 @@ class PITLocAssign(repos: Repository) : PITAssign(repos,Modality(
 
     override fun transform(cond: MatchCondition, input : SymbolicState): List<SymbolicTree> {
         val lhs = cond.map[LocationAbstractVar("LHS")] as Location
-        val rhs = exprToTerm(cond.map[ExprAbstractVar("EXPR")] as Expr)
+        val rhsExpr = cond.map[ExprAbstractVar("EXPR")] as Expr
+        val rhs = exprToTerm(rhsExpr)
         val remainder = cond.map[StmtAbstractVar("CONT")] as Stmt
         val target = cond.map[PostInvAbstractVar("TYPE")] as DeductType
-        return listOf(symbolicNext(lhs,rhs,remainder, target, input.condition, input.update))
+        val info = InfoLocAssign(lhs, rhsExpr)
+        return listOf(symbolicNext(lhs,rhs,remainder, target, input.condition, input.update, info))
     }
 }
 
@@ -185,7 +203,7 @@ class PITSyncAssign(repos: Repository) : PITAssign(repos, Modality(
         val rhs = exprToTerm(cond.map[ExprAbstractVar("EXPR")] as Expr)
         val remainder = cond.map[StmtAbstractVar("CONT")] as Stmt
         val target = cond.map[PostInvAbstractVar("TYPE")] as DeductType
-        return listOf(symbolicNext(lhs, rhs, remainder, target, input.condition, input.update))
+        return listOf(symbolicNext(lhs, rhs, remainder, target, input.condition, input.update, NoInfo()))
     }
 
 }
@@ -216,7 +234,8 @@ class PITAllocAssign(repos: Repository) : PITAssign(repos, Modality(
 
         val pre = LogicNode(
             input.condition,
-            UpdateOnFormula(input.update, subst(precond, substMap) as Formula)
+            UpdateOnFormula(input.update, subst(precond, substMap) as Formula),
+            info = InfoClassPrecondition()
         )
 
 
@@ -225,7 +244,8 @@ class PITAllocAssign(repos: Repository) : PITAssign(repos, Modality(
                                             remainder,
                                             target,
                                             And(input.condition, UpdateOnFormula(input.update, Not(Predicate("=", listOf(nextRhs, Function("0")))))),
-                                            ChainUpdate(input.update, assignFor(lhs, nextRhs)))
+                                            ChainUpdate(input.update, assignFor(lhs, nextRhs)),
+                                            InfoObjAlloc(lhs, rhs))
 
         return listOf(pre, next)
     }
@@ -284,7 +304,8 @@ class PITCallAssign(repos: Repository) : PITAssign(repos, Modality(
                                             remainder,
                                             target,
                                             And(input.condition, UpdateOnFormula(input.update,UpdateOnFormula(updateNew,subst(postCond, substPostMap) as Formula))),
-                                            input.update)
+                                            input.update,
+                                            NoInfo())
 
         return listOf(nonenull,pre,next)
     }
@@ -298,7 +319,8 @@ object PITSkip : Rule(Modality(
         val target = cond.map[FormulaAbstractVar("POST")] as Formula
         val res = LogicNode(
                     input.condition,
-                    UpdateOnFormula(input.update, target)
+                    UpdateOnFormula(input.update, target),
+                    info = InfoSkip()
         )
         return listOf(res)
     }
@@ -311,7 +333,7 @@ object PITSkipSkip : Rule(Modality(
     override fun transform(cond: MatchCondition, input : SymbolicState): List<SymbolicTree> {
         val cont = cond.map[StmtAbstractVar("CONT")] as Stmt
         val pitype = cond.map[PostInvAbstractVar("TYPE")] as DeductType
-        val res = SymbolicNode(SymbolicState(input.condition, input.update, Modality(cont, pitype)))
+        val res = SymbolicNode(SymbolicState(input.condition, input.update, Modality(cont, pitype)), info = InfoSkip())
         return listOf(res)
     }
 }
@@ -323,7 +345,7 @@ object PITScopeSkip : Rule(Modality(
     override fun transform(cond: MatchCondition, input : SymbolicState): List<SymbolicTree> {
         val cont = cond.map[StmtAbstractVar("CONT")] as Stmt
         val pitype = cond.map[PostInvAbstractVar("TYPE")] as DeductType
-        val res = SymbolicNode(SymbolicState(input.condition, input.update, Modality(cont, pitype)))
+        val res = SymbolicNode(SymbolicState(input.condition, input.update, Modality(cont, pitype)), info = InfoScopeClose())
         return listOf(res)
     }
  }
@@ -335,14 +357,16 @@ object PITReturn : Rule(Modality(
     override fun transform(cond: MatchCondition, input : SymbolicState): List<SymbolicTree> {
         val target = cond.map[FormulaAbstractVar("OBJ")] as Formula
         val targetPost = cond.map[FormulaAbstractVar("POST")] as Formula
-        val retExpr = exprToTerm(cond.map[ExprAbstractVar("RET")] as Expr)
+        val retExpr = cond.map[ExprAbstractVar("RET")] as Expr
+        val ret = exprToTerm(retExpr)
         val res = LogicNode(
             input.condition,
             And(
                     UpdateOnFormula(ChainUpdate(input.update,
-                        ElementaryUpdate(ReturnVar("<UNKNOWN>"), retExpr)), targetPost), //todo:hack
+                        ElementaryUpdate(ReturnVar("<UNKNOWN>"), ret)), targetPost), //todo:hack
                     UpdateOnFormula(input.update, target)
-            )
+            ),
+            info = InfoReturn(retExpr)
         )
         return listOf(res)
     }
@@ -356,21 +380,22 @@ object PITIf : Rule(Modality(
     override fun transform(cond: MatchCondition, input : SymbolicState): List<SymbolicTree> {
 
         val contBody = SeqStmt(ScopeMarker, cond.map[StmtAbstractVar("CONT")] as Stmt) // Add a ScopeMarker statement to detect scope closure
+        val guardExpr = cond.map[ExprAbstractVar("LHS")] as Expr
 
         //then
-        val guardYes = exprToForm(cond.map[ExprAbstractVar("LHS")] as Expr)
+        val guardYes = exprToForm(guardExpr)
         val bodyYes = SeqStmt(cond.map[StmtAbstractVar("THEN")] as Stmt, contBody)
         val updateYes = input.update
         val typeYes = cond.map[PostInvAbstractVar("TYPE")] as DeductType
         val resThen = SymbolicState(And(input.condition, UpdateOnFormula(updateYes, guardYes)), updateYes, Modality(bodyYes, typeYes))
 
         //else
-        val guardNo = Not(exprToForm(cond.map[ExprAbstractVar("LHS")] as Expr))
+        val guardNo = Not(exprToForm(guardExpr))
         val bodyNo = SeqStmt(cond.map[StmtAbstractVar("ELSE")] as Stmt, contBody)
         val updateNo = input.update
         val typeNo = cond.map[PostInvAbstractVar("TYPE")] as DeductType
         val resElse = SymbolicState(And(input.condition, UpdateOnFormula(updateNo, guardNo)), updateNo, Modality(bodyNo, typeNo))
-        return listOf(SymbolicNode(resThen),SymbolicNode(resElse))
+        return listOf(SymbolicNode(resThen, info = InfoIfThen(guardExpr)), SymbolicNode(resElse, info = InfoIfElse(guardExpr)))
     }
 }
 
@@ -379,16 +404,18 @@ object PITAwait : Rule(Modality(
         PostInvariantPair(FormulaAbstractVar("POST"), FormulaAbstractVar("OBJ")))) {
 
     override fun transform(cond: MatchCondition, input : SymbolicState): List<SymbolicTree> {
-        val guard = exprToForm(cond.map[ExprAbstractVar("GUARD")] as Expr)
+        val guardExpr = cond.map[ExprAbstractVar("GUARD")] as Expr
+        val guard = exprToForm(guardExpr)
         val cont = cond.map[StmtAbstractVar("CONT")] as Stmt
         val target = cond.map[FormulaAbstractVar("OBJ")] as Formula
         val targetPost = cond.map[FormulaAbstractVar("POST")] as Formula
 
-        val lNode = LogicNode(input.condition, UpdateOnFormula(input.update, target))
+        val lNode = LogicNode(input.condition, UpdateOnFormula(input.update, target), info = InfoInvariant())
+
         val sStat = SymbolicState(And(input.condition,UpdateOnFormula(ChainUpdate(input.update, ElementaryUpdate(Heap,anon(Heap))), And(target,guard))),
                                  ChainUpdate(input.update, ElementaryUpdate(Heap,anon(Heap))),
                                  Modality(cont, PostInvariantPair(targetPost,target)))
-        return listOf(lNode,SymbolicNode(sStat))
+        return listOf(lNode,SymbolicNode(sStat, info = InfoAwaitUse(guardExpr)))
 
     }
 }
@@ -404,7 +431,8 @@ object PITWhile : Rule(Modality(
                           FormulaAbstractVar("OBJ")))) {
 
     override fun transform(cond: MatchCondition, input : SymbolicState): List<SymbolicTree> {
-        val guard = exprToForm(cond.map[ExprAbstractVar("GUARD")] as Expr)
+        val guardExpr = cond.map[ExprAbstractVar("GUARD")] as Expr
+        val guard = exprToForm(guardExpr)
         val body = cond.map[StmtAbstractVar("BODY")] as Stmt
         val cont = cond.map[StmtAbstractVar("CONT")] as Stmt
         val targetInv = cond.map[FormulaAbstractVar("INV")] as Formula
@@ -412,18 +440,24 @@ object PITWhile : Rule(Modality(
         val targetPost = cond.map[FormulaAbstractVar("POST")] as Formula
 
         //Initial Case
-        val initial = LogicNode(input.condition, UpdateOnFormula(input.update, targetInv))
+        val initial = LogicNode(input.condition, UpdateOnFormula(input.update, targetInv), info = InfoLoopInitial(guardExpr))
 
         //Preserves Case
+        val preservesInfo = InfoLoopPreserves(guardExpr, targetInv)
         val preserves = SymbolicState(And(targetInv,guard),
                                       EmptyUpdate,
                                       Modality(appendStmt(body,SeqStmt(ScopeMarker, SkipStmt)), PostInvariantPair(targetInv,target)))
 
         //Use Case
+        val useInfo = InfoLoopUse(guardExpr, targetInv)
         val use = SymbolicState(And(targetInv,Not(guard)),
                                   EmptyUpdate,
                                   Modality(cont, PostInvariantPair(targetPost,target)))
-        return listOf(initial,SymbolicNode(preserves),SymbolicNode(use))
+        return listOf(
+            initial,
+            SymbolicNode(preserves, info = preservesInfo),
+            SymbolicNode(use, info = useInfo)
+        )
 
     }
 }

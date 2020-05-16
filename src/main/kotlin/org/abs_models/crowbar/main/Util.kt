@@ -3,6 +3,7 @@ package org.abs_models.crowbar.main
 import org.abs_models.crowbar.data.*
 import org.abs_models.crowbar.data.Stmt
 import org.abs_models.crowbar.interfaces.translateABSExpToSymExpr
+import org.abs_models.crowbar.investigator.TestcaseGenerator
 import org.abs_models.crowbar.tree.LogicNode
 import org.abs_models.crowbar.tree.SymbolicNode
 import org.abs_models.crowbar.tree.getStrategy
@@ -218,6 +219,11 @@ fun executeNode(node : SymbolicNode, repos: Repository, usedType : KClass<out De
             throw Exception("Crowbar-v: non-logical analysis nodes not supported")
             //exitProcess(-1)
         }
+    }
+
+    if(!closed) {
+        output("Crowbar  : failed to close node, starting investigator....")
+        TestcaseGenerator.investigate(node)
     }
 
     return closed
