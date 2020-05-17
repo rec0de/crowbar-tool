@@ -12,6 +12,8 @@ import org.abs_models.crowbar.tree.InfoIfElse
 import org.abs_models.crowbar.tree.InfoIfThen
 import org.abs_models.crowbar.tree.InfoInvariant
 import org.abs_models.crowbar.tree.InfoLocAssign
+import org.abs_models.crowbar.tree.InfoGetAssign
+import org.abs_models.crowbar.tree.InfoCallAssign
 import org.abs_models.crowbar.tree.InfoLoopInitial
 import org.abs_models.crowbar.tree.InfoLoopPreserves
 import org.abs_models.crowbar.tree.InfoLoopUse
@@ -19,24 +21,34 @@ import org.abs_models.crowbar.tree.InfoObjAlloc
 import org.abs_models.crowbar.tree.InfoReturn
 import org.abs_models.crowbar.tree.InfoScopeClose
 import org.abs_models.crowbar.tree.InfoSkip
+import org.abs_models.crowbar.tree.InfoNullCheck
 
 object NodeInfoRenderer: NodeInfoVisitor<String> {
 
     private var indentLevel = 0
     private var indentString = "\t"
 
+    fun reset() {
+        indentLevel = 0
+    }
+
     override fun visit(info: InfoAwaitUse) = indent("await ${info.guard.prettyPrint()};")
 
     override fun visit(info: InfoClassPrecondition) = ""
 
+    override fun visit(info: InfoNullCheck) = ""
+
     override fun visit(info: InfoIfElse): String {
-        indentLevel -= 1
-        return indent("if(${info.guard.prettyPrint()}){}\nelse{")
+        val res =  indent("if(${info.guard.prettyPrint()}){}\nelse{")
+        indentLevel += 1
+
+        return res
     }
 
     override fun visit(info: InfoIfThen): String {
-        indentLevel -= 1
-        return indent("if(${info.guard.prettyPrint()}){")
+        val res = indent("if(${info.guard.prettyPrint()}){")
+        indentLevel += 1
+        return res
     }
 
     override fun visit(info: InfoInvariant) = ""
@@ -46,17 +58,28 @@ object NodeInfoRenderer: NodeInfoVisitor<String> {
         return indent("$location = ${info.expression.prettyPrint()};")
     }
 
+    override fun visit(info: InfoGetAssign): String {
+        val location = renderLocation(info.lhs)
+        return indent("$location = ${info.expression.prettyPrint()}.get;")
+    }
+
+    override fun visit(info: InfoCallAssign): String {
+        val location = renderLocation(info.lhs)
+        return indent("$location = ${info.callee.prettyPrint()}!${info.call.prettyPrint()};")
+    }
+
     override fun visit(info: InfoLoopInitial) = indent("while(${info.guard.prettyPrint()}) { }")
 
     override fun visit(info: InfoLoopPreserves): String {
-        indentLevel -= 1
-
         val text = "// Known true:\n" +
                    "// Loop guard: ${info.guard.prettyPrint()}\n" +
                    "// Loop invariant: ${info.loopInv.prettyPrint()}\n" +
                    "while(${info.guard.prettyPrint()}) {"
+        val res = indent(text)
 
-        return indent(text)
+        indentLevel += 1
+
+        return res
     }
 
     override fun visit(info: InfoLoopUse): String {
@@ -73,9 +96,8 @@ object NodeInfoRenderer: NodeInfoVisitor<String> {
     override fun visit(info: InfoReturn) = indent("return ${info.expression.prettyPrint()};")
 
     override fun visit(info: InfoScopeClose): String {
-        val text = indent("}")
-        indentLevel += 1
-        return text
+        indentLevel -= 1
+        return indent("}")
     }
 
     override fun visit(info: InfoSkip) = ""

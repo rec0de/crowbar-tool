@@ -30,9 +30,12 @@ import org.abs_models.crowbar.tree.InfoAwaitUse
 import org.abs_models.crowbar.tree.InfoIfThen
 import org.abs_models.crowbar.tree.InfoIfElse
 import org.abs_models.crowbar.tree.InfoLocAssign
+import org.abs_models.crowbar.tree.InfoGetAssign
+import org.abs_models.crowbar.tree.InfoCallAssign
 import org.abs_models.crowbar.tree.InfoObjAlloc
 import org.abs_models.crowbar.tree.InfoReturn
 import org.abs_models.crowbar.tree.InfoSkip
+import org.abs_models.crowbar.tree.InfoNullCheck
 import org.abs_models.frontend.ast.*
 import kotlin.system.exitProcess
 
@@ -200,10 +203,12 @@ class PITSyncAssign(repos: Repository) : PITAssign(repos, Modality(
 
     override fun transform(cond: MatchCondition, input : SymbolicState): List<SymbolicTree> {
         val lhs = cond.map[LocationAbstractVar("LHS")] as Location
-        val rhs = exprToTerm(cond.map[ExprAbstractVar("EXPR")] as Expr)
+        val rhsExpr = cond.map[ExprAbstractVar("EXPR")] as Expr
+        val rhs = exprToTerm(rhsExpr)
         val remainder = cond.map[StmtAbstractVar("CONT")] as Stmt
         val target = cond.map[PostInvAbstractVar("TYPE")] as DeductType
-        return listOf(symbolicNext(lhs, rhs, remainder, target, input.condition, input.update, NoInfo()))
+        val info = InfoGetAssign(lhs, rhsExpr)
+        return listOf(symbolicNext(lhs, rhs, remainder, target, input.condition, input.update, info))
     }
 
 }
@@ -259,7 +264,8 @@ class PITCallAssign(repos: Repository) : PITAssign(repos, Modality(
 
     override fun transform(cond: MatchCondition, input : SymbolicState): List<SymbolicTree> {
         val lhs = cond.map[LocationAbstractVar("LHS")] as Location
-        val callee = exprToTerm(cond.map[ExprAbstractVar("CALLEE")] as Expr)
+        val calleeExpr = cond.map[ExprAbstractVar("CALLEE")] as Expr
+        val callee = exprToTerm(calleeExpr)
         val call = cond.map[CallExprAbstractVar("CALL")] as CallExpr
         val remainder = cond.map[StmtAbstractVar("CONT")] as Stmt
         val target = cond.map[PostInvAbstractVar("TYPE")] as DeductType
@@ -267,7 +273,8 @@ class PITCallAssign(repos: Repository) : PITAssign(repos, Modality(
 
         val nonenull = LogicNode(
             input.condition,
-            UpdateOnFormula(input.update, Not(Predicate("=", listOf(callee,Function("0", emptyList())))))
+            UpdateOnFormula(input.update, Not(Predicate("=", listOf(callee,Function("0", emptyList()))))),
+            info = InfoNullCheck()
         )
 
         //construct precondition check of the class creation
@@ -281,7 +288,8 @@ class PITCallAssign(repos: Repository) : PITAssign(repos, Modality(
         }
         val pre = LogicNode(
             input.condition,
-            UpdateOnFormula(input.update, subst(precond, substMap) as Formula)
+            UpdateOnFormula(input.update, subst(precond, substMap) as Formula),
+            info = InfoClassPrecondition()
         )
 
 
@@ -305,7 +313,7 @@ class PITCallAssign(repos: Repository) : PITAssign(repos, Modality(
                                             target,
                                             And(input.condition, UpdateOnFormula(input.update,UpdateOnFormula(updateNew,subst(postCond, substPostMap) as Formula))),
                                             input.update,
-                                            NoInfo())
+                                            InfoCallAssign(lhs, calleeExpr, call))
 
         return listOf(nonenull,pre,next)
     }

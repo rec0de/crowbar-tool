@@ -7,6 +7,8 @@ interface NodeInfoVisitor<ReturnType> {
     fun visit(info: InfoIfThen): ReturnType
     fun visit(info: InfoInvariant): ReturnType
     fun visit(info: InfoLocAssign): ReturnType
+    fun visit(info: InfoGetAssign): ReturnType
+    fun visit(info: InfoCallAssign): ReturnType
     fun visit(info: InfoLoopInitial): ReturnType
     fun visit(info: InfoLoopPreserves): ReturnType
     fun visit(info: InfoLoopUse): ReturnType
@@ -14,5 +16,6 @@ interface NodeInfoVisitor<ReturnType> {
     fun visit(info: InfoReturn): ReturnType
     fun visit(info: InfoScopeClose): ReturnType
     fun visit(info: InfoSkip): ReturnType
+    fun visit(info: InfoNullCheck): ReturnType
     fun visit(info: NoInfo): ReturnType
 }

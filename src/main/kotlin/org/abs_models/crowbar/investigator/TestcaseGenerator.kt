@@ -10,58 +10,67 @@ import org.abs_models.crowbar.interfaces.plainSMTCommand
 import org.abs_models.crowbar.interfaces.generateSMT
 import java.io.File
 
-class TestcaseGenerator {
-	companion object {
-		fun investigate(node: SymbolicNode) {
+object TestcaseGenerator {
+	fun investigate(node: SymbolicNode) {
 
-			// Create child-parent mapping for symbolic tree
-			val parents = mutableMapOf<SymbolicTree,SymbolicTree?>()
-			val worklist = mutableListOf<SymbolicTree>(node)
+		// Create child-parent mapping for symbolic tree
+		val parents = mutableMapOf<SymbolicTree,SymbolicTree?>()
+		val worklist = mutableListOf<SymbolicTree>(node)
 
-			while(worklist.isNotEmpty()) {
-				val elem = worklist.removeAt(0)
+		while(worklist.isNotEmpty()) {
+			val elem = worklist.removeAt(0)
 
-				if(elem is SymbolicNode) {
-					elem.children.forEach {
-						parents[it] = elem
-					}
-					worklist.addAll(elem.children)
+			if(elem is SymbolicNode) {
+				elem.children.forEach {
+					parents[it] = elem
 				}
-			}
-
-			val uncloseable = node.collectLeaves().first{ it is LogicNode && !it.evaluate() }
-
-			output("Found issue branch: ${uncloseable.debugString(0)}")
-			output("Traversing upwards...")
-
-			val statements = mutableListOf<String>()
-			var n: SymbolicTree = uncloseable
-
-			while(parents[n] != null) {
-				
-				if(n is InfoNode) {
-					statements.add(n.info.accept(NodeInfoRenderer))
-
-					if(n.info.isAnon)
-						break
-				}
-
-				n = parents[n]!!
-			}
-
-			output("Reached full anonymization point or root of tree")
-
-			getModel(uncloseable as LogicNode)
-
-			output(statements.asReversed().joinToString("\n"))
-
+				worklist.addAll(elem.children)
+			}	
 		}
 
-		fun getModel(leaf: LogicNode) {
-			val smtRep = generateSMT(leaf.ante, leaf.succ, model = true)
-			val res = plainSMTCommand(smtRep)
+		val uncloseable = node.collectLeaves().first{ it is LogicNode && !it.evaluate() }
 
-			output(res!!)
+		output("Investigator: found unclosed branch")
+		output("Investigator: traversing upwards....")
+
+		val branchNodes = mutableListOf<SymbolicTree>()
+		var n: SymbolicTree = uncloseable
+
+		while(parents[n] != null) {
+			branchNodes.add(n)
+
+			if(n is InfoNode && n.info.isAnon)
+				break
+
+			n = parents[n]!!
 		}
+
+		output("Investigator: reached full anonymization point or root of tree")
+
+		NodeInfoRenderer.reset()
+		val statements = mutableListOf<String>()
+
+		for(it in branchNodes.asReversed()) {
+			if(it is InfoNode) {
+				statements.add(it.info.accept(NodeInfoRenderer))
+			}
+		}
+
+		output(statements.joinToString("\n"))
+
+		output("Investigator: parsing model....")
+		getModel(uncloseable as LogicNode)
+	}	
+
+	fun getModel(leaf: LogicNode) {
+		val smtRep = generateSMT(leaf.ante, leaf.succ, model = true)
+		val model = plainSMTCommand(smtRep)!!
+
+		if(model.substring(0, 7) == "unknown")
+			output("Investigator: solver did not return definite sat/unsat result")
+		else {
+			val parsed = ModelParser.parse(model)
+			output(parsed.joinToString("\n"))
+		}	
 	}
 }

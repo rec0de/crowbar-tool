@@ -1,6 +1,7 @@
 package org.abs_models.crowbar.tree
 
 import org.abs_models.crowbar.data.Expr
+import org.abs_models.crowbar.data.CallExpr
 import org.abs_models.crowbar.data.Formula
 import org.abs_models.crowbar.data.Term
 import org.abs_models.crowbar.data.Function
@@ -39,6 +40,10 @@ class InfoClassPrecondition() : SigBranch(isAnon = false, isHeapAnon = false) {
 	override fun <ReturnType> accept(visitor: NodeInfoVisitor<ReturnType>) = visitor.visit(this)
 }
 
+class InfoNullCheck() : SigBranch(isAnon = false, isHeapAnon = false) {
+	override fun <ReturnType> accept(visitor: NodeInfoVisitor<ReturnType>) = visitor.visit(this)
+}
+
 class InfoAwaitUse(val guard: Expr) : NodeInfo(isAnon = false, isHeapAnon = true) {
 	override fun <ReturnType> accept(visitor: NodeInfoVisitor<ReturnType>) = visitor.visit(this)
 }
@@ -56,6 +61,14 @@ class InfoIfElse(val guard: Expr) : NodeInfo(isAnon = false, isHeapAnon = false)
 }
 
 class InfoLocAssign(val lhs: Location, val expression: Expr) : NodeInfo(isAnon = false, isHeapAnon = false) {
+	override fun <ReturnType> accept(visitor: NodeInfoVisitor<ReturnType>) = visitor.visit(this)
+}
+
+class InfoGetAssign(val lhs: Location, val expression: Expr) : NodeInfo(isAnon = false, isHeapAnon = false) {
+	override fun <ReturnType> accept(visitor: NodeInfoVisitor<ReturnType>) = visitor.visit(this)
+}
+
+class InfoCallAssign(val lhs: Location, val callee: Expr, val call: CallExpr) : NodeInfo(isAnon = false, isHeapAnon = false) {
 	override fun <ReturnType> accept(visitor: NodeInfoVisitor<ReturnType>) = visitor.visit(this)
 }
 
