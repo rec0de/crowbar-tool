@@ -220,7 +220,8 @@ class PITAllocAssign(repos: Repository) : PITAssign(repos, Modality(
 
     override fun transform(cond: MatchCondition, input : SymbolicState): List<SymbolicTree> {
         val lhs = cond.map[LocationAbstractVar("LHS")] as Location
-        val rhs = exprToTerm(cond.map[ExprAbstractVar("EXPR")] as Expr) as Function
+        val rhsExpr = cond.map[ExprAbstractVar("EXPR")] as Expr
+        val rhs = exprToTerm(rhsExpr) as Function
         val remainder = cond.map[StmtAbstractVar("CONT")] as Stmt
         val target = cond.map[PostInvAbstractVar("TYPE")] as DeductType
 
@@ -250,7 +251,7 @@ class PITAllocAssign(repos: Repository) : PITAssign(repos, Modality(
                                             target,
                                             And(input.condition, UpdateOnFormula(input.update, Not(Predicate("=", listOf(nextRhs, Function("0")))))),
                                             ChainUpdate(input.update, assignFor(lhs, nextRhs)),
-                                            InfoObjAlloc(lhs, rhs))
+                                            InfoObjAlloc(lhs, rhsExpr))
 
         return listOf(pre, next)
     }
