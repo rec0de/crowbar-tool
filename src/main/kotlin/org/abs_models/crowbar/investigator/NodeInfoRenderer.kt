@@ -32,21 +32,21 @@ object NodeInfoRenderer: NodeInfoVisitor<String> {
         indentLevel = 0
     }
 
-    override fun visit(info: InfoAwaitUse) = indent("await ${info.guard.prettyPrint()};")
+    override fun visit(info: InfoAwaitUse) = indent("await ${renderExpression(info.guard)};")
 
     override fun visit(info: InfoClassPrecondition) = ""
 
     override fun visit(info: InfoNullCheck) = ""
 
     override fun visit(info: InfoIfElse): String {
-        val res =  indent("if(${info.guard.prettyPrint()}){}\nelse{")
+        val res =  indent("if(${renderExpression(info.guard)}){}\nelse{")
         indentLevel += 1
 
         return res
     }
 
     override fun visit(info: InfoIfThen): String {
-        val res = indent("if(${info.guard.prettyPrint()}){")
+        val res = indent("if(${renderExpression(info.guard)}){")
         indentLevel += 1
         return res
     }
@@ -55,26 +55,26 @@ object NodeInfoRenderer: NodeInfoVisitor<String> {
 
     override fun visit(info: InfoLocAssign): String {
         val location = renderLocation(info.lhs)
-        return indent("$location = ${info.expression.prettyPrint()};")
+        return indent("$location = ${renderExpression(info.expression)};")
     }
 
     override fun visit(info: InfoGetAssign): String {
         val location = renderLocation(info.lhs)
-        return indent("$location = ${info.expression.prettyPrint()}.get;")
+        return indent("$location = ${renderExpression(info.expression)}.get;")
     }
 
     override fun visit(info: InfoCallAssign): String {
         val location = renderLocation(info.lhs)
-        return indent("$location = ${info.callee.prettyPrint()}!${info.call.prettyPrint()};")
+        return indent("$location = ${renderExpression(info.callee)}!${renderExpression(info.call)};")
     }
 
-    override fun visit(info: InfoLoopInitial) = indent("while(${info.guard.prettyPrint()}) { }")
+    override fun visit(info: InfoLoopInitial) = indent("while(${renderExpression(info.guard)}) { }")
 
     override fun visit(info: InfoLoopPreserves): String {
         val text = "// Known true:\n" +
-                   "// Loop guard: ${info.guard.prettyPrint()}\n" +
+                   "// Loop guard: ${renderExpression(info.guard)}\n" +
                    "// Loop invariant: ${info.loopInv.prettyPrint()}\n" +
-                   "while(${info.guard.prettyPrint()}) {"
+                   "while(${renderExpression(info.guard)}) {"
         val res = indent(text)
 
         indentLevel += 1
@@ -83,17 +83,17 @@ object NodeInfoRenderer: NodeInfoVisitor<String> {
     }
 
     override fun visit(info: InfoLoopUse): String {
-        val text = "while(${info.guard.prettyPrint()}){ ... } \n" +
+        val text = "while(${renderExpression(info.guard)}){ ... } \n" +
                    "// Known true:\n" + 
-                   "// Negated loop guard: !(${info.guard.prettyPrint()})\n" +
+                   "// Negated loop guard: !(${renderExpression(info.guard)})\n" +
                    "// Loop invariant: ${info.invariant.prettyPrint()}"
 
         return indent(text)
     }
 
-    override fun visit(info: InfoObjAlloc) = indent("${renderLocation(info.lhs)} = new ${info.classInit.prettyPrint()};")
+    override fun visit(info: InfoObjAlloc) = indent("${renderLocation(info.lhs)} = ${renderExpression(info.classInit)};")
 
-    override fun visit(info: InfoReturn) = indent("return ${info.expression.prettyPrint()};")
+    override fun visit(info: InfoReturn) = indent("return ${renderExpression(info.expression)};")
 
     override fun visit(info: InfoScopeClose): String {
         indentLevel -= 1
