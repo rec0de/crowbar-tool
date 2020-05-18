@@ -15,48 +15,53 @@ import org.abs_models.frontend.ast.Stmt
 import org.abs_models.frontend.ast.WhileStmt
 
 fun translateABSExpToSymExpr(input : Exp) : Expr {
-    when(input){
-        is FieldUse        -> return Field(input.name+"_f",input.type.simpleName)
-        is VarUse          ->  {
+    val converted: Expr = when(input){
+        is FieldUse        -> Field(input.name+"_f",input.type.simpleName)
+        is VarUse          -> 
             if (input.name == "result")
-                return ReturnVar(input.type.simpleName)
-            return ProgVar(input.name, input.type.simpleName)
-        }
-        is IntLiteral           -> return Const(input.content)
-        is GTEQExp              -> return SExpr(">=", listOf(translateABSExpToSymExpr(input.left), translateABSExpToSymExpr(input.right)))
-        is LTEQExp              -> return SExpr("<=", listOf(translateABSExpToSymExpr(input.left), translateABSExpToSymExpr(input.right)))
-        is GTExp                -> return SExpr(">", listOf(translateABSExpToSymExpr(input.left), translateABSExpToSymExpr(input.right)))
-        is LTExp                -> return SExpr("<", listOf(translateABSExpToSymExpr(input.left), translateABSExpToSymExpr(input.right)))
-        is EqExp                -> return SExpr("=", listOf(translateABSExpToSymExpr(input.left), translateABSExpToSymExpr(input.right)))
-        is NotEqExp             -> return SExpr("!=", listOf(translateABSExpToSymExpr(input.left), translateABSExpToSymExpr(input.right)))
-        is AddAddExp            -> return SExpr("+", listOf(translateABSExpToSymExpr(input.left), translateABSExpToSymExpr(input.right)))
-        is SubAddExp            -> return SExpr("-", listOf(translateABSExpToSymExpr(input.left), translateABSExpToSymExpr(input.right)))
-        is MultMultExp          -> return SExpr("*", listOf(translateABSExpToSymExpr(input.left), translateABSExpToSymExpr(input.right)))
-        is DivMultExp           -> return SExpr("/", listOf(translateABSExpToSymExpr(input.left), translateABSExpToSymExpr(input.right)))
-        is MinusExp             -> return SExpr("-", listOf(translateABSExpToSymExpr(input.operand)))
-        is AndBoolExp           -> return SExpr("&&",listOf(translateABSExpToSymExpr(input.left), translateABSExpToSymExpr(input.right)))
-        is OrBoolExp            -> return SExpr("||",listOf(translateABSExpToSymExpr(input.left), translateABSExpToSymExpr(input.right)))
-        is GetExp               -> return readFut(translateABSExpToSymExpr(input.pureExp))
-        is NegExp               -> return SExpr("!", listOf(translateABSExpToSymExpr(input.operand)))
-        is NewExp               -> return FreshGenerator.getFreshObjectId(input.className, input.paramList.map { translateABSExpToSymExpr(it) })
-        is NullExp              -> return Const("0")
-        is ThisExp              -> return Const("1")
+                ReturnVar(input.type.simpleName)
+            else
+                ProgVar(input.name, input.type.simpleName)
+        is IntLiteral           -> Const(input.content)
+        is GTEQExp              -> SExpr(">=", listOf(translateABSExpToSymExpr(input.left), translateABSExpToSymExpr(input.right)))
+        is LTEQExp              -> SExpr("<=", listOf(translateABSExpToSymExpr(input.left), translateABSExpToSymExpr(input.right)))
+        is GTExp                -> SExpr(">", listOf(translateABSExpToSymExpr(input.left), translateABSExpToSymExpr(input.right)))
+        is LTExp                -> SExpr("<", listOf(translateABSExpToSymExpr(input.left), translateABSExpToSymExpr(input.right)))
+        is EqExp                -> SExpr("=", listOf(translateABSExpToSymExpr(input.left), translateABSExpToSymExpr(input.right)))
+        is NotEqExp             -> SExpr("!=", listOf(translateABSExpToSymExpr(input.left), translateABSExpToSymExpr(input.right)))
+        is AddAddExp            -> SExpr("+", listOf(translateABSExpToSymExpr(input.left), translateABSExpToSymExpr(input.right)))
+        is SubAddExp            -> SExpr("-", listOf(translateABSExpToSymExpr(input.left), translateABSExpToSymExpr(input.right)))
+        is MultMultExp          -> SExpr("*", listOf(translateABSExpToSymExpr(input.left), translateABSExpToSymExpr(input.right)))
+        is DivMultExp           -> SExpr("/", listOf(translateABSExpToSymExpr(input.left), translateABSExpToSymExpr(input.right)))
+        is MinusExp             -> SExpr("-", listOf(translateABSExpToSymExpr(input.operand)))
+        is AndBoolExp           -> SExpr("&&",listOf(translateABSExpToSymExpr(input.left), translateABSExpToSymExpr(input.right)))
+        is OrBoolExp            -> SExpr("||",listOf(translateABSExpToSymExpr(input.left), translateABSExpToSymExpr(input.right)))
+        is GetExp               -> readFut(translateABSExpToSymExpr(input.pureExp))
+        is NegExp               -> SExpr("!", listOf(translateABSExpToSymExpr(input.operand)))
+        is NewExp               -> FreshGenerator.getFreshObjectId(input.className, input.paramList.map { translateABSExpToSymExpr(it) })
+        is NullExp              -> Const("0")
+        is ThisExp              -> Const("1")
         is DataConstructorExp   ->
-            return when(input.dataConstructor!!.name){
+            when(input.dataConstructor!!.name){
                 "Unit"          -> unitExpr()
                 "True"          -> Const("1")
                 "False"         -> Const("0")
                 else            -> throw Exception("Translation of data ${input::class} not supported, term is $input" )
             }
-        is AsyncCall            -> return CallExpr(input.methodSig.contextDecl.qualifiedName+"."+input.methodSig.name,
+        is AsyncCall            -> CallExpr(input.methodSig.contextDecl.qualifiedName+"."+input.methodSig.name,
                                               input.params.map {  translateABSExpToSymExpr(it) })
-        is FnApp                -> if(input.name == "valueOf") return readFut(translateABSExpToSymExpr(input.params.getChild(0)))
-                                   else if(FunctionRepos.isKnown(input.decl.qualifiedName)) {
-                                        return SExpr(input.decl.qualifiedName.replace(".","-"),input.params.map { translateABSExpToSymExpr(it) })
-                                    } else throw Exception("Translation of FnApp is not fully supported, term is $input with function ${input.name}" )
-        is IfExp                -> return SExpr("iite", listOf(translateABSExpToSymExpr(input.condExp),translateABSExpToSymExpr(input.thenExp),translateABSExpToSymExpr(input.elseExp)))
+        is FnApp                -> if(input.name == "valueOf") 
+                                        readFut(translateABSExpToSymExpr(input.params.getChild(0)))
+                                   else if(FunctionRepos.isKnown(input.decl.qualifiedName))
+                                        SExpr(input.decl.qualifiedName.replace(".","-"),input.params.map { translateABSExpToSymExpr(it) })
+                                   else throw Exception("Translation of FnApp is not fully supported, term is $input with function ${input.name}" )
+        is IfExp                -> SExpr("iite", listOf(translateABSExpToSymExpr(input.condExp),translateABSExpToSymExpr(input.thenExp),translateABSExpToSymExpr(input.elseExp)))
         else                    -> throw Exception("Translation of ${input::class} not supported, term is $input" )
     }
+
+    // Save reference to original expression
+    converted.absExp = input
+    return converted
 }
 
 fun translateABSStmtToSymStmt(input: Stmt?) : org.abs_models.crowbar.data.Stmt {
@@ -115,10 +120,14 @@ fun translateABSStmtToSymStmt(input: Stmt?) : org.abs_models.crowbar.data.Stmt {
 }
 
 fun translateABSGuardToSymExpr(input : Guard) : Expr{
-    return when(input){
-        is ExpGuard -> translateABSExpToSymExpr(input.pureExp)
-        is ClaimGuard -> SExpr("=",listOf(Const("1"), Const("1")))//todo: proper translation
-        is AndGuard -> SExpr("&&",listOf(translateABSGuardToSymExpr(input.left),translateABSGuardToSymExpr(input.right)))
+    when(input){
+        is ExpGuard -> return translateABSExpToSymExpr(input.pureExp)
+        is AndGuard -> return SExpr("&&",listOf(translateABSGuardToSymExpr(input.left),translateABSGuardToSymExpr(input.right)))
+        is ClaimGuard -> {
+            val placeholder = SExpr("=",listOf(Const("1"), Const("1"))) //todo: proper translation
+            placeholder.absExp = input.`var` // Save reference to original guard expression
+            return placeholder
+        }
         else -> throw Exception("Translation of ${input::class} not supported" )
     }
 }

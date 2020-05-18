@@ -112,40 +112,53 @@ data class CallStmt(val lhs : Location, val target : Expr, val resExpr : Calling
 }
 
 
+interface Expr : ProgramElement {
+    var absExp: org.abs_models.frontend.ast.Exp?
+}
 
 
-interface Expr : ProgramElement
 data class ExprAbstractVar(val name : String) : Expr, AbstractVar {
+    override var absExp: org.abs_models.frontend.ast.Exp? = null
     override fun prettyPrint(): String {
         return name
     }
 }
+
 interface CallingExpr : Expr
 data class CallExprAbstractVar(val name : String) : CallingExpr, AbstractVar {
+    override var absExp: org.abs_models.frontend.ast.Exp? = null
     override fun prettyPrint(): String {
         return name
     }
 }
+
 data class CallExpr(val met : String, val e : List<Expr>) : CallingExpr{
+    override var absExp: org.abs_models.frontend.ast.Exp? = null
     override fun prettyPrint(): String {
         return met+"("+e.map { p -> p.prettyPrint() }.fold("", { acc, nx -> "$acc,$nx" }).removePrefix(",") + ")"
     }
     override fun iterate(f: (Anything) -> Boolean) : Set<Anything> = e.fold(super.iterate(f),{ acc, nx -> acc + nx.iterate(f)})
 }
+
 data class PollExpr(val e1 : Expr) : Expr {
+    override var absExp: org.abs_models.frontend.ast.Exp? = null
     override fun prettyPrint(): String {
         return e1.prettyPrint()+"?"
     }
     override fun iterate(f: (Anything) -> Boolean) : Set<Anything> = super.iterate(f) + e1.iterate(f)
 }
+
 data class SExpr(val op : String, val e : List<Expr>) : Expr {
+    override var absExp: org.abs_models.frontend.ast.Exp? = null
     override fun prettyPrint(): String {
         if(e.isEmpty()) return op
         return op+"("+e.map { p -> p.prettyPrint() }.fold("", { acc, nx -> "$acc,$nx" }).removePrefix(",") + ")"
     }    override fun iterate(f: (Anything) -> Boolean) : Set<Anything> = e.fold(super.iterate(f),{ acc, nx -> acc + nx.iterate(f)})
 
 }
+
 data class Const(val name : String)  : Expr {
+    override var absExp: org.abs_models.frontend.ast.Exp? = null
     override fun prettyPrint(): String {
         return name
     }
@@ -153,12 +166,14 @@ data class Const(val name : String)  : Expr {
 
 interface Location : Expr
 data class LocationAbstractVar(val name : String) : Location, AbstractVar{
+    override var absExp: org.abs_models.frontend.ast.Exp? = null
     override fun prettyPrint(): String {
         return name
     }
 }
 //name must end with _f when using automatic translation
 open class Field(val name : String, val dType : String = "Int") : Location, Term {
+    override var absExp: org.abs_models.frontend.ast.Exp? = null
     override fun prettyPrint(): String {
         return "this.$name : $dType"
     }
@@ -180,6 +195,7 @@ open class Field(val name : String, val dType : String = "Int") : Location, Term
 }
 
 open class ProgVar(val name : String, val dType : String = "Int") : Location, Term { //todo: change simpleName to qualifiedName and do something clever in the SMT-translation
+    override var absExp: org.abs_models.frontend.ast.Exp? = null
     override fun prettyPrint(): String {
         return "$name:$dType"
     }
