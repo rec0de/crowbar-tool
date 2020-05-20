@@ -102,6 +102,8 @@ object NodeInfoRenderer: NodeInfoVisitor<String> {
 
     override fun visit(info: InfoSkip) = ""
 
+    override fun visit(info: InfoSkipEnd) = ""
+
     override fun visit(info: NoInfo) = indent("[unknown rule application]")
 
     private fun renderLocation(loc: Location): String {

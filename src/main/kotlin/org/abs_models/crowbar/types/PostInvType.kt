@@ -35,6 +35,7 @@ import org.abs_models.crowbar.tree.InfoCallAssign
 import org.abs_models.crowbar.tree.InfoObjAlloc
 import org.abs_models.crowbar.tree.InfoReturn
 import org.abs_models.crowbar.tree.InfoSkip
+import org.abs_models.crowbar.tree.InfoSkipEnd
 import org.abs_models.crowbar.tree.InfoNullCheck
 import org.abs_models.frontend.ast.*
 import kotlin.system.exitProcess
@@ -241,7 +242,7 @@ class PITAllocAssign(repos: Repository) : PITAssign(repos, Modality(
         val pre = LogicNode(
             input.condition,
             UpdateOnFormula(input.update, subst(precond, substMap) as Formula),
-            info = InfoClassPrecondition()
+            info = InfoClassPrecondition(precond)
         )
 
 
@@ -271,11 +272,12 @@ class PITCallAssign(repos: Repository) : PITAssign(repos, Modality(
         val remainder = cond.map[StmtAbstractVar("CONT")] as Stmt
         val target = cond.map[PostInvAbstractVar("TYPE")] as DeductType
 
+        val notNullCondition = Not(Predicate("=", listOf(callee,Function("0", emptyList()))))
 
         val nonenull = LogicNode(
             input.condition,
-            UpdateOnFormula(input.update, Not(Predicate("=", listOf(callee,Function("0", emptyList()))))),
-            info = InfoNullCheck()
+            UpdateOnFormula(input.update, notNullCondition),
+            info = InfoNullCheck(notNullCondition)
         )
 
         //construct precondition check of the class creation
@@ -290,7 +292,7 @@ class PITCallAssign(repos: Repository) : PITAssign(repos, Modality(
         val pre = LogicNode(
             input.condition,
             UpdateOnFormula(input.update, subst(precond, substMap) as Formula),
-            info = InfoClassPrecondition()
+            info = InfoClassPrecondition(precond)
         )
 
 
@@ -329,7 +331,7 @@ object PITSkip : Rule(Modality(
         val res = LogicNode(
                     input.condition,
                     UpdateOnFormula(input.update, target),
-                    info = InfoSkip()
+                    info = InfoSkipEnd(target)
         )
         return listOf(res)
     }
@@ -375,7 +377,7 @@ object PITReturn : Rule(Modality(
                         ElementaryUpdate(ReturnVar("<UNKNOWN>"), ret)), targetPost), //todo:hack
                     UpdateOnFormula(input.update, target)
             ),
-            info = InfoReturn(retExpr)
+            info = InfoReturn(retExpr, targetPost, target)
         )
         return listOf(res)
     }
@@ -419,7 +421,7 @@ object PITAwait : Rule(Modality(
         val target = cond.map[FormulaAbstractVar("OBJ")] as Formula
         val targetPost = cond.map[FormulaAbstractVar("POST")] as Formula
 
-        val lNode = LogicNode(input.condition, UpdateOnFormula(input.update, target), info = InfoInvariant())
+        val lNode = LogicNode(input.condition, UpdateOnFormula(input.update, target), info = InfoInvariant(target))
 
         val sStat = SymbolicState(And(input.condition,UpdateOnFormula(ChainUpdate(input.update, ElementaryUpdate(Heap,anon(Heap))), And(target,guard))),
                                  ChainUpdate(input.update, ElementaryUpdate(Heap,anon(Heap))),
@@ -449,7 +451,7 @@ object PITWhile : Rule(Modality(
         val targetPost = cond.map[FormulaAbstractVar("POST")] as Formula
 
         //Initial Case
-        val initial = LogicNode(input.condition, UpdateOnFormula(input.update, targetInv), info = InfoLoopInitial(guardExpr))
+        val initial = LogicNode(input.condition, UpdateOnFormula(input.update, targetInv), info = InfoLoopInitial(guardExpr, targetInv))
 
         //Preserves Case
         val preservesInfo = InfoLoopPreserves(guardExpr, targetInv)

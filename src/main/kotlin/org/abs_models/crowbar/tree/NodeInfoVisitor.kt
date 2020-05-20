@@ -16,6 +16,7 @@ interface NodeInfoVisitor<ReturnType> {
     fun visit(info: InfoReturn): ReturnType
     fun visit(info: InfoScopeClose): ReturnType
     fun visit(info: InfoSkip): ReturnType
+    fun visit(info: InfoSkipEnd): ReturnType
     fun visit(info: InfoNullCheck): ReturnType
     fun visit(info: NoInfo): ReturnType
 }
