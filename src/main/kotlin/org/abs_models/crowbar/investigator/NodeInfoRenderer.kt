@@ -29,8 +29,11 @@ object NodeInfoRenderer: NodeInfoVisitor<String> {
     private var indentLevel = 0
     private var indentString = "\t"
 
+    private val varDefs = mutableSetOf<String>()
+
     fun reset() {
         indentLevel = 0
+        varDefs.clear()
     }
 
     override fun visit(info: InfoAwaitUse) = indent("await ${renderExpression(info.guard)};")
@@ -55,17 +58,20 @@ object NodeInfoRenderer: NodeInfoVisitor<String> {
     override fun visit(info: InfoInvariant) = ""
 
     override fun visit(info: InfoLocAssign): String {
-        val location = renderLocation(info.lhs)
+        val location = renderDeclLocation(info.lhs)
+
         return indent("$location = ${renderExpression(info.expression)};")
     }
 
     override fun visit(info: InfoGetAssign): String {
-        val location = renderLocation(info.lhs)
+        val location = renderDeclLocation(info.lhs)
+
         return indent("$location = ${renderExpression(info.expression)}.get;")
     }
 
     override fun visit(info: InfoCallAssign): String {
-        val location = renderLocation(info.lhs)
+        val location = renderDeclLocation(info.lhs)
+
         return indent("$location = ${renderExpression(info.callee)}!${renderExpression(info.call)};")
     }
 
@@ -106,6 +112,18 @@ object NodeInfoRenderer: NodeInfoVisitor<String> {
     override fun visit(info: InfoSkipEnd) = ""
 
     override fun visit(info: NoInfo) = indent("[unknown rule application]")
+
+    private fun renderDeclLocation(loc: Location): String {
+        val location = renderLocation(loc)
+
+        // Variables have to be declared on first use
+        if(loc is ProgVar && !varDefs.contains(location)) {
+            varDefs.add(location)
+            return "${loc.dType} $location"
+        }
+
+        return location
+    }
 
     private fun renderLocation(loc: Location): String {
         return when(loc) {
