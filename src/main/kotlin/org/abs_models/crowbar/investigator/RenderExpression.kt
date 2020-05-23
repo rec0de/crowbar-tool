@@ -4,10 +4,12 @@ import org.abs_models.crowbar.data.Expr
 import org.abs_models.frontend.ast.AddAddExp
 import org.abs_models.frontend.ast.AndBoolExp
 import org.abs_models.frontend.ast.AsyncCall
+import org.abs_models.frontend.ast.DataConstructorExp
 import org.abs_models.frontend.ast.DivMultExp
 import org.abs_models.frontend.ast.EqExp
 import org.abs_models.frontend.ast.Exp
 import org.abs_models.frontend.ast.FieldUse
+import org.abs_models.frontend.ast.FnApp
 import org.abs_models.frontend.ast.GetExp
 import org.abs_models.frontend.ast.GTEQExp
 import org.abs_models.frontend.ast.GTExp
@@ -58,6 +60,8 @@ fun renderAbsExpression(e: Exp): String {
         is NewExp          -> "new ${e.className}(${e.paramList.map{ renderAbsExpression(it) }.joinToString(", ")})"
         is AsyncCall       -> "${e.methodSig.name}(${e.params.map{ renderAbsExpression(it) }.joinToString(", ")})"
         is IfExp           -> "(if ${renderAbsExpression(e.condExp)} then ${renderAbsExpression(e.thenExp)} else ${renderAbsExpression(e.elseExp)})"
-        else               -> e.toString()
+        is FnApp           -> "${e.name}(${e.params.map{ renderAbsExpression(it) }.joinToString(", ")})"
+        is DataConstructorExp -> e.dataConstructor!!.name
+        else               -> throw Exception("Cannot render ABS Expression: $e")
     }
 }
