@@ -21,6 +21,7 @@ import org.abs_models.crowbar.tree.InfoObjAlloc
 import org.abs_models.crowbar.tree.InfoReturn
 import org.abs_models.crowbar.tree.InfoScopeClose
 import org.abs_models.crowbar.tree.InfoSkip
+import org.abs_models.crowbar.tree.InfoSkipEnd
 import org.abs_models.crowbar.tree.InfoNullCheck
 
 object NodeInfoRenderer: NodeInfoVisitor<String> {
