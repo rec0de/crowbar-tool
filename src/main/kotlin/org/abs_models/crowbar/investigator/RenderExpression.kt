@@ -40,7 +40,7 @@ fun renderAbsExpression(e: Exp): String {
         is ThisExp         -> "this"
         is NullExp         -> "null"
         is IntLiteral      -> e.content
-        is FieldUse        -> e.name
+        is FieldUse        -> "this.${e.name}"
         is VarUse          -> e.name
         is GTEQExp         -> "(${renderAbsExpression(e.left)} >= ${renderAbsExpression(e.right)})"
         is LTEQExp         -> "(${renderAbsExpression(e.left)} <= ${renderAbsExpression(e.right)})"

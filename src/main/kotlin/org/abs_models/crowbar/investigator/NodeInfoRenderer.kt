@@ -90,7 +90,7 @@ object NodeInfoRenderer: NodeInfoVisitor<String> {
     }
 
     override fun visit(info: InfoLoopUse): String {
-        val text = "while(${renderExpression(info.guard)}){ ... } \n" +
+        val text = "while(${renderExpression(info.guard)}){} \n" +
                    "// Known true:\n" + 
                    "// Negated loop guard: !(${renderExpression(info.guard)})\n" +
                    "// Loop invariant: ${info.invariant.prettyPrint()}"
