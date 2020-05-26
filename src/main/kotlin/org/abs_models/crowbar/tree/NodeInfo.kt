@@ -58,7 +58,7 @@ class InfoScopeClose() : NodeInfo(isAnon = false, isHeapAnon = false) {
 	override fun <ReturnType> accept(visitor: NodeInfoVisitor<ReturnType>) = visitor.visit(this)
 }
 
-class InfoAwaitUse(val guard: Expr) : NodeInfo(isAnon = false, isHeapAnon = true) {
+class InfoAwaitUse(val guard: Expr, val heapExpr: String) : NodeInfo(isAnon = false, isHeapAnon = true) {
 	override fun <ReturnType> accept(visitor: NodeInfoVisitor<ReturnType>) = visitor.visit(this)
 }
 

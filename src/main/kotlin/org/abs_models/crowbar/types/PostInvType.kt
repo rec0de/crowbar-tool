@@ -421,12 +421,15 @@ object PITAwait : Rule(Modality(
         val target = cond.map[FormulaAbstractVar("OBJ")] as Formula
         val targetPost = cond.map[FormulaAbstractVar("POST")] as Formula
 
+        // Generate SMT representation of the anonymized heap for future heap reconstruction
+        val anonHeapExpr = apply(ChainUpdate(input.update, ElementaryUpdate(Heap,anon(Heap))), Heap).toSMT(false)
+
         val lNode = LogicNode(input.condition, UpdateOnFormula(input.update, target), info = InfoInvariant(target))
 
         val sStat = SymbolicState(And(input.condition,UpdateOnFormula(ChainUpdate(input.update, ElementaryUpdate(Heap,anon(Heap))), And(target,guard))),
                                  ChainUpdate(input.update, ElementaryUpdate(Heap,anon(Heap))),
                                  Modality(cont, PostInvariantPair(targetPost,target)))
-        return listOf(lNode,SymbolicNode(sStat, info = InfoAwaitUse(guardExpr)))
+        return listOf(lNode,SymbolicNode(sStat, info = InfoAwaitUse(guardExpr, anonHeapExpr)))
 
     }
 }
