@@ -10,6 +10,15 @@ class ModelParser(val tokens: MutableList<Token>) {
 
             return ModelParser(tokens).parseModel()
         }
+
+        fun parseValues(modelString: String): List<Array> {
+            val tokens = Tokenizer.tokenize(modelString).toMutableList()
+
+            if(tokens[0].toString() == "sat")
+                tokens.removeAt(0)
+
+            return ModelParser(tokens).parseValues()
+        }
     }
 
     fun parseModel(): List<Function> {
@@ -26,6 +35,23 @@ class ModelParser(val tokens: MutableList<Token>) {
         return model
     }
 
+    fun parseValues(): List<Array> {
+        consume(LParen())
+
+        val model = mutableListOf<Array>()
+
+        while (tokens[0] is LParen) {
+            consume()
+            ignore()
+            model.add(parseArrayExp())
+            consume(RParen())
+        }
+
+        consume(RParen())
+
+        return model
+    }
+
     fun parseDefinition(): Function {
         consume(LParen())
         consume(Identifier("define-fun")) // Is this always true?
@@ -36,7 +62,16 @@ class ModelParser(val tokens: MutableList<Token>) {
         val args = parseArguments()
         val type = parseType()
 
-        val value = parseValue(type)
+        val value: Value
+
+        // Functions are annoying to parse & evaluate, so we won't
+        // The only relevant function is anon(), which is handled separately anyway
+        if(args.size == 0)
+            value = parseValue(type)
+        else {
+            ignore()
+            value = UnknownValue
+        }
 
         consume(RParen())
 
@@ -142,6 +177,21 @@ class ModelParser(val tokens: MutableList<Token>) {
     	return Array(value)
     }
 
+    // Consume a subexpression without doing anything
+    private fun ignore() {
+        var layer = if(tokens[0] is LParen) 1 else 0
+        consume()
+
+        while(layer > 0) {
+            if(tokens[0] is LParen)
+                layer++
+            else if(tokens[0] is RParen)
+                layer--
+
+            consume()
+        }
+    }
+
     private fun consume(expected: Token? = null) {
         if (tokens.size == 0)
             throw Exception("Expected token but got end of input")
@@ -165,10 +215,14 @@ data class TypedVariable(val type: Type, val name: String) {
     override fun toString() = "$name: $type"
 }
 
-abstract class Value
+interface Value
 
-class Array(val defaultValue: Int, val map: MutableMap<Int,Int> = mutableMapOf()) : Value() {
-	fun getValue(index: Int) = if(map.contains(index)) map[index] else defaultValue
+object UnknownValue: Value {
+    override fun toString() = "UNPARSED VALUE"
+}
+
+class Array(val defaultValue: Int, val map: MutableMap<Int,Int> = mutableMapOf()) : Value {
+	fun getValue(index: Int) = if(map.contains(index)) map[index]!! else defaultValue
 
 	override fun toString(): String {
 		val entries = mutableListOf("default: $defaultValue")
@@ -180,7 +234,7 @@ class Array(val defaultValue: Int, val map: MutableMap<Int,Int> = mutableMapOf()
 	}
 }
 
-class Integer(val value: Int) : Value() {
+class Integer(val value: Int) : Value {
 	override fun toString() = value.toString()
 }
 
