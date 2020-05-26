@@ -30,13 +30,30 @@ object NodeInfoRenderer: NodeInfoVisitor<String> {
     private var indentString = "\t"
 
     private val varDefs = mutableSetOf<String>()
+    private var model = Model(listOf(), mapOf())
 
-    fun reset() {
+    fun reset(newModel: Model) {
+        model = newModel
         indentLevel = 0
         varDefs.clear()
+        model.initState.forEach {
+            varDefs.add(it.first)
+        }
     }
 
-    override fun visit(info: InfoAwaitUse) = indent("await ${renderExpression(info.guard)};")
+    override fun visit(info: InfoAwaitUse): String {
+        val postHeap = model.heapMap[info.heapExpr]
+
+        val assignmentBlock: String
+        if(postHeap == null)
+            assignmentBlock = "// No heap modification info available for this call"
+        else {
+            val assignments = postHeap.map{ "${it.first} = ${it.second};" }.joinToString("\n")
+            assignmentBlock = "// Assume the following assignments during the async call:\n$assignments\n// End assignments"
+        }
+        
+        return indent("await ${renderExpression(info.guard)};\n$assignmentBlock\n")
+    }
 
     override fun visit(info: InfoClassPrecondition) = ""
 
