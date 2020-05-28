@@ -257,7 +257,7 @@ class PITCallAssign(repos: Repository) : PITAssign(repos, Modality(
             UpdateOnFormula(input.update, Not(Predicate("=", listOf(callee,Function("0", emptyList())))))
         )
 
-        //construct precondition check of the class creation
+        //construct precondition check of the call
         val precond = repos.methodReqs.getValue(call.met).first
         val targetDecl = repos.methodReqs.getValue(call.met).second
         val substMap = mutableMapOf<LogicElement,LogicElement>()
