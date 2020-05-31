@@ -52,7 +52,7 @@ object NodeInfoRenderer: NodeInfoVisitor<String> {
             assignmentBlock = "// Assume the following assignments during the async call:\n$assignments\n// End assignments"
         }
         
-        return indent("await ${renderExpression(info.guard)};\n$assignmentBlock\n")
+        return indent("// await ${renderExpression(info.guard)};\n$assignmentBlock\n")
     }
 
     override fun visit(info: InfoClassPrecondition) = ""
@@ -83,7 +83,7 @@ object NodeInfoRenderer: NodeInfoVisitor<String> {
     override fun visit(info: InfoGetAssign): String {
         val location = renderDeclLocation(info.lhs)
 
-        return indent("$location = ${renderExpression(info.expression)}.get;")
+        return indent("$location = ${renderExpression(info.expression)};")
     }
 
     override fun visit(info: InfoCallAssign): String {
