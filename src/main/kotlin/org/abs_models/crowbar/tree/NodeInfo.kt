@@ -101,5 +101,5 @@ class InfoSkip() : NodeInfo(isAnon = false, isHeapAnon = false) {
 
 class InfoSkipEnd(postcondition: Formula) : LeafInfo, NodeInfo(isAnon = false, isHeapAnon = false) {
 	override fun <ReturnType> accept(visitor: NodeInfoVisitor<ReturnType>) = visitor.visit(this)
-	override val obligations = listOf(Pair("Method postcondition", postcondition))
+	override val obligations = listOf(Pair("Loop invariant", postcondition))
 }
