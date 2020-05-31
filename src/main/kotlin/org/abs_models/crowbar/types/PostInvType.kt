@@ -238,11 +238,12 @@ class PITAllocAssign(repos: Repository) : PITAssign(repos, Modality(
             val pValue = nextRhs.params[i]
             substMap[pName] = pValue
         }
+        val precondSubst = subst(precond, substMap) as Formula
 
         val pre = LogicNode(
             input.condition,
-            UpdateOnFormula(input.update, subst(precond, substMap) as Formula),
-            info = InfoClassPrecondition(precond)
+            UpdateOnFormula(input.update, precondSubst),
+            info = InfoClassPrecondition(precondSubst)
         )
 
 
@@ -289,10 +290,11 @@ class PITCallAssign(repos: Repository) : PITAssign(repos, Modality(
             val pValue = exprToTerm(call.e[i])
             substMap[pName] = pValue
         }
+        val precondSubst = subst(precond, substMap) as Formula
         val pre = LogicNode(
             input.condition,
-            UpdateOnFormula(input.update, subst(precond, substMap) as Formula),
-            info = InfoClassPrecondition(precond)
+            UpdateOnFormula(input.update, precondSubst),
+            info = InfoClassPrecondition(precondSubst)
         )
 
 
