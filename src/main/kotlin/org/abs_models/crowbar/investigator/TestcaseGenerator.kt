@@ -42,7 +42,7 @@ object TestcaseGenerator {
 			statements.add((it as InfoNode).info.accept(NodeInfoRenderer))
 		}
 
-		output(buildTestcase(statements, obligations))
+		output(buildTestcase(statements, obligations, model))
 	}	
 
 	private fun collectBranchNodes(root: SymbolicNode, leaf: SymbolicTree): List<SymbolicTree> {
@@ -87,6 +87,7 @@ object TestcaseGenerator {
 		val smtRep = generateSMT(leaf.ante, leaf.succ, modelCmd = "(get-model)")
 		val baseModel = plainSMTCommand(smtRep)!!
 
+		// Can't parse model if solver timed out
 		if(baseModel.substring(0, 7) == "unknown") {
 			output("Investigator: solver did not return definite sat/unsat result")
 			return Model(listOf(), mapOf())
@@ -105,7 +106,7 @@ object TestcaseGenerator {
 
 		fields.forEach {
 			val initValue = heapState.getValue((it.value as Integer).value)
-			val fieldName = it.name.substring(0, it.name.length - 2)
+			val fieldName = it.name.substring(0, it.name.length - 2) // Strip _f suffix
 			initialAssignments.add(Pair("this.$fieldName", initValue))
 		}
 
@@ -115,11 +116,17 @@ object TestcaseGenerator {
 		}
 
 		// Get heap-states at heap anonymization points
+
+		if(heapExpressions.size == 0)
+			return Model(initialAssignments, mapOf())
+
 		val modelCmd = "(get-value (${heapExpressions.joinToString(" ")}))"
 		val heapsSmtRep = generateSMT(leaf.ante, leaf.succ, modelCmd)
 		val heapsModel = plainSMTCommand(heapsSmtRep)!!
 
 		val parsedValues = ModelParser.parseValues(heapsModel)
+
+		// Create mapping from heap expressions to parsed heap arrays
 		val heapMap = heapExpressions.zip(parsedValues).associate{ it }
 
 		val heapAssignments = heapMap.mapValues { (_, heap) ->
@@ -133,12 +140,16 @@ object TestcaseGenerator {
 		return Model(initialAssignments, heapAssignments)
 	}
 
-	private fun buildTestcase(statements: List<String>, obligations: List<Pair<String,Formula>>): String {
-		val oblString = obligations.map{ "// ${it.first}: ${it.second.prettyPrint()}" }.joinToString("\n")
+	private fun buildTestcase(statements: List<String>, obligations: List<Pair<String,Formula>>, model: Model): String {
+
+		val initAssign = model.initState.map{ "${it.first} = ${it.second};" }.joinToString("\n")
+		val initString = "// Assume the following pre-state:\n$initAssign\n// End of setup\n\n"
+
 		val stmtString = statements.joinToString("\n")
 		val explainer = "\n// Proof failed here. Trying to show:\n"
+		val oblString = obligations.map{ "// ${it.first}: ${it.second.prettyPrint()}" }.joinToString("\n")
 
-		return stmtString + explainer + oblString
+		return initString + stmtString + explainer + oblString
 	}
 }
 
