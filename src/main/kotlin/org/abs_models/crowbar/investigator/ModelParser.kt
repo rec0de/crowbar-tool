@@ -1,24 +1,15 @@
 package org.abs_models.crowbar.investigator
 
-class ModelParser(val tokens: MutableList<Token>) {
-    companion object {
-        fun parse(modelString: String): List<Function> {
-            val tokens = Tokenizer.tokenize(modelString).toMutableList()
+object ModelParser {
 
-            if(tokens[0].toString() == "sat")
-                tokens.removeAt(0)
+    val tokens: MutableList<Token> = mutableListOf()
+    
+    fun loadSMT(smtString: String) {
+        tokens.clear()
+        tokens.addAll(Tokenizer.tokenize(smtString))
 
-            return ModelParser(tokens).parseModel()
-        }
-
-        fun parseValues(modelString: String): List<Array> {
-            val tokens = Tokenizer.tokenize(modelString).toMutableList()
-
-            if(tokens[0].toString() == "sat")
-                tokens.removeAt(0)
-
-            return ModelParser(tokens).parseValues()
-        }
+        if(tokens[0].toString() == "sat")
+            tokens.removeAt(0)
     }
 
     fun parseModel(): List<Function> {
@@ -35,7 +26,7 @@ class ModelParser(val tokens: MutableList<Token>) {
         return model
     }
 
-    fun parseValues(): List<Array> {
+    fun parseArrayValues(): List<Array> {
         consume(LParen())
 
         val model = mutableListOf<Array>()
@@ -52,7 +43,24 @@ class ModelParser(val tokens: MutableList<Token>) {
         return model
     }
 
-    fun parseDefinition(): Function {
+    fun parseIntegerValues(): List<Int> {
+        consume(LParen())
+
+        val values = mutableListOf<Int>()
+
+        while (tokens[0] is LParen) {
+            consume()
+            ignore()
+            values.add(parseIntExp())
+            consume(RParen())
+        }
+
+        consume(RParen())
+
+        return values
+    }
+
+    private fun parseDefinition(): Function {
         consume(LParen())
         consume(Identifier("define-fun")) // Is this always true?
 
@@ -81,7 +89,7 @@ class ModelParser(val tokens: MutableList<Token>) {
             Function(name, type, args, value)
     }
 
-    fun parseArguments(): List<TypedVariable> {
+    private fun parseArguments(): List<TypedVariable> {
         val args = mutableListOf<TypedVariable>()
         consume(LParen())
 
@@ -92,7 +100,7 @@ class ModelParser(val tokens: MutableList<Token>) {
         return args
     }
 
-    fun parseTypedVariable(): TypedVariable {
+    private fun parseTypedVariable(): TypedVariable {
         consume(LParen())
         val name = tokens[0].toString()
         consume()
@@ -102,7 +110,7 @@ class ModelParser(val tokens: MutableList<Token>) {
         return TypedVariable(type, name)
     }
 
-    fun parseType(): Type {
+    private fun parseType(): Type {
         if (tokens[0] is LParen) {
             consume()
             consume(Identifier("Array"))
@@ -116,14 +124,14 @@ class ModelParser(val tokens: MutableList<Token>) {
         }
     }
 
-    fun parseValue(expectedType: Type): Value {
+    private fun parseValue(expectedType: Type): Value {
         if (expectedType == Type.INT) {
             return Integer(parseIntExp())
         } else
             return parseArrayExp()
     }
 
-    fun parseIntExp(): Int {
+    private fun parseIntExp(): Int {
         if (tokens[0] is ConcreteValue) {
             val value = (tokens[0] as ConcreteValue).value
             consume()
@@ -145,7 +153,7 @@ class ModelParser(val tokens: MutableList<Token>) {
             throw Exception("Expected concrete integer value but got '${tokens[0]}'' at ${tokens.joinToString(" ")}")
     }
 
-    fun parseArrayExp(): Array {
+    private fun parseArrayExp(): Array {
         consume(LParen())
         val array: Array
 
@@ -163,7 +171,7 @@ class ModelParser(val tokens: MutableList<Token>) {
         return array
     }
 
-    fun parseConstArray(): Array {
+    private fun parseConstArray(): Array {
     	consume(LParen())
     	consume(Identifier("as"))
     	consume(Identifier("const"))

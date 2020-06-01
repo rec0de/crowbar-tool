@@ -30,7 +30,7 @@ object NodeInfoRenderer: NodeInfoVisitor<String> {
     private var indentString = "\t"
 
     private val varDefs = mutableSetOf<String>()
-    private var model = Model(listOf(), mapOf())
+    private var model = EmptyModel
 
     fun reset(newModel: Model) {
         model = newModel
@@ -83,13 +83,21 @@ object NodeInfoRenderer: NodeInfoVisitor<String> {
     override fun visit(info: InfoGetAssign): String {
         val location = renderDeclLocation(info.lhs)
 
-        return indent("$location = ${renderExpression(info.expression)};")
+        val origGet = "// $location = ${renderExpression(info.expression)};"
+
+        val futureValue = model.futMap[info.futureExpr]
+        val getReplacement = if(futureValue != null) "$location = $futureValue;" else "// No future evaluation info available"
+
+        return indent("$origGet\n$getReplacement")
     }
 
     override fun visit(info: InfoCallAssign): String {
         val location = renderDeclLocation(info.lhs)
 
-        return indent("$location = ${renderExpression(info.callee)}!${renderExpression(info.call)};")
+        val origCall = "// $location = ${renderExpression(info.callee)}!${renderExpression(info.call)};"
+        val callReplacement = "$location = \"${info.futureName}\";"
+
+        return indent("$origCall\n$callReplacement")
     }
 
     override fun visit(info: InfoLoopInitial) = indent("while(${renderExpression(info.guard)}) { }")
@@ -145,7 +153,7 @@ object NodeInfoRenderer: NodeInfoVisitor<String> {
     private fun renderLocation(loc: Location): String {
         return when(loc) {
             is ProgVar -> loc.name
-            is Field -> "this.${loc.name}"
+            is Field -> "this.${loc.name.substring(0, loc.name.length - 2)}"
             else -> loc.prettyPrint()
         }
     }

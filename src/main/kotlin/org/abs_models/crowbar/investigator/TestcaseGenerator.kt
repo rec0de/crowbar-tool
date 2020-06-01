@@ -6,6 +6,7 @@ import org.abs_models.crowbar.tree.SymbolicTree
 import org.abs_models.crowbar.tree.InfoNode
 import org.abs_models.crowbar.tree.LeafInfo
 import org.abs_models.crowbar.tree.InfoAwaitUse
+import org.abs_models.crowbar.tree.InfoGetAssign
 import org.abs_models.crowbar.main.output
 import org.abs_models.crowbar.main.tmpPath
 import org.abs_models.crowbar.interfaces.plainSMTCommand
@@ -31,8 +32,11 @@ object TestcaseGenerator {
 		output("Investigator: collecting anonymized heap expressions....")
 		val heapExpressions = branchNodes.map{ (it as InfoNode).info }.filter{ it is InfoAwaitUse }.map{ (it as InfoAwaitUse).heapExpr }
 
+		output("Investigator: collecting future expressions....")
+		val futureExpressions = branchNodes.map{ (it as InfoNode).info }.filter{ it is InfoGetAssign }.map{ (it as InfoGetAssign).futureExpr }
+
 		output("Investigator: parsing model....")
-		val model = getModel(uncloseable as LogicNode, heapExpressions)
+		val model = getModel(uncloseable as LogicNode, heapExpressions, futureExpressions)
 
 		output("Investigator: rendering counterexample....")
 		NodeInfoRenderer.reset(model)
@@ -81,21 +85,30 @@ object TestcaseGenerator {
 		return parents
 	}
 
-	private fun getModel(leaf: LogicNode, heapExpressions: List<String>): Model {
+	private fun getModel(leaf: LogicNode, heapExpressions: List<String>, futureExpressions: List<String>): Model {
+
+		// Build model command
+		var baseModel = "(get-model)"
+		if(heapExpressions.size > 0)
+			baseModel += "(get-value (${heapExpressions.joinToString(" ")}))"
+		if(futureExpressions.size > 0)
+			baseModel += "(get-value (${futureExpressions.map{ "(valueOf $it)" }.joinToString(" ")}))"
 
 		// Get state at full anonymization point
-		val smtRep = generateSMT(leaf.ante, leaf.succ, modelCmd = "(get-model)")
-		val baseModel = plainSMTCommand(smtRep)!!
+		val smtRep = generateSMT(leaf.ante, leaf.succ, modelCmd = baseModel)
+		val solverResponse = plainSMTCommand(smtRep)!!
 
 		// Can't parse model if solver timed out
-		if(baseModel.substring(0, 7) == "unknown") {
+		if(solverResponse.substring(0, 7) == "unknown") {
 			output("Investigator: solver did not return definite sat/unsat result")
-			return Model(listOf(), mapOf())
+			return EmptyModel
 		}
+
+		ModelParser.loadSMT(solverResponse)
 		
-		val parsed = ModelParser.parse(baseModel)
+		val parsed = ModelParser.parseModel()
 		val initHeap = parsed.find{ it is Constant && it.name == "heap"}
-		val vars = parsed.filter{ it is Constant && !(it.name matches Regex("(.*_f|Unit|heap)")) }
+		val vars = parsed.filter{ it is Constant && !(it.name matches Regex("(.*_f|fut_.*|Unit|heap)")) }
 		val fields = parsed.filter{ it is Constant && it.name matches Regex(".*_f") }
 
 		if(initHeap == null)
@@ -116,20 +129,21 @@ object TestcaseGenerator {
 		}
 
 		// Get heap-states at heap anonymization points
+		val heapAssignments = getHeapMap(heapExpressions, fields)
 
+		// Get values of futures
+		val futureAssignments = getFutureMap(futureExpressions)
+
+		return Model(initialAssignments, heapAssignments, futureAssignments)
+	}
+
+	private fun getHeapMap(heapExpressions: List<String>, fields: List<Function>): Map<String, List<Pair<String, Int>>> {
 		if(heapExpressions.size == 0)
-			return Model(initialAssignments, mapOf())
+			return mapOf()
 
-		val modelCmd = "(get-value (${heapExpressions.joinToString(" ")}))"
-		val heapsSmtRep = generateSMT(leaf.ante, leaf.succ, modelCmd)
-		val heapsModel = plainSMTCommand(heapsSmtRep)!!
-
-		val parsedValues = ModelParser.parseValues(heapsModel)
-
-		// Create mapping from heap expressions to parsed heap arrays
-		val heapMap = heapExpressions.zip(parsedValues).associate{ it }
-
-		val heapAssignments = heapMap.mapValues { (_, heap) ->
+		val parsedHeaps = ModelParser.parseArrayValues()
+		val rawMap = heapExpressions.zip(parsedHeaps).associate { it }
+		val heapMap = rawMap.mapValues { (_, heap) ->
 			fields.map {
 				val initValue = heap.getValue((it.value as Integer).value)
 				val fieldName = it.name.substring(0, it.name.length - 2)
@@ -137,7 +151,17 @@ object TestcaseGenerator {
 			}
 		}
 
-		return Model(initialAssignments, heapAssignments)
+		return heapMap
+	}
+
+	private fun getFutureMap(futureExpressions: List<String>): Map<String, Int> {
+		if(futureExpressions.size == 0)
+			return mapOf()
+
+		val parsed = ModelParser.parseIntegerValues()
+		val futMap = futureExpressions.zip(parsed).associate { it }
+		
+		return futMap
 	}
 
 	private fun buildTestcase(statements: List<String>, obligations: List<Pair<String,Formula>>, model: Model): String {
@@ -153,4 +177,6 @@ object TestcaseGenerator {
 	}
 }
 
-class Model(val initState: List<Pair<String, Int>>, val heapMap: Map<String, List<Pair<String, Int>>>)
+class Model(val initState: List<Pair<String, Int>>, val heapMap: Map<String, List<Pair<String, Int>>>, val futMap: Map<String, Int>)
+
+val EmptyModel = Model(listOf(), mapOf(), mapOf())
