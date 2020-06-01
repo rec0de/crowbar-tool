@@ -193,7 +193,7 @@ class PITLocAssign(repos: Repository) : PITAssign(repos,Modality(
         val remainder = cond.map[StmtAbstractVar("CONT")] as Stmt
         val target = cond.map[PostInvAbstractVar("TYPE")] as DeductType
         val info = InfoLocAssign(lhs, rhsExpr)
-        return listOf(symbolicNext(lhs,rhs,remainder, target, input.condition, input.update, info))
+        return listOf(symbolicNext(lhs, rhs, remainder, target, input.condition, input.update, info))
     }
 }
 
@@ -208,7 +208,11 @@ class PITSyncAssign(repos: Repository) : PITAssign(repos, Modality(
         val rhs = exprToTerm(rhsExpr)
         val remainder = cond.map[StmtAbstractVar("CONT")] as Stmt
         val target = cond.map[PostInvAbstractVar("TYPE")] as DeductType
-        val info = InfoGetAssign(lhs, rhsExpr)
+
+        // Generate SMT representation of the future expression to get its model value later
+        val futureSMTExpr = apply(input.update, rhs).toSMT(false)
+        val info = InfoGetAssign(lhs, rhsExpr, futureSMTExpr)
+
         return listOf(symbolicNext(lhs, rhs, remainder, target, input.condition, input.update, info))
     }
 
@@ -318,7 +322,7 @@ class PITCallAssign(repos: Repository) : PITAssign(repos, Modality(
                                             target,
                                             And(input.condition, UpdateOnFormula(input.update,UpdateOnFormula(updateNew,subst(postCond, substPostMap) as Formula))),
                                             input.update,
-                                            InfoCallAssign(lhs, calleeExpr, call))
+                                            InfoCallAssign(lhs, calleeExpr, call, freshFut.name))
 
         return listOf(nonenull,pre,next)
     }

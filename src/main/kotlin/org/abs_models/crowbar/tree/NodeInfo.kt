@@ -78,11 +78,11 @@ class InfoLocAssign(val lhs: Location, val expression: Expr) : NodeInfo(isAnon =
 	override fun <ReturnType> accept(visitor: NodeInfoVisitor<ReturnType>) = visitor.visit(this)
 }
 
-class InfoGetAssign(val lhs: Location, val expression: Expr) : NodeInfo(isAnon = false, isHeapAnon = false) {
+class InfoGetAssign(val lhs: Location, val expression: Expr, val futureExpr: String) : NodeInfo(isAnon = false, isHeapAnon = false) {
 	override fun <ReturnType> accept(visitor: NodeInfoVisitor<ReturnType>) = visitor.visit(this)
 }
 
-class InfoCallAssign(val lhs: Location, val callee: Expr, val call: CallExpr) : NodeInfo(isAnon = false, isHeapAnon = false) {
+class InfoCallAssign(val lhs: Location, val callee: Expr, val call: CallExpr, val futureName: String) : NodeInfo(isAnon = false, isHeapAnon = false) {
 	override fun <ReturnType> accept(visitor: NodeInfoVisitor<ReturnType>) = visitor.visit(this)
 }
 
