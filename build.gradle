@@ -54,6 +54,10 @@ lintKotlinMain {
     exclude '**/types/**'
 }
 
+lintKotlinTest {
+    exclude '*'
+}
+
 formatKotlinMain {
     exclude '**/data/**'
     exclude '**/interfaces/**'
