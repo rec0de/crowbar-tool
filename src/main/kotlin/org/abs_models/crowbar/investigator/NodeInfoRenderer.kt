@@ -53,7 +53,7 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
             assignmentBlock = "// Assume the following assignments during the async call:\n$assignments\n// End assignments"
         }
 
-        return indent("// await ${renderExpression(info.guard)};\n$assignmentBlock\n")
+        return indent("\n// await ${renderExpression(info.guard)};\n$assignmentBlock\n")
     }
 
     override fun visit(info: InfoClassPrecondition) = ""
@@ -76,27 +76,27 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
     override fun visit(info: InfoInvariant) = ""
 
     override fun visit(info: InfoLocAssign): String {
-        val location = renderDeclLocation(info.lhs)
+        val location = renderDeclLocation(info.lhs, fut2str = true)
 
         return indent("$location = ${renderExpression(info.expression)};")
     }
 
     override fun visit(info: InfoGetAssign): String {
-        val location = renderDeclLocation(info.lhs)
+        val location = renderDeclLocation(info.lhs, fut2str = false)
 
         val origGet = "// $location = ${renderExpression(info.expression)};"
 
         val futureValue = model.futMap[info.futureExpr]
-        val getReplacement = if (futureValue != null) "$location = $futureValue;" else "// No future evaluation info available"
+        val getReplacement = if (futureValue != null) "${futureToString(location)} = $futureValue;" else "// No future evaluation info available"
 
         return indent("$origGet\n$getReplacement")
     }
 
     override fun visit(info: InfoCallAssign): String {
-        val location = renderDeclLocation(info.lhs)
+        val location = renderDeclLocation(info.lhs, fut2str = false)
 
         val origCall = "// $location = ${renderExpression(info.callee)}!${renderExpression(info.call)};"
-        val callReplacement = "$location = \"${info.futureName}\";"
+        val callReplacement = "${futureToString(location)} = \"${info.futureName}\";"
 
         return indent("$origCall\n$callReplacement")
     }
@@ -148,7 +148,7 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
         return "object-$objectCounter"
     }
 
-    private fun renderDeclLocation(loc: Location): String {
+    private fun renderDeclLocation(loc: Location, fut2str: Boolean): String {
         val location = renderLocation(loc)
 
         // Variables have to be declared on first use
@@ -157,7 +157,9 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
             return "${loc.dType} $location"
         }
 
-        return location
+        // Futures are replaced by placeholder strings in executable code
+        // but kept as futures in comments for context
+        return if (fut2str) futureToString(location) else location
     }
 
     private fun renderLocation(loc: Location): String {
@@ -167,6 +169,8 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
             else -> loc.prettyPrint()
         }
     }
+
+    private fun futureToString(location: String) = location.replace(Regex("^Fut\\b"), "String")
 
     private fun indent(text: String): String {
         val lines = text.split("\n")
