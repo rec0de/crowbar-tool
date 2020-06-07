@@ -28,12 +28,14 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
     private var indentLevel = 0
     private var indentString = "\t"
 
+    private var objectCounter = 0
     private val varDefs = mutableSetOf<String>()
     private var model = EmptyModel
 
     fun reset(newModel: Model) {
         model = newModel
         indentLevel = 0
+        objectCounter = 0
         varDefs.clear()
         model.initState.forEach {
             varDefs.add(it.first)
@@ -122,7 +124,11 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
         return indent(text)
     }
 
-    override fun visit(info: InfoObjAlloc) = indent("${renderLocation(info.lhs)} = ${renderExpression(info.classInit)};")
+    override fun visit(info: InfoObjAlloc): String {
+        val original = "// ${renderLocation(info.lhs)} = ${renderExpression(info.classInit)};"
+        val replacement = "${renderLocation(info.lhs)} = ${getFreshObject()};"
+        return indent("$original\n$replacement")
+    }
 
     override fun visit(info: InfoReturn) = indent("return ${renderExpression(info.expression)};")
 
@@ -136,6 +142,11 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
     override fun visit(info: InfoSkipEnd) = ""
 
     override fun visit(info: NoInfo) = indent("[unknown rule application]")
+
+    private fun getFreshObject(): String {
+        objectCounter++
+        return "object-$objectCounter"
+    }
 
     private fun renderDeclLocation(loc: Location): String {
         val location = renderLocation(loc)
