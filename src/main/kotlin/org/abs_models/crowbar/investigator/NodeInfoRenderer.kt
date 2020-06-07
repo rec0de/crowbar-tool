@@ -106,7 +106,7 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
     override fun visit(info: InfoLoopPreserves): String {
         val text = "// Known true:\n" +
             "// Loop guard: ${renderExpression(info.guard)}\n" +
-            "// Loop invariant: ${info.loopInv.prettyPrint()}\n" +
+            "// Loop invariant: ${renderFormula(info.loopInv)}\n" +
             "while(${renderExpression(info.guard)}) {"
         val res = indent(text)
 
@@ -119,7 +119,7 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
         val text = "while(${renderExpression(info.guard)}){} \n" +
             "// Known true:\n" +
             "// Negated loop guard: !(${renderExpression(info.guard)})\n" +
-            "// Loop invariant: ${info.invariant.prettyPrint()}"
+            "// Loop invariant: ${renderFormula(info.invariant)}"
 
         return indent(text)
     }

@@ -169,7 +169,7 @@ object TestcaseGenerator {
 
         val stmtString = statements.joinToString("\n")
         val explainer = "\n// Proof failed here. Trying to show:\n"
-        val oblString = obligations.map { "// ${it.first}: ${it.second.prettyPrint()}" }.joinToString("\n")
+        val oblString = obligations.map { "// ${it.first}: ${renderFormula(it.second)}" }.joinToString("\n")
 
         return initString + stmtString + explainer + oblString
     }
