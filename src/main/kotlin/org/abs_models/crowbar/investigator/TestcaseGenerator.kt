@@ -52,15 +52,15 @@ object TestcaseGenerator {
 	private fun collectBranchNodes(root: SymbolicNode, leaf: SymbolicTree): List<SymbolicTree> {
 		val parents = parentMapping(root)
 		val nodes = mutableListOf<SymbolicTree>()
-		var n: SymbolicTree = leaf
+		var n: SymbolicTree? = leaf
 
-		while(parents[n] != null) {
+		while(n != null) {
 			nodes.add(n)
 
 			if(n is InfoNode && n.info.isAnon)
 				break
 
-			n = parents[n]!!
+			n = parents[n]
 		}
 
 		return nodes
