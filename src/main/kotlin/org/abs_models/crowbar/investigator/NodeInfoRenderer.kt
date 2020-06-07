@@ -1,30 +1,29 @@
 package org.abs_models.crowbar.investigator
 
-import org.abs_models.crowbar.data.Location
 import org.abs_models.crowbar.data.Field
+import org.abs_models.crowbar.data.Location
 import org.abs_models.crowbar.data.ProgVar
-import org.abs_models.crowbar.tree.NodeInfo
-import org.abs_models.crowbar.tree.NodeInfoVisitor
-import org.abs_models.crowbar.tree.NoInfo
 import org.abs_models.crowbar.tree.InfoAwaitUse
+import org.abs_models.crowbar.tree.InfoCallAssign
 import org.abs_models.crowbar.tree.InfoClassPrecondition
+import org.abs_models.crowbar.tree.InfoGetAssign
 import org.abs_models.crowbar.tree.InfoIfElse
 import org.abs_models.crowbar.tree.InfoIfThen
 import org.abs_models.crowbar.tree.InfoInvariant
 import org.abs_models.crowbar.tree.InfoLocAssign
-import org.abs_models.crowbar.tree.InfoGetAssign
-import org.abs_models.crowbar.tree.InfoCallAssign
 import org.abs_models.crowbar.tree.InfoLoopInitial
 import org.abs_models.crowbar.tree.InfoLoopPreserves
 import org.abs_models.crowbar.tree.InfoLoopUse
+import org.abs_models.crowbar.tree.InfoNullCheck
 import org.abs_models.crowbar.tree.InfoObjAlloc
 import org.abs_models.crowbar.tree.InfoReturn
 import org.abs_models.crowbar.tree.InfoScopeClose
 import org.abs_models.crowbar.tree.InfoSkip
 import org.abs_models.crowbar.tree.InfoSkipEnd
-import org.abs_models.crowbar.tree.InfoNullCheck
+import org.abs_models.crowbar.tree.NoInfo
+import org.abs_models.crowbar.tree.NodeInfoVisitor
 
-object NodeInfoRenderer: NodeInfoVisitor<String> {
+object NodeInfoRenderer : NodeInfoVisitor<String> {
 
     private var indentLevel = 0
     private var indentString = "\t"
@@ -45,13 +44,13 @@ object NodeInfoRenderer: NodeInfoVisitor<String> {
         val postHeap = model.heapMap[info.heapExpr]
 
         val assignmentBlock: String
-        if(postHeap == null)
+        if (postHeap == null)
             assignmentBlock = "// No heap modification info available for this call"
         else {
-            val assignments = postHeap.map{ "${it.first} = ${it.second};" }.joinToString("\n")
+            val assignments = postHeap.map { "${it.first} = ${it.second};" }.joinToString("\n")
             assignmentBlock = "// Assume the following assignments during the async call:\n$assignments\n// End assignments"
         }
-        
+
         return indent("// await ${renderExpression(info.guard)};\n$assignmentBlock\n")
     }
 
@@ -86,7 +85,7 @@ object NodeInfoRenderer: NodeInfoVisitor<String> {
         val origGet = "// $location = ${renderExpression(info.expression)};"
 
         val futureValue = model.futMap[info.futureExpr]
-        val getReplacement = if(futureValue != null) "$location = $futureValue;" else "// No future evaluation info available"
+        val getReplacement = if (futureValue != null) "$location = $futureValue;" else "// No future evaluation info available"
 
         return indent("$origGet\n$getReplacement")
     }
@@ -104,9 +103,9 @@ object NodeInfoRenderer: NodeInfoVisitor<String> {
 
     override fun visit(info: InfoLoopPreserves): String {
         val text = "// Known true:\n" +
-                   "// Loop guard: ${renderExpression(info.guard)}\n" +
-                   "// Loop invariant: ${info.loopInv.prettyPrint()}\n" +
-                   "while(${renderExpression(info.guard)}) {"
+            "// Loop guard: ${renderExpression(info.guard)}\n" +
+            "// Loop invariant: ${info.loopInv.prettyPrint()}\n" +
+            "while(${renderExpression(info.guard)}) {"
         val res = indent(text)
 
         indentLevel += 1
@@ -116,9 +115,9 @@ object NodeInfoRenderer: NodeInfoVisitor<String> {
 
     override fun visit(info: InfoLoopUse): String {
         val text = "while(${renderExpression(info.guard)}){} \n" +
-                   "// Known true:\n" + 
-                   "// Negated loop guard: !(${renderExpression(info.guard)})\n" +
-                   "// Loop invariant: ${info.invariant.prettyPrint()}"
+            "// Known true:\n" +
+            "// Negated loop guard: !(${renderExpression(info.guard)})\n" +
+            "// Loop invariant: ${info.invariant.prettyPrint()}"
 
         return indent(text)
     }
@@ -142,7 +141,7 @@ object NodeInfoRenderer: NodeInfoVisitor<String> {
         val location = renderLocation(loc)
 
         // Variables have to be declared on first use
-        if(loc is ProgVar && !varDefs.contains(location)) {
+        if (loc is ProgVar && !varDefs.contains(location)) {
             varDefs.add(location)
             return "${loc.dType} $location"
         }
@@ -151,7 +150,7 @@ object NodeInfoRenderer: NodeInfoVisitor<String> {
     }
 
     private fun renderLocation(loc: Location): String {
-        return when(loc) {
+        return when (loc) {
             is ProgVar -> loc.name
             is Field -> "this.${loc.name.substring(0, loc.name.length - 2)}"
             else -> loc.prettyPrint()
@@ -162,6 +161,6 @@ object NodeInfoRenderer: NodeInfoVisitor<String> {
         val lines = text.split("\n")
         val spacer = indentString.repeat(indentLevel)
 
-        return lines.map{ "$spacer$it" }.joinToString("\n")
+        return lines.map { "$spacer$it" }.joinToString("\n")
     }
 }

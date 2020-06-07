@@ -10,9 +10,9 @@ import org.abs_models.frontend.ast.EqExp
 import org.abs_models.frontend.ast.Exp
 import org.abs_models.frontend.ast.FieldUse
 import org.abs_models.frontend.ast.FnApp
-import org.abs_models.frontend.ast.GetExp
 import org.abs_models.frontend.ast.GTEQExp
 import org.abs_models.frontend.ast.GTExp
+import org.abs_models.frontend.ast.GetExp
 import org.abs_models.frontend.ast.IfExp
 import org.abs_models.frontend.ast.IntLiteral
 import org.abs_models.frontend.ast.LTEQExp
@@ -29,14 +29,14 @@ import org.abs_models.frontend.ast.ThisExp
 import org.abs_models.frontend.ast.VarUse
 
 fun renderExpression(expression: Expr): String {
-    if(expression.absExp == null)
+    if (expression.absExp == null)
         return expression.prettyPrint()
     else
         return renderAbsExpression(expression.absExp!!)
 }
 
 fun renderAbsExpression(e: Exp): String {
-     return when(e){
+    return when (e) {
         is ThisExp         -> "this"
         is NullExp         -> "null"
         is IntLiteral      -> e.content

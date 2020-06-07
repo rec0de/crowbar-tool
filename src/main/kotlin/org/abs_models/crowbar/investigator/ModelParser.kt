@@ -3,12 +3,12 @@ package org.abs_models.crowbar.investigator
 object ModelParser {
 
     val tokens: MutableList<Token> = mutableListOf()
-    
+
     fun loadSMT(smtString: String) {
         tokens.clear()
         tokens.addAll(Tokenizer.tokenize(smtString))
 
-        if(tokens[0].toString() == "sat")
+        if (tokens[0].toString() == "sat")
             tokens.removeAt(0)
     }
 
@@ -74,7 +74,7 @@ object ModelParser {
 
         // Functions are annoying to parse & evaluate, so we won't
         // The only relevant function is anon(), which is handled separately anyway
-        if(args.size == 0)
+        if (args.size == 0)
             value = parseValue(type)
         else {
             ignore()
@@ -157,14 +157,14 @@ object ModelParser {
         consume(LParen())
         val array: Array
 
-        if(tokens[0] is LParen)
-        	array = parseConstArray()
+        if (tokens[0] is LParen)
+            array = parseConstArray()
         else {
-        	consume(Identifier("store"))
-        	array = parseArrayExp()
-        	val index = parseIntExp()
-        	val value = parseIntExp()
-        	array.map.put(index, value)
+            consume(Identifier("store"))
+            array = parseArrayExp()
+            val index = parseIntExp()
+            val value = parseIntExp()
+            array.map.put(index, value)
         }
 
         consume(RParen())
@@ -172,28 +172,28 @@ object ModelParser {
     }
 
     private fun parseConstArray(): Array {
-    	consume(LParen())
-    	consume(Identifier("as"))
-    	consume(Identifier("const"))
-    	consume(LParen())
-    	consume(Identifier("Array"))
-    	consume(Identifier("Int"))
-    	consume(Identifier("Int"))
-    	consume(RParen())
-    	consume(RParen())
-    	val value = parseIntExp()
-    	return Array(value)
+        consume(LParen())
+        consume(Identifier("as"))
+        consume(Identifier("const"))
+        consume(LParen())
+        consume(Identifier("Array"))
+        consume(Identifier("Int"))
+        consume(Identifier("Int"))
+        consume(RParen())
+        consume(RParen())
+        val value = parseIntExp()
+        return Array(value)
     }
 
     // Consume a subexpression without doing anything
     private fun ignore() {
-        var layer = if(tokens[0] is LParen) 1 else 0
+        var layer = if (tokens[0] is LParen) 1 else 0
         consume()
 
-        while(layer > 0) {
-            if(tokens[0] is LParen)
+        while (layer > 0) {
+            if (tokens[0] is LParen)
                 layer++
-            else if(tokens[0] is RParen)
+            else if (tokens[0] is RParen)
                 layer--
 
             consume()
@@ -225,25 +225,25 @@ data class TypedVariable(val type: Type, val name: String) {
 
 interface Value
 
-object UnknownValue: Value {
+object UnknownValue : Value {
     override fun toString() = "UNPARSED VALUE"
 }
 
-class Array(val defaultValue: Int, val map: MutableMap<Int,Int> = mutableMapOf()) : Value {
-	fun getValue(index: Int) = if(map.contains(index)) map[index]!! else defaultValue
+class Array(val defaultValue: Int, val map: MutableMap<Int, Int> = mutableMapOf()) : Value {
+    fun getValue(index: Int) = if (map.contains(index)) map[index]!! else defaultValue
 
-	override fun toString(): String {
-		val entries = mutableListOf("default: $defaultValue")
-		map.forEach {
-			entries.add("${it.key}: ${it.value}")
-		}
+    override fun toString(): String {
+        val entries = mutableListOf("default: $defaultValue")
+        map.forEach {
+            entries.add("${it.key}: ${it.value}")
+        }
 
-		return "[${entries.joinToString(", ")}]"
-	}
+        return "[${entries.joinToString(", ")}]"
+    }
 }
 
 class Integer(val value: Int) : Value {
-	override fun toString() = value.toString()
+    override fun toString() = value.toString()
 }
 
 enum class Type() {

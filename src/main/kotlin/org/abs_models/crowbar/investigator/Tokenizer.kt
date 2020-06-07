@@ -1,7 +1,7 @@
 package org.abs_models.crowbar.investigator
 
 object Tokenizer {
-   
+
     private val whitespace = Regex("\\s")
     private val numeric = Regex("(\\-)?\\d+")
     private val allowedId = Regex("[a-zA-Z0-9\\-_!=]")
