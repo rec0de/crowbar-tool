@@ -41,13 +41,17 @@ fun renderTerm(t: Term): String {
 }
 
 fun renderPredicate(p: Predicate): String {
-    if (p.params.isEmpty()) return p.name
-    if (binaries.contains(p.name) && p.params.size == 2) return renderTerm(p.params[0]) + p.name + renderTerm(p.params[1])
-    return p.name + "(" + p.params.map { t -> renderTerm(t) }.joinToString(", ") + ")"
+    return when {
+        p.params.isEmpty() -> p.name
+        binaries.contains(p.name) && p.params.size == 2 -> renderTerm(p.params[0]) + p.name + renderTerm(p.params[1])
+        else -> p.name + "(" + p.params.map { t -> renderTerm(t) }.joinToString(", ") + ")"
+    }
 }
 
 fun renderFunction(f: Function): String {
-    if (f.params.isEmpty()) return f.name
-    if (binaries.contains(f.name) && f.params.size == 2) return renderTerm(f.params[0]) + f.name + renderTerm(f.params[1])
-    return f.name + "(" + f.params.map { p -> renderTerm(p) }.joinToString(", ") + ")"
+    return when {
+        f.params.isEmpty() -> f.name
+        binaries.contains(f.name) && f.params.size == 2 -> renderTerm(f.params[0]) + f.name + renderTerm(f.params[1])
+        else -> f.name + "(" + f.params.map { t -> renderTerm(t) }.joinToString(", ") + ")"
+    }
 }
