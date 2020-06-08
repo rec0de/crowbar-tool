@@ -1,6 +1,9 @@
 package org.abs_models.crowbar.investigator
 
+import org.abs_models.crowbar.data.Field
 import org.abs_models.crowbar.data.Formula
+import org.abs_models.crowbar.data.Location
+import org.abs_models.crowbar.data.ProgVar
 import org.abs_models.crowbar.interfaces.generateSMT
 import org.abs_models.crowbar.interfaces.plainSMTCommand
 import org.abs_models.crowbar.main.output
@@ -38,13 +41,13 @@ object TestcaseGenerator {
 
         output("Investigator: rendering counterexample....")
         NodeInfoRenderer.reset(model)
-        val statements = mutableListOf<String>()
+        val statements = mutableListOf<String>(NodeInfoRenderer.initAssignments())
 
         for (it in branchNodes.asReversed()) {
             statements.add((it as InfoNode).info.accept(NodeInfoRenderer))
         }
 
-        output(buildTestcase(statements, obligations, model))
+        output(buildTestcase(statements, obligations))
     }
 
     private fun collectBranchNodes(root: SymbolicNode, leaf: SymbolicTree): List<SymbolicTree> {
@@ -85,6 +88,10 @@ object TestcaseGenerator {
 
     private fun getModel(leaf: LogicNode, heapExpressions: List<String>, futureExpressions: List<String>): Model {
 
+        // Collect types of fields and variables from leaf node
+        val fieldTypes = ((leaf.ante.iterate { it is Field } + leaf.succ.iterate { it is Field }) as Set<Field>).associate { Pair(it.name, it.dType) }
+        val varTypes = ((leaf.ante.iterate { it is ProgVar } + leaf.succ.iterate { it is ProgVar }) as Set<ProgVar>).filter { it.name != "heap" }.associate { Pair(it.name, it.dType) }
+
         // Build model command
         var baseModel = "(get-model)"
         if (heapExpressions.size > 0)
@@ -105,37 +112,40 @@ object TestcaseGenerator {
         ModelParser.loadSMT(solverResponse)
 
         val parsed = ModelParser.parseModel()
-        val initHeap = parsed.find { it is Constant && it.name == "heap" }
-        val vars = parsed.filter { it is Constant && !(it.name matches Regex("(.*_f|fut_.*|Unit|heap)")) }
-        val fields = parsed.filter { it is Constant && it.name matches Regex(".*_f") }
+        val constants = parsed.filter { it is Constant }
+        val initHeap = constants.find { it.name == "heap" }
+        val vars = constants.filter { !(it.name matches Regex("(.*_f|fut_.*|NEW\\d.*|Unit|heap)")) }
+        val fields = constants.filter { it.name matches Regex(".*_f") }
+        val futLookup = constants.filter { it.name.startsWith("fut_") }.associate { Pair((it.value as Integer).value, it.name) }
 
         if (initHeap == null)
             throw Exception("Model contained no heap definition")
 
         val heapState = initHeap.value as Array
-        val initialAssignments = mutableListOf<Pair<String, Int>>()
+        val initialAssignments = mutableListOf<Pair<Location, Int>>()
 
         fields.forEach {
             val initValue = heapState.getValue((it.value as Integer).value)
-            val fieldName = it.name.substring(0, it.name.length - 2) // Strip _f suffix
-            initialAssignments.add(Pair("this.$fieldName", initValue))
+            val field = Field(it.name, fieldTypes[it.name]!!)
+            initialAssignments.add(Pair(field, initValue))
         }
 
         vars.forEach {
             val initValue = (it.value as Integer).value
-            initialAssignments.add(Pair(it.name, initValue))
+            val variable = ProgVar(it.name, varTypes[it.name]!!)
+            initialAssignments.add(Pair(variable, initValue))
         }
 
         // Get heap-states at heap anonymization points
-        val heapAssignments = getHeapMap(heapExpressions, fields)
+        val heapAssignments = getHeapMap(heapExpressions, fields, fieldTypes)
 
         // Get values of futures
         val futureAssignments = getFutureMap(futureExpressions)
 
-        return Model(initialAssignments, heapAssignments, futureAssignments)
+        return Model(initialAssignments, heapAssignments, futureAssignments, futLookup)
     }
 
-    private fun getHeapMap(heapExpressions: List<String>, fields: List<Function>): Map<String, List<Pair<String, Int>>> {
+    private fun getHeapMap(heapExpressions: List<String>, fields: List<Function>, fieldTypes: Map<String, String>): Map<String, List<Pair<Field, Int>>> {
         if (heapExpressions.size == 0)
             return mapOf()
 
@@ -144,8 +154,8 @@ object TestcaseGenerator {
         val heapMap = rawMap.mapValues { (_, heap) ->
             fields.map {
                 val initValue = heap.getValue((it.value as Integer).value)
-                val fieldName = it.name.substring(0, it.name.length - 2)
-                Pair("this.$fieldName", initValue)
+                val field = Field(it.name, fieldTypes[it.name]!!)
+                Pair(field, initValue)
             }
         }
 
@@ -162,19 +172,22 @@ object TestcaseGenerator {
         return futMap
     }
 
-    private fun buildTestcase(statements: List<String>, obligations: List<Pair<String, Formula>>, model: Model): String {
-
-        val initAssign = model.initState.map { "${it.first} = ${it.second};" }.joinToString("\n")
-        val initString = "// Assume the following pre-state:\n$initAssign\n// End of setup\n\n"
-
+    private fun buildTestcase(statements: List<String>, obligations: List<Pair<String, Formula>>): String {
         val stmtString = statements.joinToString("\n")
         val explainer = "\n// Proof failed here. Trying to show:\n"
         val oblString = obligations.map { "// ${it.first}: ${renderFormula(it.second)}" }.joinToString("\n")
 
-        return initString + stmtString + explainer + oblString
+        return stmtString + explainer + oblString
     }
 }
 
-class Model(val initState: List<Pair<String, Int>>, val heapMap: Map<String, List<Pair<String, Int>>>, val futMap: Map<String, Int>)
+class Model(
+    val initState: List<Pair<Location, Int>>,
+    val heapMap: Map<String, List<Pair<Field, Int>>>,
+    val futMap: Map<String, Int>,
+    val futLookup: Map<Int, String>
+) {
+    fun futNameById(id: Int) = if (futLookup.containsKey(id)) futLookup[id]!! else "fut_?($id)"
+}
 
-val EmptyModel = Model(listOf(), mapOf(), mapOf())
+val EmptyModel = Model(listOf(), mapOf(), mapOf(), mapOf())

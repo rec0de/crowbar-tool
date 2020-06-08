@@ -38,9 +38,11 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
         indentLevel = 0
         objectCounter = 0
         varDefs.clear()
-        model.initState.forEach {
-            varDefs.add(it.first)
-        }
+    }
+
+    fun initAssignments(): String {
+        val initAssign = model.initState.map { renderModelAssignment(it.first, it.second) }.joinToString("\n")
+        return indent("// Assume the following pre-state:\n$initAssign\n// End of setup\n\n")
     }
 
     override fun visit(info: InfoAwaitUse): String {
@@ -50,7 +52,7 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
         if (postHeap == null)
             assignmentBlock = "// No heap modification info available for this call"
         else {
-            val assignments = postHeap.map { "${it.first} = ${it.second};" }.joinToString("\n")
+            val assignments = postHeap.map { renderModelAssignment(it.first, it.second) }.joinToString("\n")
             assignmentBlock = "// Assume the following assignments during the async call:\n$assignments\n// End assignments"
         }
 
@@ -146,11 +148,29 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
 
     override fun visit(info: InfoSkipEnd) = ""
 
-    override fun visit(info: NoInfo) = indent("[unknown rule application]")
+    override fun visit(info: NoInfo) = ""
 
     private fun getFreshObject(): String {
         objectCounter++
         return "object-$objectCounter"
+    }
+
+    private fun renderModelAssignment(loc: Location, value: Int): String {
+        val location = renderDeclLocation(loc, fut2str = true)
+
+        val type = when (loc) {
+            is Field -> loc.dType
+            is ProgVar -> loc.dType
+            else -> throw Exception("Cannot render unknown location: ${loc.prettyPrint()}")
+        }
+
+        val renderedValue = when (type) {
+            "Int" -> value.toString()
+            "Fut" -> "\"${model.futNameById(value)}\""
+            "Bool" -> if (value == 0) "False" else "True"
+            else -> "$value??"
+        }
+        return "$location = $renderedValue;"
     }
 
     private fun renderDeclLocation(loc: Location, fut2str: Boolean): String {
