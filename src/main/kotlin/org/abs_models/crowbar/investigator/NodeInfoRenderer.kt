@@ -22,6 +22,7 @@ import org.abs_models.crowbar.tree.InfoSkip
 import org.abs_models.crowbar.tree.InfoSkipEnd
 import org.abs_models.crowbar.tree.NoInfo
 import org.abs_models.crowbar.tree.NodeInfoVisitor
+import org.abs_models.frontend.ast.FieldUse
 
 object NodeInfoRenderer : NodeInfoVisitor<String> {
 
@@ -53,7 +54,9 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
             assignmentBlock = "// Assume the following assignments during the async call:\n$assignments\n// End assignments"
         }
 
-        return indent("\n// await ${renderExpression(info.guard)};\n$assignmentBlock\n")
+        val renderedGuard = if (info.guard.absExp is FieldUse) "${renderExpression(info.guard)}?" else renderExpression(info.guard)
+
+        return indent("\n// await $renderedGuard;\n$assignmentBlock\n")
     }
 
     override fun visit(info: InfoClassPrecondition) = ""
@@ -125,8 +128,10 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
     }
 
     override fun visit(info: InfoObjAlloc): String {
-        val original = "// ${renderLocation(info.lhs)} = ${renderExpression(info.classInit)};"
-        val replacement = "${renderLocation(info.lhs)} = ${getFreshObject()};"
+        val location = renderDeclLocation(info.lhs, fut2str = false)
+
+        val original = "// $location = ${renderExpression(info.classInit)};"
+        val replacement = "${futureToString(location)} = \"${getFreshObject()}\";"
         return indent("$original\n$replacement")
     }
 
@@ -149,12 +154,12 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
     }
 
     private fun renderDeclLocation(loc: Location, fut2str: Boolean): String {
-        val location = renderLocation(loc)
+        var location = renderLocation(loc)
 
         // Variables have to be declared on first use
         if (loc is ProgVar && !varDefs.contains(location)) {
             varDefs.add(location)
-            return "${loc.dType} $location"
+            location = "${loc.dType} $location"
         }
 
         // Futures are replaced by placeholder strings in executable code
@@ -165,7 +170,7 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
     private fun renderLocation(loc: Location): String {
         return when (loc) {
             is ProgVar -> loc.name
-            is Field -> "this.${loc.name.substring(0, loc.name.length - 2)}"
+            is Field -> "this.${loc.name.substring(0, loc.name.length - 2)}" // Remove _f suffix
             else -> loc.prettyPrint()
         }
     }
