@@ -86,7 +86,7 @@ class InfoCallAssign(val lhs: Location, val callee: Expr, val call: CallExpr, va
 	override fun <ReturnType> accept(visitor: NodeInfoVisitor<ReturnType>) = visitor.visit(this)
 }
 
-class InfoObjAlloc(val lhs: Location, val classInit: Expr) : NodeInfo(isAnon = false, isHeapAnon = false) {
+class InfoObjAlloc(val lhs: Location, val classInit: Expr, val newSMTExpr: String) : NodeInfo(isAnon = false, isHeapAnon = false) {
 	override fun <ReturnType> accept(visitor: NodeInfoVisitor<ReturnType>) = visitor.visit(this)
 }
 

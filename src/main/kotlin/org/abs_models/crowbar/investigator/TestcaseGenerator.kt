@@ -10,6 +10,7 @@ import org.abs_models.crowbar.main.output
 import org.abs_models.crowbar.tree.InfoAwaitUse
 import org.abs_models.crowbar.tree.InfoGetAssign
 import org.abs_models.crowbar.tree.InfoNode
+import org.abs_models.crowbar.tree.InfoObjAlloc
 import org.abs_models.crowbar.tree.LeafInfo
 import org.abs_models.crowbar.tree.LogicNode
 import org.abs_models.crowbar.tree.SymbolicNode
@@ -29,15 +30,19 @@ object TestcaseGenerator {
 
         output("Investigator: collecting branch nodes....")
         val branchNodes = collectBranchNodes(node, uncloseable)
+        val infoNodes = branchNodes.map { (it as InfoNode).info }
 
         output("Investigator: collecting anonymized heap expressions....")
-        val heapExpressions = branchNodes.map { (it as InfoNode).info }.filter { it is InfoAwaitUse }.map { (it as InfoAwaitUse).heapExpr }
+        val heapExpressions = infoNodes.filter { it is InfoAwaitUse }.map { (it as InfoAwaitUse).heapExpr }
 
         output("Investigator: collecting future expressions....")
-        val futureExpressions = branchNodes.map { (it as InfoNode).info }.filter { it is InfoGetAssign }.map { (it as InfoGetAssign).futureExpr }
+        val futureExpressions = infoNodes.filter { it is InfoGetAssign }.map { (it as InfoGetAssign).futureExpr }
+
+        output("Investigator: collecting object allocation expressions....")
+        val newExpressions = infoNodes.filter { it is InfoObjAlloc }.map { (it as InfoObjAlloc).newSMTExpr }
 
         output("Investigator: parsing model....")
-        val model = getModel(uncloseable as LogicNode, heapExpressions, futureExpressions)
+        val model = getModel(uncloseable as LogicNode, heapExpressions, futureExpressions, newExpressions)
 
         output("Investigator: rendering counterexample....")
         NodeInfoRenderer.reset(model)
@@ -86,7 +91,7 @@ object TestcaseGenerator {
         return parents
     }
 
-    private fun getModel(leaf: LogicNode, heapExpressions: List<String>, futureExpressions: List<String>): Model {
+    private fun getModel(leaf: LogicNode, heapExpressions: List<String>, futureExpressions: List<String>, newExpressions: List<String>): Model {
 
         // Collect types of fields and variables from leaf node
         val fieldTypes = ((leaf.ante.iterate { it is Field } + leaf.succ.iterate { it is Field }) as Set<Field>).associate { Pair(it.name, it.dType) }
@@ -98,6 +103,8 @@ object TestcaseGenerator {
             baseModel += "(get-value (${heapExpressions.joinToString(" ")}))"
         if (futureExpressions.size > 0)
             baseModel += "(get-value (${futureExpressions.map{ "(valueOf $it)" }.joinToString(" ")}))"
+        if (newExpressions.size > 0)
+            baseModel += "(get-value (${newExpressions.joinToString(" ")}))"
 
         // Get state at full anonymization point
         val smtRep = generateSMT(leaf.ante, leaf.succ, modelCmd = baseModel)
@@ -142,7 +149,10 @@ object TestcaseGenerator {
         // Get values of futures
         val futureAssignments = getFutureMap(futureExpressions)
 
-        return Model(initialAssignments, heapAssignments, futureAssignments, futLookup)
+        // Get mapping of object ids to names
+        val objLookup = getObjectMap(newExpressions)
+
+        return Model(initialAssignments, heapAssignments, futureAssignments, futLookup, objLookup)
     }
 
     private fun getHeapMap(heapExpressions: List<String>, fields: List<Function>, fieldTypes: Map<String, String>): Map<String, List<Pair<Field, Int>>> {
@@ -172,6 +182,16 @@ object TestcaseGenerator {
         return futMap
     }
 
+    private fun getObjectMap(newExpressions: List<String>): Map<Int, String> {
+        if (newExpressions.size == 0)
+            return mapOf()
+
+        val parsed = ModelParser.parseIntegerValues()
+        val objMap = parsed.zip(newExpressions).associate { it }
+
+        return objMap
+    }
+
     private fun buildTestcase(statements: List<String>, obligations: List<Pair<String, Formula>>): String {
         val stmtString = statements.joinToString("\n")
         val explainer = "\n// Proof failed here. Trying to show:\n"
@@ -185,9 +205,12 @@ class Model(
     val initState: List<Pair<Location, Int>>,
     val heapMap: Map<String, List<Pair<Field, Int>>>,
     val futMap: Map<String, Int>,
-    val futLookup: Map<Int, String>
+    val futLookup: Map<Int, String>,
+    val objLookup: Map<Int, String>
 ) {
+    // The SMT solver may reference futures that were not defined in the program
+    // we'll mark these with a questionmark and give the underlying integer id from the solver
     fun futNameById(id: Int) = if (futLookup.containsKey(id)) futLookup[id]!! else "fut_?($id)"
 }
 
-val EmptyModel = Model(listOf(), mapOf(), mapOf(), mapOf())
+val EmptyModel = Model(listOf(), mapOf(), mapOf(), mapOf(), mapOf())

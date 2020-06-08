@@ -30,6 +30,7 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
     private var indentString = "\t"
 
     private var objectCounter = 0
+    private val objMap = mutableMapOf<String, String>()
     private val varDefs = mutableSetOf<String>()
     private var model = EmptyModel
 
@@ -37,12 +38,13 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
         model = newModel
         indentLevel = 0
         objectCounter = 0
+        objMap.clear()
         varDefs.clear()
     }
 
     fun initAssignments(): String {
         val initAssign = model.initState.map { renderModelAssignment(it.first, it.second) }.joinToString("\n")
-        return indent("// Assume the following pre-state:\n$initAssign\n// End of setup\n\n")
+        return indent("// Assume the following pre-state:\n$initAssign\n// End of setup\n")
     }
 
     override fun visit(info: InfoAwaitUse): String {
@@ -81,27 +83,31 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
     override fun visit(info: InfoInvariant) = ""
 
     override fun visit(info: InfoLocAssign): String {
-        val location = renderDeclLocation(info.lhs, fut2str = true)
+        val location = renderDeclLocation(info.lhs, type2str = true)
 
         return indent("$location = ${renderExpression(info.expression)};")
     }
 
     override fun visit(info: InfoGetAssign): String {
-        val location = renderDeclLocation(info.lhs, fut2str = false)
+        // Get location with possible type declaration both in original form and executable form
+        val strLocation = renderDeclLocation(info.lhs, type2str = true, declare = false)
+        val location = renderDeclLocation(info.lhs, type2str = false)
 
         val origGet = "// $location = ${renderExpression(info.expression)};"
 
         val futureValue = model.futMap[info.futureExpr]
-        val getReplacement = if (futureValue != null) "${futureToString(location)} = $futureValue;" else "// No future evaluation info available"
+        val getReplacement = if (futureValue != null) "$strLocation = $futureValue;" else "// No future evaluation info available"
 
         return indent("$origGet\n$getReplacement")
     }
 
     override fun visit(info: InfoCallAssign): String {
-        val location = renderDeclLocation(info.lhs, fut2str = false)
+        // Get location with possible type declaration both in original form and executable form
+        val strLocation = renderDeclLocation(info.lhs, type2str = true, declare = false)
+        val location = renderDeclLocation(info.lhs, type2str = false)
 
         val origCall = "// $location = ${renderExpression(info.callee)}!${renderExpression(info.call)};"
-        val callReplacement = "${futureToString(location)} = \"${info.futureName}\";"
+        val callReplacement = "$strLocation = \"${info.futureName}\";"
 
         return indent("$origCall\n$callReplacement")
     }
@@ -130,10 +136,12 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
     }
 
     override fun visit(info: InfoObjAlloc): String {
-        val location = renderDeclLocation(info.lhs, fut2str = false)
+        // Get location with possible type declaration both in original form and executable form
+        val strLocation = renderDeclLocation(info.lhs, type2str = true, declare = false)
+        val location = renderDeclLocation(info.lhs, type2str = false)
 
         val original = "// $location = ${renderExpression(info.classInit)};"
-        val replacement = "${futureToString(location)} = \"${getFreshObject()}\";"
+        val replacement = "$strLocation = \"${getObjectBySMT(info.newSMTExpr)}\";"
         return indent("$original\n$replacement")
     }
 
@@ -150,13 +158,8 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
 
     override fun visit(info: NoInfo) = ""
 
-    private fun getFreshObject(): String {
-        objectCounter++
-        return "object-$objectCounter"
-    }
-
     private fun renderModelAssignment(loc: Location, value: Int): String {
-        val location = renderDeclLocation(loc, fut2str = true)
+        val location = renderDeclLocation(loc, type2str = true)
 
         val type = when (loc) {
             is Field -> loc.dType
@@ -168,23 +171,25 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
             "Int" -> value.toString()
             "Fut" -> "\"${model.futNameById(value)}\""
             "Bool" -> if (value == 0) "False" else "True"
-            else -> "$value??"
+            else -> "\"${getObjectById(value)}\""
         }
         return "$location = $renderedValue;"
     }
 
-    private fun renderDeclLocation(loc: Location, fut2str: Boolean): String {
+    private fun renderDeclLocation(loc: Location, type2str: Boolean, declare: Boolean = true): String {
         var location = renderLocation(loc)
 
         // Variables have to be declared on first use
         if (loc is ProgVar && !varDefs.contains(location)) {
-            varDefs.add(location)
-            location = "${loc.dType} $location"
+            if (declare)
+                varDefs.add(location)
+            // Futures and object types are replaced by placeholder strings
+            // in executable code but kept in comments for context
+            val type = if (type2str) complexTypeToString(loc.dType) else loc.dType
+            location = "$type $location"
         }
 
-        // Futures are replaced by placeholder strings in executable code
-        // but kept as futures in comments for context
-        return if (fut2str) futureToString(location) else location
+        return location
     }
 
     private fun renderLocation(loc: Location): String {
@@ -195,7 +200,24 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
         }
     }
 
-    private fun futureToString(location: String) = location.replace(Regex("^Fut\\b"), "String")
+    private fun complexTypeToString(type: String) = if (type == "Int" || type == "Bool") type else "String"
+
+    private fun getObjectBySMT(smtRep: String): String {
+        if (!objMap.containsKey(smtRep)) {
+            objectCounter++
+            objMap[smtRep] = "object_$objectCounter"
+        }
+
+        return objMap[smtRep]!!
+    }
+
+    private fun getObjectById(id: Int): String {
+        if (!model.objLookup.containsKey(id))
+            return "object_?($id)"
+
+        val smtRep = model.objLookup[id]!!
+        return getObjectBySMT(smtRep)
+    }
 
     private fun indent(text: String): String {
         val lines = text.split("\n")

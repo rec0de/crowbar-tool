@@ -249,6 +249,9 @@ class PITAllocAssign(repos: Repository) : PITAssign(repos, Modality(
             info = InfoClassPrecondition(precondSubst)
         )
 
+        // Generate SMT representation of the NEW expression to get its model value later
+        val constructorSMTExpr = apply(input.update, nextRhs).toSMT(false)
+
 
         val next = symbolicNext(lhs,
                                             nextRhs,
@@ -256,7 +259,7 @@ class PITAllocAssign(repos: Repository) : PITAssign(repos, Modality(
                                             target,
                                             And(input.condition, UpdateOnFormula(input.update, Not(Predicate("=", listOf(nextRhs, Function("0")))))),
                                             ChainUpdate(input.update, assignFor(lhs, nextRhs)),
-                                            InfoObjAlloc(lhs, rhsExpr))
+                                            InfoObjAlloc(lhs, rhsExpr, constructorSMTExpr))
 
         return listOf(pre, next)
     }
