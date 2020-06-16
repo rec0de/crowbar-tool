@@ -27,8 +27,6 @@ import org.abs_models.frontend.ast.FieldUse
 object NodeInfoRenderer : NodeInfoVisitor<String> {
 
     private var indentLevel = 0
-    private var indentString = "\t"
-
     private var objectCounter = 0
     private val objMap = mutableMapOf<String, String>()
     private val varDefs = mutableSetOf<String>()
@@ -192,16 +190,6 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
         return location
     }
 
-    private fun renderLocation(loc: Location): String {
-        return when (loc) {
-            is ProgVar -> loc.name
-            is Field -> "this.${loc.name.substring(0, loc.name.length - 2)}" // Remove _f suffix
-            else -> loc.prettyPrint()
-        }
-    }
-
-    private fun complexTypeToString(type: String) = if (type == "Int" || type == "Bool") type else "String"
-
     private fun getObjectBySMT(smtRep: String): String {
         if (!objMap.containsKey(smtRep)) {
             objectCounter++
@@ -219,10 +207,22 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
         return getObjectBySMT(smtRep)
     }
 
-    private fun indent(text: String): String {
-        val lines = text.split("\n")
-        val spacer = indentString.repeat(indentLevel)
+    private fun indent(text: String) = indent(text, indentLevel)
+}
 
-        return lines.map { "$spacer$it" }.joinToString("\n")
+fun complexTypeToString(type: String) = if (type == "Int" || type == "Bool") type else "String"
+
+fun renderLocation(loc: Location): String {
+    return when (loc) {
+        is ProgVar -> loc.name
+        is Field -> "this.${loc.name.substring(0, loc.name.length - 2)}" // Remove _f suffix
+        else -> loc.prettyPrint()
     }
+}
+
+fun indent(text: String, level: Int, indentString: String = "\t"): String {
+    val lines = text.split("\n")
+    val spacer = indentString.repeat(level)
+
+    return lines.map { "$spacer$it" }.joinToString("\n")
 }

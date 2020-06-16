@@ -1,12 +1,15 @@
 package org.abs_models.crowbar.investigator
 
+import java.io.File
 import org.abs_models.crowbar.data.Field
 import org.abs_models.crowbar.data.Formula
 import org.abs_models.crowbar.data.Location
 import org.abs_models.crowbar.data.ProgVar
 import org.abs_models.crowbar.interfaces.generateSMT
 import org.abs_models.crowbar.interfaces.plainSMTCommand
+import org.abs_models.crowbar.main.Verbosity
 import org.abs_models.crowbar.main.output
+import org.abs_models.crowbar.main.tmpPath
 import org.abs_models.crowbar.tree.InfoAwaitUse
 import org.abs_models.crowbar.tree.InfoGetAssign
 import org.abs_models.crowbar.tree.InfoNode
@@ -17,34 +20,48 @@ import org.abs_models.crowbar.tree.SymbolicNode
 import org.abs_models.crowbar.tree.SymbolicTree
 
 object TestcaseGenerator {
-    fun investigate(node: SymbolicNode) {
 
-        val uncloseable = node.collectLeaves().first { it is LogicNode && !it.evaluate() }
+    fun investigateAll(node: SymbolicNode) {
+        val uncloseable = node.collectLeaves().filter { it is LogicNode && !it.evaluate() }.map { it as LogicNode }
+        var fileIndex = 1
 
-        if (uncloseable !is InfoNode || uncloseable.info !is LeafInfo)
+        uncloseable.forEach {
+            val counterexample = investigateSingle(node, it)
+            writeTestcase(counterexample, fileIndex)
+        }
+    }
+
+    fun investigateFirst(node: SymbolicNode) {
+        val uncloseable = node.collectLeaves().first { it is LogicNode && !it.evaluate() } as LogicNode
+        investigateSingle(node, uncloseable)
+    }
+
+    private fun investigateSingle(node: SymbolicNode, uncloseable: LogicNode): String {
+        if (uncloseable.info !is LeafInfo)
             throw Exception("Unclosed branch does not have proof obligation information")
 
         val obligations = (uncloseable.info as LeafInfo).obligations
 
-        output("Investigator: found unclosed branch")
+        output("Investigator: found unclosed branch", Verbosity.V)
 
-        output("Investigator: collecting branch nodes....")
+        output("Investigator: collecting branch nodes....", Verbosity.V)
         val branchNodes = collectBranchNodes(node, uncloseable)
         val infoNodes = branchNodes.map { (it as InfoNode).info }
 
-        output("Investigator: collecting anonymized heap expressions....")
+        output("Investigator: collecting anonymized heap expressions....", Verbosity.V)
         val heapExpressions = infoNodes.filter { it is InfoAwaitUse }.map { (it as InfoAwaitUse).heapExpr }
 
-        output("Investigator: collecting future expressions....")
+        output("Investigator: collecting future expressions....", Verbosity.V)
         val futureExpressions = infoNodes.filter { it is InfoGetAssign }.map { (it as InfoGetAssign).futureExpr }
 
-        output("Investigator: collecting object allocation expressions....")
+        output("Investigator: collecting object allocation expressions....", Verbosity.V)
         val newExpressions = infoNodes.filter { it is InfoObjAlloc }.map { (it as InfoObjAlloc).newSMTExpr }
 
-        output("Investigator: parsing model....")
-        val model = getModel(uncloseable as LogicNode, heapExpressions, futureExpressions, newExpressions)
+        output("Investigator: parsing model....", Verbosity.V)
+        val model = getModel(uncloseable, heapExpressions, futureExpressions, newExpressions)
+        val fields = model.initState.filter { it.first is Field }.map { it.first as Field }
 
-        output("Investigator: rendering counterexample....")
+        output("Investigator: rendering counterexample....", Verbosity.V)
         NodeInfoRenderer.reset(model)
         val statements = mutableListOf<String>(NodeInfoRenderer.initAssignments())
 
@@ -52,7 +69,7 @@ object TestcaseGenerator {
             statements.add((it as InfoNode).info.accept(NodeInfoRenderer))
         }
 
-        output(buildTestcase(statements, obligations))
+        return buildTestcase(statements, obligations, fields)
     }
 
     private fun collectBranchNodes(root: SymbolicNode, leaf: SymbolicTree): List<SymbolicTree> {
@@ -192,12 +209,34 @@ object TestcaseGenerator {
         return objMap
     }
 
-    private fun buildTestcase(statements: List<String>, obligations: List<Pair<String, Formula>>): String {
+    private fun buildTestcase(statements: List<String>, obligations: List<Pair<String, Formula>>, fields: List<Field>): String {
+
+        val classFrameHeader = "module Counterexample;\n\nclass CeFrame {\n"
+        val classFrameFooter = "\n}\n"
+
+        val fieldDefs = fields.map { "${complexTypeToString(it.dType)} ${it.name.substring(0, it.name.length - 2)};" }.joinToString("\n")
+
+        val methodFrameHeader = "Unit ce() {\n"
+        val methodFrameFooter = "\n}"
+
         val stmtString = statements.joinToString("\n")
         val explainer = "\n// Proof failed here. Trying to show:\n"
         val oblString = obligations.map { "// ${it.first}: ${renderFormula(it.second)}" }.joinToString("\n")
 
-        return stmtString + explainer + oblString
+        val methodContent = stmtString + explainer + oblString
+        val methodFrame = methodFrameHeader + indent(methodContent, 1) + methodFrameFooter
+
+        val classFrame = classFrameHeader + indent(fieldDefs, 1) + "\n\n" + indent(methodFrame, 1) + classFrameFooter
+
+        return classFrame
+    }
+
+    private fun writeTestcase(content: String, index: Int) {
+        val filename = "${tmpPath}crowbar-ce-$index.abs"
+        val file = File(filename)
+        file.createNewFile()
+        file.writeText(content)
+        output("Investigator: wrote counterexample to $filename")
     }
 }
 
