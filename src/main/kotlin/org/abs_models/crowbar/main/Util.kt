@@ -221,9 +221,9 @@ fun executeNode(node : SymbolicNode, repos: Repository, usedType : KClass<out De
         }
     }
 
-    if(!closed) {
+    if(!closed && invLevel != InvestigateLevel.NONE) {
         output("Crowbar  : failed to close node, starting investigator....")
-        TestcaseGenerator.investigate(node)
+        TestcaseGenerator.investigateAll(node)
     }
 
     return closed
