@@ -14,7 +14,6 @@ import org.abs_models.frontend.ast.ReturnStmt
 import org.abs_models.frontend.ast.Stmt
 import org.abs_models.frontend.ast.WhileStmt
 import org.abs_models.frontend.typechecker.Type
-import kotlin.system.exitProcess
 
 fun translateABSExpToSymExpr(input : Exp) : Expr {
     when(input){
@@ -71,7 +70,8 @@ fun translateABSExpToSymExpr(input : Exp) : Expr {
                 if(input is AsyncCall || input.callee  !is ThisExp)
                     return CallExpr(met, params)
                 else
-                    throw Exception("synchronous \"this\" not supported") //TODO: support synchronous calls
+                    throw Exception("synchronous \"this\" not supported")
+                    //TODO: support synchronous calls "return SyncCallExpr(met, params)"
             }
         is FnApp                -> if(input.name == "valueOf") return readFut(translateABSExpToSymExpr(input.params.getChild(0)))
                                    else if(FunctionRepos.isKnown(input.decl.qualifiedName)) {
@@ -87,20 +87,20 @@ fun translateABSStmtToSymStmt(input: Stmt?) : org.abs_models.crowbar.data.Stmt {
     when(input){
         is org.abs_models.frontend.ast.SkipStmt -> return SkipStmt
         is ExpressionStmt ->{
-            when(input.exp) {
-                is GetExp       -> return SyncStmt(FreshGenerator.getFreshProgVar(input.type.simpleName), translateABSExpToSymExpr(input.exp))
-                is NewExp       -> return AllocateStmt(FreshGenerator.getFreshProgVar(input.type.simpleName), translateABSExpToSymExpr(input.exp))
-                is AsyncCall    -> { 
-                    val v = input.exp as AsyncCall
-                    return CallStmt(FreshGenerator.getFreshProgVar(input.type.simpleName), translateABSExpToSymExpr(v.callee), translateABSExpToSymExpr(v) as CallExpr)
-                }
-                is SyncCall     -> {
-                    val syncCall = input.exp as SyncCall
-                    val loc = FreshGenerator.getFreshProgVar(input.type.simpleName)
-                    return desugaring(loc, input.type, syncCall)
-                    }
-                }
-            throw Exception("Translation of ${input.exp::class} in an expression statement is not supported" )
+            val loc = FreshGenerator.getFreshProgVar(input.type.simpleName)
+            val exp = input.exp
+            return translateExprDeclAssignStmt(input, loc, exp)
+        }
+        is VarDeclStmt -> {
+            val loc = ProgVar(input.varDecl.name, input.varDecl.initExp.type.simpleName)
+            val exp = input.varDecl.initExp
+            return translateExprDeclAssignStmt(input, loc, exp)
+        }
+        is AssignStmt -> {
+            val loc:Location = if(input.varNoTransform is FieldUse) Field(input.varNoTransform.name+"_f", input.varNoTransform.type.simpleName)
+                               else ProgVar(input.varNoTransform.name, input.varNoTransform.type.simpleName)
+            val exp = input.valueNoTransform
+            return translateExprDeclAssignStmt(input, loc, exp)
         }
         is Block -> {
             val subs = input.stmts.map {translateABSStmtToSymStmt(it)  }
@@ -108,35 +108,6 @@ fun translateABSStmtToSymStmt(input: Stmt?) : org.abs_models.crowbar.data.Stmt {
             val last = subs.last()
             val tail = subs.dropLast(1)
             return tail.foldRight( last , {nx, acc -> SeqStmt(nx, acc) })
-        }
-        is VarDeclStmt -> {
-            if(input.varDecl.initExp is NewExp) return AllocateStmt(ProgVar(input.varDecl.name, input.varDecl.initExp.type.simpleName),translateABSExpToSymExpr(input.varDecl.initExp))
-            if(input.varDecl.initExp is GetExp) return SyncStmt(ProgVar(input.varDecl.name, input.varDecl.initExp.type.simpleName),translateABSExpToSymExpr(input.varDecl.initExp))
-            if(input.varDecl.initExp is AsyncCall) {
-                val v = input.varDecl.initExp as AsyncCall
-                return CallStmt(ProgVar(input.varDecl.name, input.varDecl.initExp.type.simpleName), translateABSExpToSymExpr(v.callee), translateABSExpToSymExpr(v) as CallExpr)
-            }
-            if(input.varDecl.initExp is SyncCall) {
-                val syncCall = input.varDecl.initExp as SyncCall
-                val loc = ProgVar(input.varDecl.name, input.varDecl.type.simpleName)
-                return desugaring(loc, input.type, syncCall)
-            }
-            return org.abs_models.crowbar.data.AssignStmt(ProgVar(input.varDecl.name,input.varDecl.type.simpleName), translateABSExpToSymExpr(input.varDecl.initExp))
-        }
-        is AssignStmt -> {
-            val loc:Location = if(input.varNoTransform is FieldUse) Field(input.varNoTransform.name+"_f", input.varNoTransform.type.simpleName)
-                               else ProgVar(input.varNoTransform.name, input.varNoTransform.type.simpleName)
-            if(input.valueNoTransform is NewExp) return AllocateStmt(loc,translateABSExpToSymExpr(input.valueNoTransform))
-            if(input.valueNoTransform is GetExp) return SyncStmt(loc,translateABSExpToSymExpr(input.valueNoTransform))
-            if(input.valueNoTransform is AsyncCall) {
-                val v = input.valueNoTransform as AsyncCall
-                return CallStmt(loc, translateABSExpToSymExpr(v.callee), translateABSExpToSymExpr(v) as CallExpr)
-            }
-            if(input.valueNoTransform is SyncCall) {
-                val syncCall = input.valueNoTransform as SyncCall
-                return desugaring(loc, input.type, syncCall)
-            }
-            return org.abs_models.crowbar.data.AssignStmt(loc, translateABSExpToSymExpr(input.valueNoTransform))
         }
         is WhileStmt -> {
             return org.abs_models.crowbar.data.WhileStmt(translateABSExpToSymExpr(input.conditionNoTransform),
@@ -151,15 +122,29 @@ fun translateABSStmtToSymStmt(input: Stmt?) : org.abs_models.crowbar.data.Stmt {
     }
 }
 
+fun translateExprDeclAssignStmt(input: Stmt, loc: Location, exp:Exp): org.abs_models.crowbar.data.Stmt{
+    when(exp) {
+        is GetExp       -> return SyncStmt(loc, translateABSExpToSymExpr(exp))
+        is NewExp       -> return AllocateStmt(loc, translateABSExpToSymExpr(exp))
+        is AsyncCall    -> return CallStmt(loc, translateABSExpToSymExpr(exp.callee), translateABSExpToSymExpr(exp) as CallExpr)
+        is SyncCall     -> return desugaring(loc, input.type, exp)
+    }
+    if (input is ExpressionStmt)
+        throw Exception("Translation of ${input.exp::class} in an expression statement is not supported" )
+    else
+        return org.abs_models.crowbar.data.AssignStmt(loc, translateABSExpToSymExpr(exp))
+
+}
+
 fun desugaring(loc: Location, type: Type, syncCall: SyncCall) : org.abs_models.crowbar.data.Stmt{
     val calleeExpr = translateABSExpToSymExpr(syncCall.callee)
-    val syncCallExpr = translateABSExpToSymExpr(syncCall)
+    val callExpr = translateABSExpToSymExpr(syncCall)
 
     if(syncCall.callee is ThisExp)
-        return SyncCallStmt(loc, calleeExpr, syncCallExpr as SyncCallExpr)
+        return SyncCallStmt(loc, calleeExpr, callExpr as SyncCallExpr)
 
     val fut = FreshGenerator.getFreshProgVar("Fut<"+type+">")
-    val callStmt = CallStmt(fut, calleeExpr, syncCallExpr as CallExpr)
+    val callStmt = CallStmt(fut, calleeExpr, callExpr as CallExpr)
     val syncStmt = SyncStmt(loc, fut)
     return SeqStmt(callStmt, syncStmt)
 }
