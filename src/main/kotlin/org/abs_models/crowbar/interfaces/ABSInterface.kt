@@ -2,6 +2,7 @@ package org.abs_models.crowbar.interfaces
 
 import org.abs_models.crowbar.data.*
 import org.abs_models.crowbar.data.Const
+import org.abs_models.crowbar.data.Function
 import org.abs_models.crowbar.data.SkipStmt
 import org.abs_models.crowbar.main.FunctionRepos
 import org.abs_models.crowbar.main.extractSpec
@@ -13,6 +14,8 @@ import org.abs_models.frontend.ast.IfStmt
 import org.abs_models.frontend.ast.ReturnStmt
 import org.abs_models.frontend.ast.Stmt
 import org.abs_models.frontend.ast.WhileStmt
+import org.abs_models.frontend.typechecker.Type
+import kotlin.system.exitProcess
 
 fun translateABSExpToSymExpr(input : Exp) : Expr {
     when(input){
@@ -50,6 +53,13 @@ fun translateABSExpToSymExpr(input : Exp) : Expr {
             }
         is AsyncCall            -> return CallExpr(input.methodSig.contextDecl.qualifiedName+"."+input.methodSig.name,
                                               input.params.map {  translateABSExpToSymExpr(it) })
+        is SyncCall             ->
+            {
+                if(input.callee  is ThisExp)
+                    throw Exception("\"this\" not supported")
+                return CallExpr(input.methodSig.contextDecl.qualifiedName+"."+input.methodSig.name,
+                        input.params.map {  translateABSExpToSymExpr(it) })
+                                              }
         is FnApp                -> if(input.name == "valueOf") return readFut(translateABSExpToSymExpr(input.params.getChild(0)))
                                    else if(FunctionRepos.isKnown(input.decl.qualifiedName)) {
                                         return SExpr(input.decl.qualifiedName.replace(".","-"),input.params.map { translateABSExpToSymExpr(it) })
@@ -71,7 +81,12 @@ fun translateABSStmtToSymStmt(input: Stmt?) : org.abs_models.crowbar.data.Stmt {
                     val v = input.exp as AsyncCall
                     return CallStmt(FreshGenerator.getFreshProgVar(input.type.simpleName), translateABSExpToSymExpr(v.callee), translateABSExpToSymExpr(v) as CallExpr)
                 }
-            }
+                is SyncCall     -> {
+                    val syncCall = input.exp as SyncCall
+                    val loc = FreshGenerator.getFreshProgVar(input.type.simpleName)
+                    return desugaring(loc, input.type, syncCall)
+                    }
+                }
             throw Exception("Translation of ${input.exp::class} in an expression statement is not supported" )
         }
         is Block -> {
@@ -88,6 +103,11 @@ fun translateABSStmtToSymStmt(input: Stmt?) : org.abs_models.crowbar.data.Stmt {
                 val v = input.varDecl.initExp as AsyncCall
                 return CallStmt(ProgVar(input.varDecl.name, input.varDecl.initExp.type.simpleName), translateABSExpToSymExpr(v.callee), translateABSExpToSymExpr(v) as CallExpr)
             }
+            if(input.varDecl.initExp is SyncCall) {
+                val syncCall = input.varDecl.initExp as SyncCall
+                val loc = ProgVar(input.varDecl.name, input.varDecl.type.simpleName)
+                return desugaring(loc, input.type, syncCall)
+            }
             return org.abs_models.crowbar.data.AssignStmt(ProgVar(input.varDecl.name,input.varDecl.type.simpleName), translateABSExpToSymExpr(input.varDecl.initExp))
         }
         is AssignStmt -> {
@@ -98,6 +118,10 @@ fun translateABSStmtToSymStmt(input: Stmt?) : org.abs_models.crowbar.data.Stmt {
             if(input.valueNoTransform is AsyncCall) {
                 val v = input.valueNoTransform as AsyncCall
                 return CallStmt(loc, translateABSExpToSymExpr(v.callee), translateABSExpToSymExpr(v) as CallExpr)
+            }
+            if(input.valueNoTransform is SyncCall) {
+                val syncCall = input.valueNoTransform as SyncCall
+                return desugaring(loc, input.type, syncCall)
             }
             return org.abs_models.crowbar.data.AssignStmt(loc, translateABSExpToSymExpr(input.valueNoTransform))
         }
@@ -112,6 +136,19 @@ fun translateABSStmtToSymStmt(input: Stmt?) : org.abs_models.crowbar.data.Stmt {
         is IfStmt -> return org.abs_models.crowbar.data.IfStmt(translateABSExpToSymExpr(input.conditionNoTransform), translateABSStmtToSymStmt(input.then), translateABSStmtToSymStmt(input.`else`))
         else -> throw Exception("Translation of ${input::class} not supported" )
     }
+}
+
+fun desugaring(loc: Location, type: Type, syncCall: SyncCall) : org.abs_models.crowbar.data.Stmt{
+    val calleeExpr = translateABSExpToSymExpr(syncCall.callee)
+    val syncCallExpr = translateABSExpToSymExpr(syncCall)
+
+    if(syncCall.callee is ThisExp)
+        return SyncCallStmt(loc, calleeExpr, syncCallExpr as SyncCallExpr)
+
+    val fut = FreshGenerator.getFreshProgVar("Fut<"+type+">")
+    val callStmt = CallStmt(fut, calleeExpr, syncCallExpr as CallExpr)
+    val syncStmt = SyncStmt(loc, fut)
+    return SeqStmt(callStmt, syncStmt)
 }
 
 fun translateABSGuardToSymExpr(input : Guard) : Expr{
