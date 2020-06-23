@@ -75,19 +75,17 @@ data class Repository(private val model : Model?,
                 if(decl is ClassDecl){
                     for(mImpl in decl.methods){
                         val iUse = getDeclaration(mImpl.methodSig,mImpl.contextDecl as ClassDecl)
+                        val syncSpecReq = extractSpec(mImpl, "Requires")
+                        val syncSpecEns = extractSpec(mImpl, "Ensures")
+                        syncMethodReqs[decl.qualifiedName+"."+mImpl.methodSig.name] = Pair(syncSpecReq, mImpl.methodSig)
+                        syncMethodEnss[decl.qualifiedName+"."+mImpl.methodSig.name] = Pair(syncSpecEns, mImpl.methodSig)
                         if(iUse == null){
                             methodReqs[decl.qualifiedName+"."+mImpl.methodSig.name] = Pair(True, mImpl.methodSig)
-                            syncMethodReqs[decl.qualifiedName+"."+mImpl.methodSig.name] = Pair(True, mImpl.methodSig)
                         } else {
-                            val syncSpec = extractSpec(mImpl, "Requires")
                             val spec = extractSpec(iUse.allMethodSigs.first { it.matches(mImpl.methodSig) }, "Requires")
                             methodReqs[decl.qualifiedName+"."+mImpl.methodSig.name] = Pair(spec, mImpl.methodSig)
-                            syncMethodReqs[decl.qualifiedName+"."+mImpl.methodSig.name] = Pair(syncSpec, mImpl.methodSig)
-
-                            val syncSpec2 = extractSpec(mImpl, "Ensures")
                             val spec2 = extractSpec(iUse.allMethodSigs.first { it.matches(mImpl.methodSig) }, "Ensures")
                             methodEnss[decl.qualifiedName+"."+mImpl.methodSig.name] = Pair(spec2, mImpl.methodSig)
-                            syncMethodEnss[decl.qualifiedName+"."+mImpl.methodSig.name] = Pair(syncSpec2, mImpl.methodSig)
                         }
                     }
                 }
@@ -238,7 +236,7 @@ class Main : CliktCommand() {
         val sigs = mutableListOf<MethodSig>()
         val safe = mutableListOf<MethodSig>()
         for(decl in model.moduleDecls){
-            for(cDecl in decl.decls.filterIsInstance<ClassDecl>().map{it as ClassDecl}){
+            for(cDecl in decl.decls.filterIsInstance<ClassDecl>().map{it}){
                 for(mImpl in cDecl.methods){
                         if(decl.name.startsWith("ABS."))
                              safe.add(mImpl.methodSig)
