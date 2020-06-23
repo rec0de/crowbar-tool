@@ -14,8 +14,6 @@ import org.abs_models.frontend.ast.ReturnStmt
 import org.abs_models.frontend.ast.Stmt
 import org.abs_models.frontend.ast.WhileStmt
 import org.abs_models.frontend.typechecker.Type
-import java.beans.Expression
-import kotlin.system.exitProcess
 
 fun translateABSExpToSymExpr(input : Exp) : Expr {
     when(input){
