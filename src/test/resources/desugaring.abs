@@ -1,0 +1,92 @@
+module Desugaring;
+
+
+data Spec = ObjInv(Bool) | Ensures(Bool) | Requires(Bool) | WhileInv(Bool);
+
+interface DesugaringI {
+
+    [Spec : Requires(x > 0)]
+	[Spec : Ensures(result > 0)]
+    Int syncCallInherited(Int x);
+
+    Int classContract(Int x);
+
+    [Spec : Ensures(result > 0)]
+    Int inheritedContract(Int x);
+
+    [Spec : Requires(x > 0)]
+    Int partiallyInherited(Int x);
+
+    [Spec : Requires(x > 0)]
+    [Spec : Ensures(result > 0)]
+    Int fullyInherited(Int x);
+
+}
+
+
+class DesugaringC implements DesugaringI{
+
+    Int field = 0;
+
+	[Spec : Ensures(result > 0)]
+    Int classContract(Int x){
+        return 1;
+    }
+
+	[Spec : Ensures(result > 0)]
+    Int simpleDesugaringFail(Int x){
+	    DesugaringI d = new DesugaringC();
+        Int a = d.classContract(x);
+        return a;
+    }
+
+    Int inheritedContract(Int x){
+        return 1;
+    }
+
+	[Spec : Ensures(result > 0)]
+    Int simpleDesugaringSuccess(Int x){
+	    DesugaringI d = new DesugaringC();
+        Int a = d.inheritedContract(x);
+        return a;
+    }
+
+    Int syncCallInherited(Int x){
+        return x;
+    }
+
+    [Spec : Ensures(result > 0)]
+    Int syncCallInheritedSuccess(Int x){
+	    DesugaringI d = new DesugaringC();
+        Int a = d.syncCallInherited(1);
+        return a;
+    }
+
+    [Spec : Ensures(result > 0)]
+    Int partiallyInherited(Int x){
+            return x;
+    }
+
+    [Spec : Ensures(result > 0)]
+    Int desugaringPartiallyInheritedFail(Int x){
+        DesugaringI d = new DesugaringC();
+        Int a = d.partiallyInherited(1);
+        return a;
+    }
+
+
+    Int fullyInherited(Int x){
+            return x;
+    }
+
+    [Spec : Ensures(result > 0)]
+    Int desugaringFullyInheritedFail(Int x){
+        DesugaringI d = new DesugaringC();
+        Int a = d.fullyInherited(1);
+        return a;
+    }
+
+}
+
+{
+}
