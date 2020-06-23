@@ -151,7 +151,7 @@ fun desugaring(loc: Location, type: Type, syncCall: SyncCall) : org.abs_models.c
 
     val fut = FreshGenerator.getFreshProgVar("Fut<"+type+">")
     val callStmt = CallStmt(fut, calleeExpr, callExpr as CallExpr)
-    val syncStmt = SyncStmt(loc, fut)
+    val syncStmt = SyncStmt(loc, readFut(fut))
     return SeqStmt(callStmt, syncStmt)
 }
 
