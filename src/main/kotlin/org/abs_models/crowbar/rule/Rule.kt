@@ -18,6 +18,9 @@ object FreshGenerator {
     fun getFreshFuture() : Function {
         return Function("fut_"+ (count++), emptyList())
     }
+    fun getFreshFunction() : Function {
+        return Function("f_"+ (count++), emptyList())
+    }
 	fun getFreshObjectId(className: String, map: List<Expr>): Expr {
         if(map.isEmpty())
             return SExpr("NEW"+(count++)+"_"+map.size, listOf(SExpr(className, emptyList())))
