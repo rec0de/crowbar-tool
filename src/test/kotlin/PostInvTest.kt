@@ -310,5 +310,32 @@ class PostInvTest : StringSpec ({
 			sNode = classDecl.extractMethodNode(postInv,"n", repos)
 			executeNode(sNode, repos, postInv) shouldBe false
 		}
+
+		"$smt synccall"{
+			val (model, repos) = load(listOf(Paths.get("src/test/resources/synccall.abs")))
+			val classDecl = model.extractClassDecl("SyncCall", "SyncCallC", repos)
+
+			//empty contract for sync call
+			val emptyContractSyncCallSuccessNode = classDecl.extractMethodNode(postInv,"emptyContractSuccess", repos)
+			executeNode(emptyContractSyncCallSuccessNode, repos, postInv) shouldBe true
+			//simple fail for sync call
+			val simpleSyncCallFail = classDecl.extractMethodNode(postInv,"simpleSyncCallFail", repos)
+			executeNode(simpleSyncCallFail, repos, postInv) shouldBe false
+			//simple success for sync call
+			val simpleSyncCallSuccess = classDecl.extractMethodNode(postInv,"simpleSyncCallSuccess", repos)
+			executeNode(simpleSyncCallSuccess, repos, postInv) shouldBe true
+
+			//simple success for sync call with inherited contracts
+			val syncCallInheritedSuccess = classDecl.extractMethodNode(postInv,"syncCallInheritedSuccess", repos)
+			executeNode(syncCallInheritedSuccess, repos, postInv) shouldBe true
+
+			//simple success for sync call with complex inherited contracts
+			val syncCallComplexInheritedSuccess = classDecl.extractMethodNode(postInv,"syncCallComplexInheritedSuccess", repos)
+			executeNode(syncCallComplexInheritedSuccess, repos, postInv) shouldBe true
+
+			//simple success for sync call with complex inherited contracts
+			val updateFieldSuccess = classDecl.extractMethodNode(postInv,"updateFieldSuccess", repos)
+			executeNode(updateFieldSuccess, repos, postInv) shouldBe true
+		}
 	}
 })
