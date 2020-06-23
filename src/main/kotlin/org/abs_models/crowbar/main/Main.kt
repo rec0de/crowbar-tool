@@ -236,7 +236,7 @@ class Main : CliktCommand() {
         val sigs = mutableListOf<MethodSig>()
         val safe = mutableListOf<MethodSig>()
         for(decl in model.moduleDecls){
-            for(cDecl in decl.decls.filterIsInstance<ClassDecl>().map{it}){
+            for(cDecl in decl.decls.filterIsInstance<ClassDecl>().map{it as ClassDecl}){
                 for(mImpl in cDecl.methods){
                         if(decl.name.startsWith("ABS."))
                              safe.add(mImpl.methodSig)
