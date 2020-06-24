@@ -26,15 +26,15 @@ import org.abs_models.frontend.ast.FieldUse
 
 object NodeInfoRenderer : NodeInfoVisitor<String> {
 
-    private var indentLevel = 0
+    private var scopeLevel = 0
     private var objectCounter = 0
     private val objMap = mutableMapOf<String, String>()
-    private val varDefs = mutableSetOf<String>()
+    private val varDefs = mutableSetOf<Pair<String, Int>>()
     private var model = EmptyModel
 
     fun reset(newModel: Model) {
         model = newModel
-        indentLevel = 0
+        scopeLevel = 0
         objectCounter = 0
         objMap.clear()
         varDefs.clear()
@@ -67,14 +67,14 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
 
     override fun visit(info: InfoIfElse): String {
         val res =  indent("if(${renderExpression(info.guard)}){}\nelse{")
-        indentLevel += 1
+        scopeLevel += 1
 
         return res
     }
 
     override fun visit(info: InfoIfThen): String {
         val res = indent("if(${renderExpression(info.guard)}){")
-        indentLevel += 1
+        scopeLevel += 1
         return res
     }
 
@@ -119,7 +119,7 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
             "while(${renderExpression(info.guard)}) {"
         val res = indent(text)
 
-        indentLevel += 1
+        scopeLevel += 1
 
         return res
     }
@@ -143,10 +143,17 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
         return indent("$original\n$replacement")
     }
 
-    override fun visit(info: InfoReturn) = indent("return ${renderExpression(info.expression)};")
+    override fun visit(info: InfoReturn): String {
+        return indent("// return ${renderExpression(info.expression)};\nprintln ${renderExpression(info.expression)};")
+    }
 
     override fun visit(info: InfoScopeClose): String {
-        indentLevel -= 1
+        // Invalidate declarations made in the current scope
+        val validDefs = varDefs.filter{ it.second < scopeLevel }
+        varDefs.clear()
+        varDefs.addAll(validDefs)
+
+        scopeLevel -= 1
         return indent("}")
     }
 
@@ -178,9 +185,9 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
         var location = renderLocation(loc)
 
         // Variables have to be declared on first use
-        if (loc is ProgVar && !varDefs.contains(location)) {
+        if (loc is ProgVar && varDefs.none{ it.first == location }) {
             if (declare)
-                varDefs.add(location)
+                varDefs.add(Pair(location, scopeLevel))
             // Futures and object types are replaced by placeholder strings
             // in executable code but kept in comments for context
             val type = if (type2str) complexTypeToString(loc.dType) else loc.dType
@@ -207,7 +214,7 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
         return getObjectBySMT(smtRep)
     }
 
-    private fun indent(text: String) = indent(text, indentLevel)
+    private fun indent(text: String) = indent(text, scopeLevel)
 }
 
 fun complexTypeToString(type: String) = if (type == "Int" || type == "Bool") type else "String"
