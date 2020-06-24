@@ -101,6 +101,12 @@ data class CallStmt(val lhs : Location, val target : Expr, val resExpr : Calling
     override fun iterate(f: (Anything) -> Boolean) : Set<Anything> = super.iterate(f) + target.iterate(f) + resExpr.iterate(f)
 }
 
+data class SyncCallStmt(val lhs : Location, val target : Expr, val resExpr : SyncCallingExpr) : Stmt {
+    override fun prettyPrint(): String {
+        return "${lhs.prettyPrint()} = ${target.prettyPrint()}.${resExpr.prettyPrint()}"
+    }
+    override fun iterate(f: (Anything) -> Boolean) : Set<Anything> = super.iterate(f) + target.iterate(f) + resExpr.iterate(f)
+}
 
 
 
@@ -116,12 +122,28 @@ data class CallExprAbstractVar(val name : String) : CallingExpr, AbstractVar {
         return name
     }
 }
+
+interface SyncCallingExpr : Expr
+data class SyncCallExprAbstractVar(val name : String) : SyncCallingExpr, AbstractVar {
+    override fun prettyPrint(): String {
+        return name
+    }
+}
+
 data class CallExpr(val met : String, val e : List<Expr>) : CallingExpr{
     override fun prettyPrint(): String {
         return met+"("+e.map { p -> p.prettyPrint() }.fold("", { acc, nx -> "$acc,$nx" }).removePrefix(",") + ")"
     }
     override fun iterate(f: (Anything) -> Boolean) : Set<Anything> = e.fold(super.iterate(f),{ acc, nx -> acc + nx.iterate(f)})
 }
+
+data class SyncCallExpr(val met : String, val e : List<Expr>) : SyncCallingExpr{
+    override fun prettyPrint(): String {
+        return met+"("+e.map { p -> p.prettyPrint() }.fold("", { acc, nx -> "$acc,$nx" }).removePrefix(",") + ")"
+    }
+    override fun iterate(f: (Anything) -> Boolean) : Set<Anything> = e.fold(super.iterate(f),{ acc, nx -> acc + nx.iterate(f)})
+}
+
 data class PollExpr(val e1 : Expr) : Expr {
     override fun prettyPrint(): String {
         return e1.prettyPrint()+"?"

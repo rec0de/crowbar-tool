@@ -18,7 +18,7 @@ data class Modality(var remainder: Stmt, val target: DeductType) : Anything {
     override fun iterate(f: (Anything) -> Boolean) : Set<Anything> = super.iterate(f) + remainder.iterate(f) + target.iterate(f)
 }
 data class SymbolicState(val condition: Formula, val update: UpdateElement, val modality: Modality) : Anything {
-    override fun prettyPrint() : String{ return condition.prettyPrint()+" ==> {"+update.prettyPrint()+"}"+modality.prettyPrint()}
+    override fun prettyPrint() : String{ return condition.prettyPrint()+"\n==>\n{"+update.prettyPrint()+"}"+modality.prettyPrint()}
     override fun iterate(f: (Anything) -> Boolean) : Set<Anything> = super.iterate(f) + condition.iterate(f) + update.iterate(f) + modality.iterate(f)
 }
 

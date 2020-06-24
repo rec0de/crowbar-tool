@@ -39,7 +39,10 @@ data class Repository(private val model : Model?,
                                                                               "ABS.StdLib.Fut<ABS.StdLib.Unit>"),
                       val classReqs : MutableMap<String,Pair<Formula,ClassDecl>> = mutableMapOf(),
                       val methodReqs : MutableMap<String,Pair<Formula,MethodSig>> = mutableMapOf(),
-                      val methodEnss : MutableMap<String,Pair<Formula,MethodSig>> = mutableMapOf()){
+                      val methodEnss : MutableMap<String,Pair<Formula,MethodSig>> = mutableMapOf(),
+
+                      val syncMethodReqs : MutableMap<String,Pair<Formula,MethodSig>> = mutableMapOf(),
+                      val syncMethodEnss : MutableMap<String,Pair<Formula,MethodSig>> = mutableMapOf()){
     init{
         if(model != null) {
             populateAllowedTypes(model)
@@ -71,12 +74,15 @@ data class Repository(private val model : Model?,
                 if(decl is ClassDecl){
                     for(mImpl in decl.methods){
                         val iUse = getDeclaration(mImpl.methodSig,mImpl.contextDecl as ClassDecl)
+                        val syncSpecReq = extractSpec(mImpl, "Requires")
+                        val syncSpecEns = extractSpec(mImpl, "Ensures")
+                        syncMethodReqs[decl.qualifiedName+"."+mImpl.methodSig.name] = Pair(syncSpecReq, mImpl.methodSig)
+                        syncMethodEnss[decl.qualifiedName+"."+mImpl.methodSig.name] = Pair(syncSpecEns, mImpl.methodSig)
                         if(iUse == null){
                             methodReqs[decl.qualifiedName+"."+mImpl.methodSig.name] = Pair(True, mImpl.methodSig)
                         } else {
                             val spec = extractSpec(iUse.allMethodSigs.first { it.matches(mImpl.methodSig) }, "Requires")
                             methodReqs[decl.qualifiedName+"."+mImpl.methodSig.name] = Pair(spec, mImpl.methodSig)
-
                             val spec2 = extractSpec(iUse.allMethodSigs.first { it.matches(mImpl.methodSig) }, "Ensures")
                             methodEnss[decl.qualifiedName+"."+mImpl.methodSig.name] = Pair(spec2, mImpl.methodSig)
                         }
