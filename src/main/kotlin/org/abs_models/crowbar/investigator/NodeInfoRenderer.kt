@@ -1,5 +1,6 @@
 package org.abs_models.crowbar.investigator
 
+import org.abs_models.crowbar.data.Expr
 import org.abs_models.crowbar.data.Field
 import org.abs_models.crowbar.data.Location
 import org.abs_models.crowbar.data.ProgVar
@@ -32,6 +33,8 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
     private var objectCounter = 0
     private val objMap = mutableMapOf<String, String>()
     private val varDefs = mutableSetOf<Pair<String, Int>>()
+    private val varTypes = mutableMapOf<String, String>()
+    private val varRemaps = mutableMapOf<String, String>()
     private var model = EmptyModel
 
     fun reset(newModel: Model) {
@@ -40,6 +43,8 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
         objectCounter = 0
         objMap.clear()
         varDefs.clear()
+        varTypes.clear()
+        varRemaps.clear()
     }
 
     fun initAssignments(): String {
@@ -51,7 +56,7 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
         val postHeap = model.heapMap[info.heapExpr]
         val assignmentBlock = renderHeapAssignmentBlock(postHeap)
 
-        val renderedGuard = if (info.guard.absExp is FieldUse) "${renderExpression(info.guard)}?" else renderExpression(info.guard)
+        val renderedGuard = if (info.guard.absExp is FieldUse) "${renderExp(info.guard)}?" else renderExp(info.guard)
 
         return indent("\n// await $renderedGuard;\n$assignmentBlock\n")
     }
@@ -63,14 +68,14 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
     override fun visit(info: InfoNullCheck) = ""
 
     override fun visit(info: InfoIfElse): String {
-        val res =  indent("if(${renderExpression(info.guard)}){}\nelse{")
+        val res =  indent("if(${renderExp(info.guard)}){}\nelse{")
         scopeLevel += 1
 
         return res
     }
 
     override fun visit(info: InfoIfThen): String {
-        val res = indent("if(${renderExpression(info.guard)}){")
+        val res = indent("if(${renderExp(info.guard)}){")
         scopeLevel += 1
         return res
     }
@@ -80,15 +85,15 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
     override fun visit(info: InfoLocAssign): String {
         val location = renderDeclLocation(info.lhs, type2str = true)
 
-        return indent("$location = ${renderExpression(info.expression)};")
+        return indent("$location = ${renderExp(info.expression)};")
     }
 
     override fun visit(info: InfoGetAssign): String {
         // Get location with possible type declaration both in original form and executable form
-        val strLocation = renderDeclLocation(info.lhs, type2str = true, declare = false)
-        val location = renderDeclLocation(info.lhs, type2str = false)
+        val location = renderDeclLocation(info.lhs, type2str = false, declare = false)
+        val strLocation = renderDeclLocation(info.lhs, type2str = true)
 
-        val origGet = "// $location = ${renderExpression(info.expression)};"
+        val origGet = "// $location = ${renderExp(info.expression)};"
 
         val futureValue = model.smtExprs[info.futureExpr]
         val getReplacement = if (futureValue != null) "$strLocation = $futureValue;" else "// No future evaluation info available"
@@ -98,10 +103,10 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
 
     override fun visit(info: InfoCallAssign): String {
         // Get location with possible type declaration both in original form and executable form
-        val strLocation = renderDeclLocation(info.lhs, type2str = true, declare = false)
-        val location = renderDeclLocation(info.lhs, type2str = false)
+        val location = renderDeclLocation(info.lhs, type2str = false, declare = false)
+        val strLocation = renderDeclLocation(info.lhs, type2str = true)
 
-        val origCall = "// $location = ${renderExpression(info.callee)}!${renderExpression(info.call)};"
+        val origCall = "// $location = ${renderExp(info.callee)}!${renderExp(info.call)};"
         val callReplacement = "$strLocation = \"${info.futureName}\";"
 
         return indent("$origCall\n$callReplacement")
@@ -110,7 +115,7 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
     override fun visit(info: InfoSyncCallAssign): String {
         // Get location with possible type declaration both in original form
         val location = renderDeclLocation(info.lhs, type2str = false, declare = false)
-        val origCall = "// $location = ${renderExpression(info.callee)}.${renderExpression(info.call)};"
+        val origCall = "// $location = ${renderExp(info.callee)}.${renderExp(info.call)};"
 
         // Get heap anonymization assignments
         val postHeap = model.heapMap[info.heapExpr]
@@ -122,13 +127,13 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
         return indent("$origCall\n$assignmentBlock\n$callReplacement")
     }
 
-    override fun visit(info: InfoLoopInitial) = indent("while(${renderExpression(info.guard)}) { }")
+    override fun visit(info: InfoLoopInitial) = indent("while(${renderExp(info.guard)}) { }")
 
     override fun visit(info: InfoLoopPreserves): String {
         val text = "// Known true:\n" +
-            "// Loop guard: ${renderExpression(info.guard)}\n" +
+            "// Loop guard: ${renderExp(info.guard)}\n" +
             "// Loop invariant: ${renderFormula(info.loopInv)}\n" +
-            "while(${renderExpression(info.guard)}) {"
+            "while(${renderExp(info.guard)}) {"
         val res = indent(text)
 
         scopeLevel += 1
@@ -137,9 +142,9 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
     }
 
     override fun visit(info: InfoLoopUse): String {
-        val text = "while(${renderExpression(info.guard)}){} \n" +
+        val text = "while(${renderExp(info.guard)}){} \n" +
             "// Known true:\n" +
-            "// Negated loop guard: !(${renderExpression(info.guard)})\n" +
+            "// Negated loop guard: !(${renderExp(info.guard)})\n" +
             "// Loop invariant: ${renderFormula(info.invariant)}"
 
         return indent(text)
@@ -147,16 +152,16 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
 
     override fun visit(info: InfoObjAlloc): String {
         // Get location with possible type declaration both in original form and executable form
-        val strLocation = renderDeclLocation(info.lhs, type2str = true, declare = false)
-        val location = renderDeclLocation(info.lhs, type2str = false)
+        val location = renderDeclLocation(info.lhs, type2str = false, declare = false)
+        val strLocation = renderDeclLocation(info.lhs, type2str = true)
 
-        val original = "// $location = ${renderExpression(info.classInit)};"
+        val original = "// $location = ${renderExp(info.classInit)};"
         val replacement = "$strLocation = \"${getObjectBySMT(info.newSMTExpr)}\";"
         return indent("$original\n$replacement")
     }
 
     override fun visit(info: InfoReturn): String {
-        return indent("// return ${renderExpression(info.expression)};\nprintln ${renderExpression(info.expression)};")
+        return indent("// return ${renderExp(info.expression)};\nprintln ${renderExp(info.expression)};")
     }
 
     override fun visit(info: InfoScopeClose): String {
@@ -207,18 +212,54 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
     private fun renderDeclLocation(loc: Location, type2str: Boolean, declare: Boolean = true): String {
         var location = renderLocation(loc)
 
+        // Fields do not need to be declared
+        if (loc !is ProgVar)
+            return location
+
+        // Futures and object types are replaced by placeholder strings
+        // in executable code but kept in comments for context
+        val tpe = if (type2str) complexTypeToString(loc.dType) else loc.dType
+
         // Variables have to be declared on first use
-        if (loc is ProgVar && varDefs.none { it.first == location }) {
-            if (declare)
+        if (varDefs.none { it.first == location }) {
+            // Remember that we declared this variable and type
+            if (declare) {
                 varDefs.add(Pair(location, scopeLevel))
-            // Futures and object types are replaced by placeholder strings
-            // in executable code but kept in comments for context
-            val type = if (type2str) complexTypeToString(loc.dType) else loc.dType
-            location = "$type $location"
+                varTypes[location] = tpe
+            }
+            location = "$tpe $location"
+        }
+        // Edge case: Because we lose block information during translation, a variable from a closed scope
+        // may be redeclared with a different type. In this case, we'll declare a renamed variable to avoid compiler issues
+        else if (tpe != varTypes[location] && declare) {
+            val disambName = loc.name + "_redec" + tpe
+
+            // Remap all future occurences of the original name to the new name
+            varRemaps[loc.name] = disambName
+            location = disambName
+
+            if (varDefs.none { it.first == disambName }) {
+                // Remember declaration of the renamed variable
+                varDefs.add(Pair(disambName, scopeLevel))
+                varTypes[disambName] = tpe
+
+                val warning = "// Warning: Due to lost scoping, variable ${loc.name} is redeclared with new type $tpe. Renaming all future occurences to $disambName"
+                location = "$warning\n$tpe $disambName"
+            }
         }
 
         return location
     }
+
+    private fun renderLocation(loc: Location): String {
+        return when (loc) {
+            is ProgVar -> if (varRemaps.containsKey(loc.name)) varRemaps[loc.name]!! else loc.name
+            is Field -> "this.${loc.name.substring(0, loc.name.length - 2)}" // Remove _f suffix
+            else -> throw Exception("rip")
+        }
+    }
+
+    private fun renderExp(e: Expr) = renderExpression(e, varRemaps)
 
     private fun getObjectBySMT(smtRep: String): String {
         if (!objMap.containsKey(smtRep)) {
@@ -241,14 +282,6 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
 }
 
 fun complexTypeToString(type: String) = if (type == "Int" || type == "Bool") type else "String"
-
-fun renderLocation(loc: Location): String {
-    return when (loc) {
-        is ProgVar -> loc.name
-        is Field -> "this.${loc.name.substring(0, loc.name.length - 2)}" // Remove _f suffix
-        else -> loc.prettyPrint()
-    }
-}
 
 fun indent(text: String, level: Int, indentString: String = "\t"): String {
     val lines = text.split("\n")
