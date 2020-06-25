@@ -58,7 +58,7 @@ object TestcaseGenerator {
         val newExpressions = infoNodes.filter { it is InfoObjAlloc }.map { (it as InfoObjAlloc).newSMTExpr }
 
         output("Investigator: parsing model....", Verbosity.V)
-        val model = getModel(uncloseable, heapExpressions, futureExpressions, newExpressions)
+        val model = getModel(uncloseable, heapExpressions, futureExpressions, newExpressions, listOf())
         val fields = model.initState.filter { it.first is Field }.map { it.first as Field }
 
         output("Investigator: rendering counterexample....", Verbosity.V)
@@ -108,7 +108,13 @@ object TestcaseGenerator {
         return parents
     }
 
-    private fun getModel(leaf: LogicNode, heapExpressions: List<String>, futureExpressions: List<String>, newExpressions: List<String>): Model {
+    private fun getModel(
+        leaf: LogicNode,
+        heapExpressions: List<String>,
+        futureExpressions: List<String>,
+        newExpressions: List<String>,
+        debugExpressions: List<String>
+    ): Model {
 
         // Collect types of fields and variables from leaf node
         val fieldTypes = ((leaf.ante.iterate { it is Field } + leaf.succ.iterate { it is Field }) as Set<Field>).associate { Pair(it.name, it.dType) }
@@ -122,6 +128,8 @@ object TestcaseGenerator {
             baseModel += "(get-value (${futureExpressions.map{ "(valueOf $it)" }.joinToString(" ")}))"
         if (newExpressions.size > 0)
             baseModel += "(get-value (${newExpressions.joinToString(" ")}))"
+        if (debugExpressions.size > 0)
+            baseModel += "(get-value (${debugExpressions.joinToString(" ")}))"
 
         // Get state at full anonymization point
         val smtRep = generateSMT(leaf.ante, leaf.succ, modelCmd = baseModel)
@@ -164,10 +172,13 @@ object TestcaseGenerator {
         val heapAssignments = getHeapMap(heapExpressions, fields, fieldTypes)
 
         // Get values of futures
-        val futureAssignments = getFutureMap(futureExpressions)
+        val futureAssignments = getExpressionMap(futureExpressions)
 
         // Get mapping of object ids to names
         val objLookup = getObjectMap(newExpressions)
+
+        // Get evaluations of misc expressions (e.g. return value expressions)
+        val miscLookup = getExpressionMap(debugExpressions)
 
         return Model(initialAssignments, heapAssignments, futureAssignments, futLookup, objLookup)
     }
@@ -189,14 +200,14 @@ object TestcaseGenerator {
         return heapMap
     }
 
-    private fun getFutureMap(futureExpressions: List<String>): Map<String, Int> {
-        if (futureExpressions.size == 0)
+    private fun getExpressionMap(expressions: List<String>): Map<String, Int> {
+        if (expressions.size == 0)
             return mapOf()
 
         val parsed = ModelParser.parseIntegerValues()
-        val futMap = futureExpressions.zip(parsed).associate { it }
+        val expMap = expressions.zip(parsed).associate { it }
 
-        return futMap
+        return expMap
     }
 
     private fun getObjectMap(newExpressions: List<String>): Map<Int, String> {
