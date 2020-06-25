@@ -337,5 +337,16 @@ class PostInvTest : StringSpec ({
 			val updateFieldSuccess = classDecl.extractMethodNode(postInv,"updateFieldSuccess", repos)
 			executeNode(updateFieldSuccess, repos, postInv) shouldBe true
 		}
+
+		"$smt unexposedcontract"{
+			val (model, repos) = load(listOf(Paths.get("src/test/resources/unexposedcontract.abs")))
+			val classDecl = model.extractClassDecl("UnexposedContract", "UnexposedContractC", repos)
+
+			val unexposedContractFail = classDecl.extractMethodNode(postInv,"unexposedContractFail", repos)
+			executeNode(unexposedContractFail, repos, postInv) shouldBe false
+
+			val unexposedContractSuccess = classDecl.extractMethodNode(postInv,"unexposedContractSuccess", repos)
+			executeNode(unexposedContractSuccess, repos, postInv) shouldBe true
+		}
 	}
 })
