@@ -2,6 +2,7 @@ package org.abs_models.crowbar.investigator
 
 import org.abs_models.crowbar.data.Expr
 import org.abs_models.crowbar.data.Field
+import org.abs_models.crowbar.data.Formula
 import org.abs_models.crowbar.data.Location
 import org.abs_models.crowbar.data.ProgVar
 import org.abs_models.crowbar.tree.InfoAwaitUse
@@ -260,6 +261,8 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
     }
 
     private fun renderExp(e: Expr) = renderExpression(e, varRemaps)
+
+    private fun renderFormula(formula: Formula) = renderFormula(formula, varRemaps)
 
     private fun getObjectBySMT(smtRep: String): String {
         if (!objMap.containsKey(smtRep)) {

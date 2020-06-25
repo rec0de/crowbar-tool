@@ -224,9 +224,10 @@ object TestcaseGenerator {
         val methodFrameHeader = "Unit ce() {\n"
         val methodFrameFooter = "\n}"
 
+        // TODO: Move this into NodeInfoRenderer
         val stmtString = statements.joinToString("\n")
         val explainer = "\n// Proof failed here. Trying to show:\n"
-        val oblString = obligations.map { "// ${it.first}: ${renderFormula(it.second)}" }.joinToString("\n")
+        val oblString = obligations.map { "// ${it.first}: ${renderFormula(it.second, mapOf())}" }.joinToString("\n")
 
         val methodContent = stmtString + explainer + oblString
         val methodFrame = methodFrameHeader + indent(methodContent, 1) + methodFrameFooter

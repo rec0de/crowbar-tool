@@ -16,42 +16,42 @@ import org.abs_models.crowbar.data.Term
 import org.abs_models.crowbar.data.True
 import org.abs_models.crowbar.data.binaries
 
-fun renderFormula(f: Formula): String {
+fun renderFormula(f: Formula, m: Map<String, String>): String {
     return when (f) {
         is True         -> "true"
         is False        -> "false"
-        is Not          -> "!${renderFormula(f.left)}"
-        is Or           -> "(${renderFormula(f.left)}) \\/ (${renderFormula(f.right)})"
-        is And          -> "(${renderFormula(f.left)}) /\\ (${renderFormula(f.right)})"
-        is Impl         -> "(${renderFormula(f.left)}) -> (${renderFormula(f.right)})"
-        is Predicate    -> renderPredicate(f)
+        is Not          -> "!${renderFormula(f.left, m)}"
+        is Or           -> "(${renderFormula(f.left, m)}) \\/ (${renderFormula(f.right, m)})"
+        is And          -> "(${renderFormula(f.left, m)}) /\\ (${renderFormula(f.right, m)})"
+        is Impl         -> "(${renderFormula(f.left, m)}) -> (${renderFormula(f.right, m)})"
+        is Predicate    -> renderPredicate(f, m)
         is FormulaAbstractVar -> f.name
         else               -> throw Exception("Cannot render formula: ${f.prettyPrint()}")
     }
 }
 
-fun renderTerm(t: Term): String {
+fun renderTerm(t: Term, m: Map<String, String>): String {
     return when (t) {
-        is Function     -> renderFunction(t)
+        is Function     -> renderFunction(t, m)
         is Field        -> "this.${t.name}"
-        is ProgVar      -> t.name
+        is ProgVar      -> if (m.containsKey(t.name)) m[t.name]!! else t.name
         is Heap         -> "heap"
         else            -> throw Exception("Cannot render term: ${t.prettyPrint()}")
     }
 }
 
-fun renderPredicate(p: Predicate): String {
+fun renderPredicate(p: Predicate, m: Map<String, String>): String {
     return when {
         p.params.isEmpty() -> p.name
-        binaries.contains(p.name) && p.params.size == 2 -> renderTerm(p.params[0]) + p.name + renderTerm(p.params[1])
-        else -> p.name + "(" + p.params.map { t -> renderTerm(t) }.joinToString(", ") + ")"
+        binaries.contains(p.name) && p.params.size == 2 -> renderTerm(p.params[0], m) + p.name + renderTerm(p.params[1], m)
+        else -> p.name + "(" + p.params.map { t -> renderTerm(t, m) }.joinToString(", ") + ")"
     }
 }
 
-fun renderFunction(f: Function): String {
+fun renderFunction(f: Function, m: Map<String, String>): String {
     return when {
         f.params.isEmpty() -> f.name
-        binaries.contains(f.name) && f.params.size == 2 -> renderTerm(f.params[0]) + f.name + renderTerm(f.params[1])
-        else -> f.name + "(" + f.params.map { t -> renderTerm(t) }.joinToString(", ") + ")"
+        binaries.contains(f.name) && f.params.size == 2 -> renderTerm(f.params[0], m) + f.name + renderTerm(f.params[1], m)
+        else -> f.name + "(" + f.params.map { t -> renderTerm(t, m) }.joinToString(", ") + ")"
     }
 }
