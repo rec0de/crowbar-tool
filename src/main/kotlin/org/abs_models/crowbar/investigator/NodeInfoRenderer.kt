@@ -199,7 +199,7 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
             "Int" -> value.toString()
             "Fut" -> "\"${model.futNameById(value)}\""
             "Bool" -> if (value == 0) "False" else "True"
-            else -> getObjectStringById(value)
+            else -> if (value == 0) "null" else "\"${getObjectById(value)}\""
         }
         return "$location = $renderedValue;"
     }
@@ -229,15 +229,12 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
         return objMap[smtRep]!!
     }
 
-    private fun getObjectStringById(id: Int): String {
-        if(id == 0)
-            return "null"
-
+    private fun getObjectById(id: Int): String {
         if (!model.objLookup.containsKey(id))
-            return "\"object_?($id)\""
+            return "object_?($id)"
 
         val smtRep = model.objLookup[id]!!
-        return "\"${getObjectBySMT(smtRep)}\""
+        return getObjectBySMT(smtRep)
     }
 
     private fun indent(text: String) = indent(text, scopeLevel)
