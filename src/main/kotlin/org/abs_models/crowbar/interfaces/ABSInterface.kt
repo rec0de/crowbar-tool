@@ -16,68 +16,69 @@ import org.abs_models.frontend.ast.WhileStmt
 import org.abs_models.frontend.typechecker.Type
 
 fun translateABSExpToSymExpr(input : Exp) : Expr {
-    when(input){
-        is FieldUse        -> return Field(input.name+"_f",input.type.simpleName)
-        is VarUse          ->  {
+    return when(input){
+        is FieldUse        -> Field(input.name+"_f",input.type.simpleName)
+        is IntLiteral      -> Const(input.content)
+        is GetExp          -> readFut(translateABSExpToSymExpr(input.pureExp))
+        is NewExp          -> FreshGenerator.getFreshObjectId(input.className, input.paramList.map { translateABSExpToSymExpr(it) })
+        is NullExp         -> Const("0")
+        is ThisExp         -> Const("1")
+        is VarUse          -> 
             if (input.name == "result")
-                return ReturnVar(input.type.simpleName)
-            return ProgVar(input.name, input.type.simpleName)
-        }
-        is IntLiteral           -> return Const(input.content)
-        is Binary ->{
+                ReturnVar(input.type.simpleName)
+            else
+                ProgVar(input.name, input.type.simpleName)
+        is Binary -> {
             val op = when(input){
-                is GTEQExp              -> ">="
-                is LTEQExp              -> "<="
-                is GTExp                -> ">"
-                is LTExp                -> "<"
-                is EqExp                -> "="
-                is NotEqExp             -> "!="
-                is AddAddExp            -> "+"
-                is SubAddExp            -> "-"
-                is MultMultExp          -> "*"
-                is DivMultExp           -> "/"
-                is AndBoolExp           -> "&&"
-                is OrBoolExp            -> "||"
+                is GTEQExp      -> ">="
+                is LTEQExp      -> "<="
+                is GTExp        -> ">"
+                is LTExp        -> "<"
+                is EqExp        -> "="
+                is NotEqExp     -> "!="
+                is AddAddExp    -> "+"
+                is SubAddExp    -> "-"
+                is MultMultExp  -> "*"
+                is DivMultExp   -> "/"
+                is AndBoolExp   -> "&&"
+                is OrBoolExp    -> "||"
                 else            -> throw Exception("Translation of data ${input::class} not supported, term is $input" )
             }
-            return SExpr(op, listOf(translateABSExpToSymExpr(input.left), translateABSExpToSymExpr(input.right)))
+            SExpr(op, listOf(translateABSExpToSymExpr(input.left), translateABSExpToSymExpr(input.right)))
         }
         is Unary -> {
             val op = when(input){
-                is MinusExp              -> "-"
-                is NegExp                -> "!"
+                is MinusExp     -> "-"
+                is NegExp       -> "!"
                 else            -> throw Exception("Translation of data ${input::class} not supported, term is $input" )
             }
-            return SExpr(op, listOf(translateABSExpToSymExpr(input.operand)))
-
+            SExpr(op, listOf(translateABSExpToSymExpr(input.operand)))
         }
-        is GetExp               -> return readFut(translateABSExpToSymExpr(input.pureExp))
-        is NewExp               -> return FreshGenerator.getFreshObjectId(input.className, input.paramList.map { translateABSExpToSymExpr(it) })
-        is NullExp              -> return Const("0")
-        is ThisExp              -> return Const("1")
-        is DataConstructorExp   ->
-            return when(input.dataConstructor!!.name){
+        is DataConstructorExp ->
+            when(input.dataConstructor!!.name){
                 "Unit"          -> unitExpr()
                 "True"          -> Const("1")
                 "False"         -> Const("0")
                 else            -> throw Exception("Translation of data ${input::class} not supported, term is $input" )
             }
-        is Call             ->
-            {
-                val met = input.methodSig.contextDecl.qualifiedName+"."+input.methodSig.name
-                val params = input.params.map {  translateABSExpToSymExpr(it) }
+        is FnApp ->
+            if(input.name == "valueOf") 
+                readFut(translateABSExpToSymExpr(input.params.getChild(0)))
+            else if(FunctionRepos.isKnown(input.decl.qualifiedName))
+                SExpr(input.decl.qualifiedName.replace(".","-"),input.params.map { translateABSExpToSymExpr(it) })
+            else
+                throw Exception("Translation of FnApp is not fully supported, term is $input with function ${input.name}" )
+        is IfExp -> SExpr("iite", listOf(translateABSExpToSymExpr(input.condExp),translateABSExpToSymExpr(input.thenExp),translateABSExpToSymExpr(input.elseExp)))
+        is Call -> {
+            val met = input.methodSig.contextDecl.qualifiedName+"."+input.methodSig.name
+            val params = input.params.map {  translateABSExpToSymExpr(it) }
 
-                if(input is AsyncCall || input.callee  !is ThisExp)
-                    return CallExpr(met, params)
-                else
-                    return SyncCallExpr(met, params)
-            }
-        is FnApp                -> if(input.name == "valueOf") return readFut(translateABSExpToSymExpr(input.params.getChild(0)))
-                                   else if(FunctionRepos.isKnown(input.decl.qualifiedName)) {
-                                        return SExpr(input.decl.qualifiedName.replace(".","-"),input.params.map { translateABSExpToSymExpr(it) })
-                                    } else throw Exception("Translation of FnApp is not fully supported, term is $input with function ${input.name}" )
-        is IfExp                -> return SExpr("iite", listOf(translateABSExpToSymExpr(input.condExp),translateABSExpToSymExpr(input.thenExp),translateABSExpToSymExpr(input.elseExp)))
-        else                    -> throw Exception("Translation of ${input::class} not supported, term is $input" )
+            if(input is AsyncCall || input.callee  !is ThisExp)
+                CallExpr(met, params)
+            else
+                SyncCallExpr(met, params)
+        }
+        else -> throw Exception("Translation of ${input::class} not supported, term is $input" )
     }
 }
 
