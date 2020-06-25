@@ -99,8 +99,8 @@ fun translateABSStmtToSymStmt(input: Stmt?) : org.abs_models.crowbar.data.Stmt {
                 }
         }
         is VarDeclStmt -> {
-            val loc = ProgVar(input.varDecl.name, input.varDecl.initExp.type.simpleName)
-            val exp = input.varDecl.initExp
+            val loc = ProgVar(input.varDecl.name, input.varDecl.type.simpleName)
+            val exp = input.varDecl.initExp ?: NullExp()
             return when(exp) {
                 is GetExp       -> SyncStmt(loc, translateABSExpToSymExpr(exp))
                 is NewExp       -> AllocateStmt(loc, translateABSExpToSymExpr(exp))
