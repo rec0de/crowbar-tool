@@ -19,7 +19,6 @@ import org.abs_models.crowbar.tree.LogicNode
 import org.abs_models.crowbar.tree.SymbolicNode
 import org.abs_models.crowbar.tree.SymbolicTree
 import org.abs_models.crowbar.tree.NodeInfo
-import org.abs_models.crowbar.tree.NoInfo
 import org.abs_models.crowbar.tree.InfoScopeClose
 import org.abs_models.crowbar.tree.InfoLoopInitial
 import org.abs_models.crowbar.tree.InfoLoopPreserves
@@ -37,6 +36,8 @@ import org.abs_models.crowbar.tree.InfoReturn
 import org.abs_models.crowbar.tree.InfoSkip
 import org.abs_models.crowbar.tree.InfoSkipEnd
 import org.abs_models.crowbar.tree.InfoNullCheck
+import org.abs_models.crowbar.tree.InfoMethodPrecondition
+import org.abs_models.crowbar.tree.InfoSyncCallAssign
 import org.abs_models.frontend.ast.*
 import kotlin.system.exitProcess
 
@@ -211,7 +212,7 @@ class PITSyncAssign(repos: Repository) : PITAssign(repos, Modality(
 
         // Generate SMT representation of the future expression to get its model value later
         val futureSMTExpr = apply(input.update, rhs).toSMT(false)
-        val info = InfoGetAssign(lhs, rhsExpr, futureSMTExpr)
+        val info = InfoGetAssign(lhs, rhsExpr, "(valueOf $futureSMTExpr)")
 
         return listOf(symbolicNext(lhs, rhs, remainder, target, input.condition, input.update, info))
     }
@@ -340,6 +341,7 @@ class PITSyncCallAssign(repos: Repository) : PITAssign(repos, Modality(
     override fun transform(cond: MatchCondition, input: SymbolicState): List<SymbolicTree> {
         val lhs = cond.map[LocationAbstractVar("LHS")] as ProgVar
         val call = cond.map[SyncCallExprAbstractVar("CALL")] as SyncCallExpr
+        val calleeExpr = cond.map[ExprAbstractVar("CALLEE")] as Expr
         val remainder = cond.map[StmtAbstractVar("CONT")] as Stmt
         val target = cond.map[PostInvAbstractVar("TYPE")] as DeductType
 
@@ -351,11 +353,13 @@ class PITSyncCallAssign(repos: Repository) : PITAssign(repos, Modality(
         val updateNew = ElementaryUpdate(ReturnVar("<UNKNOWN>"), freshVar)
 
         val substPreMap = mapSubstPar(call, targetPreDecl)
+        val precondSubst = subst(precond, substPreMap) as Formula
 
         //preconditions
         val first = LogicNode(
                 input.condition,
-                UpdateOnFormula(input.update, subst(precond, substPreMap) as Formula)
+                UpdateOnFormula(input.update, precondSubst),
+                info = InfoMethodPrecondition(precondSubst)
         )
 
         val postCond = repos.syncMethodEnss[call.met]?.first ?: True
@@ -368,13 +372,18 @@ class PITSyncCallAssign(repos: Repository) : PITAssign(repos, Modality(
         val updateRightNext = ChainUpdate(input.update, anon)
         val updateOnFormula =  UpdateOnFormula(updateLeftNext, subst(postCond, substPostMap) as Formula)
 
+        // Generate SMT representation of the anonymized heap for future heap reconstruction
+        val anonHeapExpr = apply(updateRightNext, Heap).toSMT(false)
+        // Generate SMT expression of method return value for model evaluation
+        val returnValExpr = apply(updateRightNext, freshVar).toSMT(false)
+
         val next = symbolicNext(lhs,
                 freshVar,
                 remainder,
                 target,
                 And(input.condition, updateOnFormula),
                 updateRightNext,
-                NoInfo())
+                InfoSyncCallAssign(lhs, calleeExpr, call, anonHeapExpr, returnValExpr))
 
         return listOf(first,next)
     }

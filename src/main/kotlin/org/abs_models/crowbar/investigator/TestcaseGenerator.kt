@@ -10,8 +10,6 @@ import org.abs_models.crowbar.interfaces.plainSMTCommand
 import org.abs_models.crowbar.main.Verbosity
 import org.abs_models.crowbar.main.output
 import org.abs_models.crowbar.main.tmpPath
-import org.abs_models.crowbar.tree.InfoAwaitUse
-import org.abs_models.crowbar.tree.InfoGetAssign
 import org.abs_models.crowbar.tree.InfoNode
 import org.abs_models.crowbar.tree.InfoObjAlloc
 import org.abs_models.crowbar.tree.LeafInfo
@@ -49,16 +47,16 @@ object TestcaseGenerator {
         val infoNodes = branchNodes.map { (it as InfoNode).info }
 
         output("Investigator: collecting anonymized heap expressions....", Verbosity.V)
-        val heapExpressions = infoNodes.filter { it is InfoAwaitUse }.map { (it as InfoAwaitUse).heapExpr }
-
-        output("Investigator: collecting future expressions....", Verbosity.V)
-        val futureExpressions = infoNodes.filter { it is InfoGetAssign }.map { (it as InfoGetAssign).futureExpr }
+        val heapExpressions = infoNodes.map { it.heapExpressions }.flatten()
 
         output("Investigator: collecting object allocation expressions....", Verbosity.V)
         val newExpressions = infoNodes.filter { it is InfoObjAlloc }.map { (it as InfoObjAlloc).newSMTExpr }
 
+        output("Investigator: collecting other smt expressions....", Verbosity.V)
+        val miscExpressions = infoNodes.map { it.smtExpressions }.flatten()
+
         output("Investigator: parsing model....", Verbosity.V)
-        val model = getModel(uncloseable, heapExpressions, futureExpressions, newExpressions, listOf())
+        val model = getModel(uncloseable, heapExpressions, newExpressions, miscExpressions)
         val fields = model.initState.filter { it.first is Field }.map { it.first as Field }
 
         output("Investigator: rendering counterexample....", Verbosity.V)
@@ -111,9 +109,8 @@ object TestcaseGenerator {
     private fun getModel(
         leaf: LogicNode,
         heapExpressions: List<String>,
-        futureExpressions: List<String>,
         newExpressions: List<String>,
-        debugExpressions: List<String>
+        miscExpressions: List<String>
     ): Model {
 
         // Collect types of fields and variables from leaf node
@@ -124,12 +121,10 @@ object TestcaseGenerator {
         var baseModel = "(get-model)"
         if (heapExpressions.size > 0)
             baseModel += "(get-value (${heapExpressions.joinToString(" ")}))"
-        if (futureExpressions.size > 0)
-            baseModel += "(get-value (${futureExpressions.map{ "(valueOf $it)" }.joinToString(" ")}))"
         if (newExpressions.size > 0)
             baseModel += "(get-value (${newExpressions.joinToString(" ")}))"
-        if (debugExpressions.size > 0)
-            baseModel += "(get-value (${debugExpressions.joinToString(" ")}))"
+        if (miscExpressions.size > 0)
+            baseModel += "(get-value (${miscExpressions.joinToString(" ")}))"
 
         // Get state at full anonymization point
         val smtRep = generateSMT(leaf.ante, leaf.succ, modelCmd = baseModel)
@@ -146,7 +141,7 @@ object TestcaseGenerator {
         val parsed = ModelParser.parseModel()
         val constants = parsed.filter { it is Constant }
         val initHeap = constants.find { it.name == "heap" }
-        val vars = constants.filter { !(it.name matches Regex("(.*_f|fut_.*|NEW\\d.*|Unit|heap)")) }
+        val vars = constants.filter { !(it.name matches Regex("(.*_f|fut_.*|NEW\\d.*|Unit|heap|f_(\\d)+)")) }
         val fields = constants.filter { it.name matches Regex(".*_f") }
         val futLookup = constants.filter { it.name.startsWith("fut_") }.associate { Pair((it.value as Integer).value, it.name) }
 
@@ -171,16 +166,13 @@ object TestcaseGenerator {
         // Get heap-states at heap anonymization points
         val heapAssignments = getHeapMap(heapExpressions, fields, fieldTypes)
 
-        // Get values of futures
-        val futureAssignments = getExpressionMap(futureExpressions)
-
         // Get mapping of object ids to names
         val objLookup = getObjectMap(newExpressions)
 
-        // Get evaluations of misc expressions (e.g. return value expressions)
-        val miscLookup = getExpressionMap(debugExpressions)
+        // Get evaluations of misc expressions (return value expressions, values of futures, method return values)
+        val smtExprs = getExpressionMap(miscExpressions)
 
-        return Model(initialAssignments, heapAssignments, futureAssignments, futLookup, objLookup)
+        return Model(initialAssignments, heapAssignments, futLookup, objLookup, smtExprs)
     }
 
     private fun getHeapMap(heapExpressions: List<String>, fields: List<Function>, fieldTypes: Map<String, String>): Map<String, List<Pair<Field, Int>>> {
@@ -254,9 +246,9 @@ object TestcaseGenerator {
 class Model(
     val initState: List<Pair<Location, Int>>,
     val heapMap: Map<String, List<Pair<Field, Int>>>,
-    val futMap: Map<String, Int>,
     val futLookup: Map<Int, String>,
-    val objLookup: Map<Int, String>
+    val objLookup: Map<Int, String>,
+    val smtExprs: Map<String, Int>
 ) {
     // The SMT solver may reference futures that were not defined in the program
     // we'll mark these with a questionmark and give the underlying integer id from the solver

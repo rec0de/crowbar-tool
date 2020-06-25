@@ -14,12 +14,14 @@ import org.abs_models.crowbar.tree.InfoLocAssign
 import org.abs_models.crowbar.tree.InfoLoopInitial
 import org.abs_models.crowbar.tree.InfoLoopPreserves
 import org.abs_models.crowbar.tree.InfoLoopUse
+import org.abs_models.crowbar.tree.InfoMethodPrecondition
 import org.abs_models.crowbar.tree.InfoNullCheck
 import org.abs_models.crowbar.tree.InfoObjAlloc
 import org.abs_models.crowbar.tree.InfoReturn
 import org.abs_models.crowbar.tree.InfoScopeClose
 import org.abs_models.crowbar.tree.InfoSkip
 import org.abs_models.crowbar.tree.InfoSkipEnd
+import org.abs_models.crowbar.tree.InfoSyncCallAssign
 import org.abs_models.crowbar.tree.NoInfo
 import org.abs_models.crowbar.tree.NodeInfoVisitor
 import org.abs_models.frontend.ast.FieldUse
@@ -47,14 +49,7 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
 
     override fun visit(info: InfoAwaitUse): String {
         val postHeap = model.heapMap[info.heapExpr]
-
-        val assignmentBlock: String
-        if (postHeap == null)
-            assignmentBlock = "// No heap modification info available for this call"
-        else {
-            val assignments = postHeap.map { renderModelAssignment(it.first, it.second) }.joinToString("\n")
-            assignmentBlock = "// Assume the following assignments during the async call:\n$assignments\n// End assignments"
-        }
+        val assignmentBlock = renderHeapAssignmentBlock(postHeap)
 
         val renderedGuard = if (info.guard.absExp is FieldUse) "${renderExpression(info.guard)}?" else renderExpression(info.guard)
 
@@ -62,6 +57,8 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
     }
 
     override fun visit(info: InfoClassPrecondition) = ""
+
+    override fun visit(info: InfoMethodPrecondition) = ""
 
     override fun visit(info: InfoNullCheck) = ""
 
@@ -93,7 +90,7 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
 
         val origGet = "// $location = ${renderExpression(info.expression)};"
 
-        val futureValue = model.futMap[info.futureExpr]
+        val futureValue = model.smtExprs[info.futureExpr]
         val getReplacement = if (futureValue != null) "$strLocation = $futureValue;" else "// No future evaluation info available"
 
         return indent("$origGet\n$getReplacement")
@@ -108,6 +105,21 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
         val callReplacement = "$strLocation = \"${info.futureName}\";"
 
         return indent("$origCall\n$callReplacement")
+    }
+
+    override fun visit(info: InfoSyncCallAssign): String {
+        // Get location with possible type declaration both in original form
+        val location = renderDeclLocation(info.lhs, type2str = false, declare = false)
+        val origCall = "// $location = ${renderExpression(info.callee)}.${renderExpression(info.call)};"
+
+        // Get heap anonymization assignments
+        val postHeap = model.heapMap[info.heapExpr]
+        val assignmentBlock = renderHeapAssignmentBlock(postHeap)
+
+        val methodReturnVal = model.smtExprs[info.returnValSMT]
+        val callReplacement = if (methodReturnVal != null) renderModelAssignment(info.lhs, methodReturnVal) else "// No return value available"
+
+        return indent("$origCall\n$assignmentBlock\n$callReplacement")
     }
 
     override fun visit(info: InfoLoopInitial) = indent("while(${renderExpression(info.guard)}) { }")
@@ -162,6 +174,17 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
     override fun visit(info: InfoSkipEnd) = ""
 
     override fun visit(info: NoInfo) = ""
+
+    private fun renderHeapAssignmentBlock(postHeap: List<Pair<Field, Int>>?): String {
+        return if (postHeap == null)
+            "// No heap modification info available at this point"
+        else if (postHeap.size == 0)
+            "// Heap remains unchanged here"
+        else {
+            val assignments = postHeap.map { renderModelAssignment(it.first, it.second) }.joinToString("\n")
+            "// Assume the following assignments while blocked:\n$assignments\n// End assignments"
+        }
+    }
 
     private fun renderModelAssignment(loc: Location, value: Int): String {
         val location = renderDeclLocation(loc, type2str = true)

@@ -3,7 +3,7 @@ package org.abs_models.crowbar.investigator
 import org.abs_models.crowbar.data.Expr
 import org.abs_models.frontend.ast.AddAddExp
 import org.abs_models.frontend.ast.AndBoolExp
-import org.abs_models.frontend.ast.AsyncCall
+import org.abs_models.frontend.ast.Call
 import org.abs_models.frontend.ast.DataConstructorExp
 import org.abs_models.frontend.ast.DivMultExp
 import org.abs_models.frontend.ast.EqExp
@@ -58,7 +58,7 @@ fun renderAbsExpression(e: Exp): String {
         is GetExp          -> "(${renderAbsExpression(e.pureExp)}).get"
         is NegExp          -> "!${renderAbsExpression(e.operand)}"
         is NewExp          -> "new ${e.className}(${e.paramList.map{ renderAbsExpression(it) }.joinToString(", ")})"
-        is AsyncCall       -> "${e.methodSig.name}(${e.params.map{ renderAbsExpression(it) }.joinToString(", ")})"
+        is Call            -> "${e.methodSig.name}(${e.params.map{ renderAbsExpression(it) }.joinToString(", ")})"
         is IfExp           -> "(if ${renderAbsExpression(e.condExp)} then ${renderAbsExpression(e.thenExp)} else ${renderAbsExpression(e.elseExp)})"
         is FnApp           -> "${e.name}(${e.params.map{ renderAbsExpression(it) }.joinToString(", ")})"
         is DataConstructorExp -> e.dataConstructor!!.name
