@@ -19,29 +19,12 @@ data class FormulaAbstractVar(val name : String) : Formula, AbstractVar {
 
 data class Function(val name : String, val params : List<Term> = emptyList()) : Term {
     override fun prettyPrint(): String {
-        if(params.isEmpty()) return name
-        if(binaries.contains(name) && params.size == 2) return params[0].prettyPrint() + name + params[1].prettyPrint()
-        return name+"("+params.map { p -> p.prettyPrint() }.fold("", { acc, nx -> "$acc,$nx" }).removePrefix(",") + ")"
+        return prettyPrintFunction(params, name)
     }
     override fun iterate(f: (Anything) -> Boolean) : Set<Anything> = params.fold(super.iterate(f),{ acc, nx -> acc + nx.iterate(f)})
 
     override fun toSMT(isInForm : Boolean) : String {
-        var back = name
-	    if(!isInForm) {
-            if (name == "||") back = "iOr"
-            if (name == "&&") back = "iAnd"
-            if (name == "!") back = "iNot"
-            if (name == "<") back = "iLt"
-            if (name == "<=") back = "iLeq"
-            if (name == ">") back = "iGt"
-            if (name == ">=") back = "iGeq"
-            if (name == "=") back = "iEq"
-            if (name == "!=") back = "iNeq"
-        } else {
-            if (name == "||") back = "or"
-            if (name == "&&") back = "and"
-            if (name == "!") back = "not"
-        }
+        val back = getSMT(name, isInForm)
         if(params.isEmpty()) {
             if(name.startsWith("-")) return "(- ${name.substring(1)})" //CVC4 requires -1 to be passed as (- 1)
             return name
@@ -91,29 +74,12 @@ data class Not(val left : Formula) : Formula {
 }
 data class Predicate(val name : String, val params : List<Term> = emptyList()) : Formula {
     override fun prettyPrint(): String {
-        if(params.isEmpty()) return name
-        if(binaries.contains(name) && params.size == 2) return params[0].prettyPrint() + name + params[1].prettyPrint()
-        return name+"("+params.map { p -> p.prettyPrint() }.fold("", { acc, nx -> "$acc,$nx" }).removePrefix(",") + ")"
+        return prettyPrintFunction(params, name)
     }
     override fun iterate(f: (Anything) -> Boolean) : Set<Anything> = params.fold(super.iterate(f),{ acc, nx -> acc + nx.iterate(f)})
     override fun toSMT(isInForm : Boolean) : String {
         if(params.isEmpty()) return name
-        var back = name
-	    if(!isInForm) {
-            if (name == "||") back = "iOr"
-            if (name == "&&") back = "iAnd"
-            if (name == "!") back = "iNot"
-            if (name == "<") back = "iLt"
-            if (name == "<=") back = "iLeq"
-            if (name == ">") back = "iGt"
-            if (name == ">=") back = "iGeq"
-            if (name == "=") back = "iEq"
-            if (name == "!=") back = "iNeq"
-        } else {
-            if (name == "||") back = "or"
-            if (name == "&&") back = "and"
-            if (name == "!") back = "not"
-        }
+        val back = getSMT(name, isInForm)
         val list = params.fold("",{acc,nx -> acc+ " ${nx.toSMT(false)}"})
         return "($back $list)"
     }
@@ -150,12 +116,14 @@ fun poll(term : Term) : Function = Function("poll", listOf(term))
 fun readFut(term : Expr) : Expr = SExpr("valueOf", listOf(term))
 
 fun exprToTerm(input : Expr) : Term {
-    if(input is ProgVar) return input
-    if(input is Field) return select(input)
-    if(input is PollExpr) return poll(exprToTerm(input.e1))
-    if(input is Const) return Function(input.name)
-    if(input is SExpr) return Function(input.op, input.e.map { ex -> exprToTerm(ex) })
-    throw Exception("Expression cannot be converted to term: "+input.prettyPrint())
+    return when(input){
+     is ProgVar -> input
+     is Field -> select(input)
+     is PollExpr -> poll(exprToTerm(input.e1))
+     is Const -> Function(input.name)
+     is SExpr -> Function(input.op, input.e.map { ex -> exprToTerm(ex) })
+     else -> throw Exception("Expression cannot be converted to term: "+input.prettyPrint())
+    }
 }
 
 //todo: the comparisons with 1 should be removed once the Bool data type is split from Int
@@ -166,9 +134,8 @@ fun exprToForm(input : Expr) : Formula {
     if(input is SExpr && input.op == "!" && input.e.size ==1 ) return Not(exprToForm(input.e[0]))
     if(input is SExpr && input.op == "!=") return Not(exprToForm(SExpr("=",input.e)))
     if(input is SExpr) return Predicate(input.op, input.e.map { ex -> exprToTerm(ex) })
-    if(input is Field) return exprToForm(SExpr("=",listOf(input, Const("1"))))
-    if(input is ProgVar) return exprToForm(SExpr("=",listOf(input, Const("1"))))
-    if(input is Const) return exprToForm(SExpr("=",listOf(input, Const("1"))))
+    if(input is Field || input is ProgVar || input is Const)
+        return exprToForm(SExpr("=",listOf(input, Const("1"))))
     throw Exception("Expression cannot be converted to formula: $input")
 }
 
@@ -227,6 +194,30 @@ fun subst(input: LogicElement, elem : ProgVar, term : Term) : LogicElement = sub
 
 fun valueOfFunc(t : Term) = Function("valueOf", listOf(t))
 
+fun getSMT(name: String, isInForm: Boolean): String{
+    if(!isInForm) {
+        if (name == "||") return "iOr"
+        if (name == "&&") return "iAnd"
+        if (name == "!")  return "iNot"
+        if (name == "<")  return "iLt"
+        if (name == "<=") return "iLeq"
+        if (name == ">")  return "iGt"
+        if (name == ">=") return "iGeq"
+        if (name == "=")  return "iEq"
+        if (name == "!=") return "iNeq"
+    } else {
+        if (name == "||") return "or"
+        if (name == "&&") return "and"
+        if (name == "!")  return "not"
+    }
+    return name
+}
+
+fun prettyPrintFunction(params: List<Term>, name: String):String{
+    if(params.isEmpty()) return name
+    if(binaries.contains(name) && params.size == 2) return params[0].prettyPrint() + name + params[1].prettyPrint()
+    return name+"("+params.map { p -> p.prettyPrint() }.fold("", { acc, nx -> "$acc,$nx" }).removePrefix(",") + ")"
+}
 /*
 fun subst(input: LogicElement, elem : ProgVar, term : Term) : LogicElement {
     when(input){

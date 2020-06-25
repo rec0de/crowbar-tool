@@ -1,0 +1,81 @@
+module SyncCall;
+
+data Spec = ObjInv(Bool) | Ensures(Bool) | Requires(Bool) | WhileInv(Bool);
+
+interface SyncCallI {
+
+    [Spec : Requires(x > 0)]
+	[Spec : Ensures(result > 0)]
+    Int syncCallInherited(Int x);
+
+    [Spec : Requires(x > 0)]
+    Int syncCallComplexInherited(Int x);
+
+}
+
+
+class SyncCallC implements SyncCallI{
+
+    Int field = 0;
+
+	Int emptyContract(Int x){
+	    return x;
+	}
+
+	[Spec : Ensures(result > 0)]
+    Int resultGreaterThanZero(Int x){
+        return 1;
+    }
+
+	Int emptyContractSuccess(Int x){
+        Int a = this.emptyContract(x);
+        return a;
+	}
+
+	[Spec : Ensures(result > 0)]
+	Int simpleSyncCallFail(Int x){
+        Int a = this.emptyContract(x);
+        return a;
+	}
+
+	[Spec : Ensures(result > 0)]
+    Int simpleSyncCallSuccess(Int x){
+        Int a = this.resultGreaterThanZero(x);
+        return a;
+    }
+
+    Int syncCallInherited(Int x){
+        return x;
+    }
+
+    [Spec : Ensures(result > 0)]
+    Int syncCallInheritedSuccess(Int x){
+        Int a = this.syncCallInherited(1);
+        return a;
+    }
+
+	[Spec : Ensures(result > 0)]
+    Int syncCallComplexInherited(Int x){
+        return x;
+    }
+
+    [Spec : Ensures(result > 0)]
+    Int syncCallComplexInheritedSuccess(Int x){
+        Int a = this.syncCallComplexInherited(1);
+        return a;
+    }
+
+    [Spec : Ensures(this.field == x)]
+    Unit updateField(Int x){
+        field = x;
+    }
+
+    [Spec : Ensures(this.field == x-1)]
+    Unit updateFieldSuccess(Int x){
+        this.updateField(x-1);
+    }
+
+}
+
+{
+}

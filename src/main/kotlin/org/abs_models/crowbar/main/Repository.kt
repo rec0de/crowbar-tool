@@ -10,7 +10,6 @@ import org.abs_models.frontend.ast.Model
 import kotlin.reflect.KClass
 import kotlin.system.exitProcess
 
-//todo: this is for development purposes only and will be removed once the translation is automatic
 object FunctionRepos{
     private val known : MutableMap<String, FunctionDecl> = mutableMapOf()
     fun isKnown(str: String) = known.containsKey(str)
@@ -62,6 +61,7 @@ object FunctionRepos{
 
 
 	fun init(model: Model, repos: Repository) {
+		known.clear()
 		for (mDecl in model.moduleDecls){
 			if(mDecl.name.startsWith("ABS.")) continue
 			for (decl in mDecl.decls){

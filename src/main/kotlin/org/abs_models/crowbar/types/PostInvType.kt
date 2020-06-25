@@ -19,6 +19,7 @@ import org.abs_models.crowbar.tree.LogicNode
 import org.abs_models.crowbar.tree.SymbolicNode
 import org.abs_models.crowbar.tree.SymbolicTree
 import org.abs_models.crowbar.tree.NodeInfo
+import org.abs_models.crowbar.tree.NoInfo
 import org.abs_models.crowbar.tree.InfoScopeClose
 import org.abs_models.crowbar.tree.InfoLoopInitial
 import org.abs_models.crowbar.tree.InfoLoopPreserves
@@ -287,7 +288,7 @@ class PITCallAssign(repos: Repository) : PITAssign(repos, Modality(
             info = InfoNullCheck(notNullCondition)
         )
 
-        //construct precondition check of the class creation
+        //construct precondition check of the call
         val precond = repos.methodReqs.getValue(call.met).first
         val targetDecl = repos.methodReqs.getValue(call.met).second
         val substMap = mutableMapOf<LogicElement,LogicElement>()
@@ -328,6 +329,68 @@ class PITCallAssign(repos: Repository) : PITAssign(repos, Modality(
 
         return listOf(nonenull,pre,next)
     }
+}
+
+
+class PITSyncCallAssign(repos: Repository) : PITAssign(repos, Modality(
+        SeqStmt(SyncCallStmt(LocationAbstractVar("LHS"), ExprAbstractVar("CALLEE"), SyncCallExprAbstractVar("CALL")),
+                StmtAbstractVar("CONT")),
+        PostInvAbstractVar("TYPE"))) {
+
+    override fun transform(cond: MatchCondition, input: SymbolicState): List<SymbolicTree> {
+        val lhs = cond.map[LocationAbstractVar("LHS")] as ProgVar
+        val call = cond.map[SyncCallExprAbstractVar("CALL")] as SyncCallExpr
+        val remainder = cond.map[StmtAbstractVar("CONT")] as Stmt
+        val target = cond.map[PostInvAbstractVar("TYPE")] as DeductType
+
+        val freshVar = FreshGenerator.getFreshFunction()
+
+        val precond = repos.syncMethodReqs.getValue(call.met).first
+        val targetPreDecl = repos.syncMethodReqs.getValue(call.met).second
+
+        val updateNew = ElementaryUpdate(ReturnVar("<UNKNOWN>"), freshVar)
+
+        val substPreMap = mapSubstPar(call, targetPreDecl)
+
+        //preconditions
+        val first = LogicNode(
+                input.condition,
+                UpdateOnFormula(input.update, subst(precond, substPreMap) as Formula)
+        )
+
+        val postCond = repos.syncMethodEnss[call.met]?.first ?: True
+        val targetPostDecl = repos.syncMethodEnss[call.met]!!.second
+        val substPostMap = mapSubstPar(call, targetPostDecl)
+
+
+        val anon = ElementaryUpdate(Heap, anon(Heap))
+        val updateLeftNext = ChainUpdate(input.update, ChainUpdate(anon, updateNew))
+        val updateRightNext = ChainUpdate(input.update, anon)
+        val updateOnFormula =  UpdateOnFormula(updateLeftNext, subst(postCond, substPostMap) as Formula)
+
+        val next = symbolicNext(lhs,
+                freshVar,
+                remainder,
+                target,
+                And(input.condition, updateOnFormula),
+                updateRightNext,
+                NoInfo())
+
+        return listOf(first,next)
+    }
+}
+
+fun mapSubstPar(callExpr: SyncCallExpr, targetDecl: MethodSig): MutableMap<LogicElement, LogicElement> {
+
+    val substMap = mutableMapOf<LogicElement, LogicElement>()
+
+    for (i in 0 until targetDecl.numParam) {
+        val pName = ProgVar(targetDecl.getParam(i).name, targetDecl.getParam(i).type.simpleName)
+        val pValue = exprToTerm(callExpr.e[i])
+        substMap[pName] = pValue
+
+    }
+    return substMap
 }
 
 object PITSkip : Rule(Modality(

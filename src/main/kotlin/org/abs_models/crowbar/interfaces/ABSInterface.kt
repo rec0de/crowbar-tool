@@ -13,50 +13,72 @@ import org.abs_models.frontend.ast.IfStmt
 import org.abs_models.frontend.ast.ReturnStmt
 import org.abs_models.frontend.ast.Stmt
 import org.abs_models.frontend.ast.WhileStmt
+import org.abs_models.frontend.typechecker.Type
 
 fun translateABSExpToSymExpr(input : Exp) : Expr {
     val converted: Expr = when(input){
         is FieldUse        -> Field(input.name+"_f",input.type.simpleName)
+        is IntLiteral      -> Const(input.content)
+        is GetExp          -> readFut(translateABSExpToSymExpr(input.pureExp))
+        is NewExp          -> FreshGenerator.getFreshObjectId(input.className, input.paramList.map { translateABSExpToSymExpr(it) })
+        is NullExp         -> Const("0")
+        is ThisExp         -> Const("1")
         is VarUse          -> 
             if (input.name == "result")
                 ReturnVar(input.type.simpleName)
             else
                 ProgVar(input.name, input.type.simpleName)
-        is IntLiteral           -> Const(input.content)
-        is GTEQExp              -> SExpr(">=", listOf(translateABSExpToSymExpr(input.left), translateABSExpToSymExpr(input.right)))
-        is LTEQExp              -> SExpr("<=", listOf(translateABSExpToSymExpr(input.left), translateABSExpToSymExpr(input.right)))
-        is GTExp                -> SExpr(">", listOf(translateABSExpToSymExpr(input.left), translateABSExpToSymExpr(input.right)))
-        is LTExp                -> SExpr("<", listOf(translateABSExpToSymExpr(input.left), translateABSExpToSymExpr(input.right)))
-        is EqExp                -> SExpr("=", listOf(translateABSExpToSymExpr(input.left), translateABSExpToSymExpr(input.right)))
-        is NotEqExp             -> SExpr("!=", listOf(translateABSExpToSymExpr(input.left), translateABSExpToSymExpr(input.right)))
-        is AddAddExp            -> SExpr("+", listOf(translateABSExpToSymExpr(input.left), translateABSExpToSymExpr(input.right)))
-        is SubAddExp            -> SExpr("-", listOf(translateABSExpToSymExpr(input.left), translateABSExpToSymExpr(input.right)))
-        is MultMultExp          -> SExpr("*", listOf(translateABSExpToSymExpr(input.left), translateABSExpToSymExpr(input.right)))
-        is DivMultExp           -> SExpr("/", listOf(translateABSExpToSymExpr(input.left), translateABSExpToSymExpr(input.right)))
-        is MinusExp             -> SExpr("-", listOf(translateABSExpToSymExpr(input.operand)))
-        is AndBoolExp           -> SExpr("&&",listOf(translateABSExpToSymExpr(input.left), translateABSExpToSymExpr(input.right)))
-        is OrBoolExp            -> SExpr("||",listOf(translateABSExpToSymExpr(input.left), translateABSExpToSymExpr(input.right)))
-        is GetExp               -> readFut(translateABSExpToSymExpr(input.pureExp))
-        is NegExp               -> SExpr("!", listOf(translateABSExpToSymExpr(input.operand)))
-        is NewExp               -> FreshGenerator.getFreshObjectId(input.className, input.paramList.map { translateABSExpToSymExpr(it) })
-        is NullExp              -> Const("0")
-        is ThisExp              -> Const("1")
-        is DataConstructorExp   ->
+        is Binary -> {
+            val op = when(input){
+                is GTEQExp      -> ">="
+                is LTEQExp      -> "<="
+                is GTExp        -> ">"
+                is LTExp        -> "<"
+                is EqExp        -> "="
+                is NotEqExp     -> "!="
+                is AddAddExp    -> "+"
+                is SubAddExp    -> "-"
+                is MultMultExp  -> "*"
+                is DivMultExp   -> "/"
+                is AndBoolExp   -> "&&"
+                is OrBoolExp    -> "||"
+                else            -> throw Exception("Translation of data ${input::class} not supported, term is $input" )
+            }
+            SExpr(op, listOf(translateABSExpToSymExpr(input.left), translateABSExpToSymExpr(input.right)))
+        }
+        is Unary -> {
+            val op = when(input){
+                is MinusExp     -> "-"
+                is NegExp       -> "!"
+                else            -> throw Exception("Translation of data ${input::class} not supported, term is $input" )
+            }
+            SExpr(op, listOf(translateABSExpToSymExpr(input.operand)))
+        }
+        is DataConstructorExp ->
             when(input.dataConstructor!!.name){
                 "Unit"          -> unitExpr()
                 "True"          -> Const("1")
                 "False"         -> Const("0")
                 else            -> throw Exception("Translation of data ${input::class} not supported, term is $input" )
             }
-        is AsyncCall            -> CallExpr(input.methodSig.contextDecl.qualifiedName+"."+input.methodSig.name,
-                                              input.params.map {  translateABSExpToSymExpr(it) })
-        is FnApp                -> if(input.name == "valueOf") 
-                                        readFut(translateABSExpToSymExpr(input.params.getChild(0)))
-                                   else if(FunctionRepos.isKnown(input.decl.qualifiedName))
-                                        SExpr(input.decl.qualifiedName.replace(".","-"),input.params.map { translateABSExpToSymExpr(it) })
-                                   else throw Exception("Translation of FnApp is not fully supported, term is $input with function ${input.name}" )
-        is IfExp                -> SExpr("iite", listOf(translateABSExpToSymExpr(input.condExp),translateABSExpToSymExpr(input.thenExp),translateABSExpToSymExpr(input.elseExp)))
-        else                    -> throw Exception("Translation of ${input::class} not supported, term is $input" )
+        is FnApp ->
+            if(input.name == "valueOf") 
+                readFut(translateABSExpToSymExpr(input.params.getChild(0)))
+            else if(FunctionRepos.isKnown(input.decl.qualifiedName))
+                SExpr(input.decl.qualifiedName.replace(".","-"),input.params.map { translateABSExpToSymExpr(it) })
+            else
+                throw Exception("Translation of FnApp is not fully supported, term is $input with function ${input.name}" )
+        is IfExp -> SExpr("iite", listOf(translateABSExpToSymExpr(input.condExp),translateABSExpToSymExpr(input.thenExp),translateABSExpToSymExpr(input.elseExp)))
+        is Call -> {
+            val met = input.methodSig.contextDecl.qualifiedName+"."+input.methodSig.name
+            val params = input.params.map {  translateABSExpToSymExpr(it) }
+
+            if(input is AsyncCall || input.callee  !is ThisExp)
+                CallExpr(met, params)
+            else
+                SyncCallExpr(met, params)
+        }
+        else -> throw Exception("Translation of ${input::class} not supported, term is $input" )
     }
 
     // Save reference to original expression
@@ -69,15 +91,39 @@ fun translateABSStmtToSymStmt(input: Stmt?) : org.abs_models.crowbar.data.Stmt {
     when(input){
         is org.abs_models.frontend.ast.SkipStmt -> return SkipStmt
         is ExpressionStmt ->{
-            when(input.exp) {
-                is GetExp       -> return SyncStmt(FreshGenerator.getFreshProgVar(input.type.simpleName), translateABSExpToSymExpr(input.exp))
-                is NewExp       -> return AllocateStmt(FreshGenerator.getFreshProgVar(input.type.simpleName), translateABSExpToSymExpr(input.exp))
-                is AsyncCall    -> { 
-                    val v = input.exp as AsyncCall
-                    return CallStmt(FreshGenerator.getFreshProgVar(input.type.simpleName), translateABSExpToSymExpr(v.callee), translateABSExpToSymExpr(v) as CallExpr)
+            val loc = FreshGenerator.getFreshProgVar(input.type.simpleName)
+            val exp = input.exp
+            val type = input.type
+            return when(exp) {
+                is GetExp       -> SyncStmt(loc, translateABSExpToSymExpr(exp))
+                is NewExp       -> AllocateStmt(loc, translateABSExpToSymExpr(exp))
+                is AsyncCall    -> CallStmt(loc, translateABSExpToSymExpr(exp.callee), translateABSExpToSymExpr(exp) as CallExpr)
+                is SyncCall     -> desugaring(loc, type, exp)
+                else -> throw Exception("Translation of ${input.exp::class} in an expression statement is not supported" )
                 }
+        }
+        is VarDeclStmt -> {
+            val loc = ProgVar(input.varDecl.name, input.varDecl.initExp.type.simpleName)
+            val exp = input.varDecl.initExp
+            return when(exp) {
+                is GetExp       -> SyncStmt(loc, translateABSExpToSymExpr(exp))
+                is NewExp       -> AllocateStmt(loc, translateABSExpToSymExpr(exp))
+                is AsyncCall    -> CallStmt(loc, translateABSExpToSymExpr(exp.callee), translateABSExpToSymExpr(exp) as CallExpr)
+                is SyncCall     -> desugaring(loc, input.type, exp)
+                else -> org.abs_models.crowbar.data.AssignStmt(loc, translateABSExpToSymExpr(exp))
             }
-            throw Exception("Translation of ${input.exp::class} in an expression statement is not supported" )
+        }
+        is AssignStmt -> {
+            val loc:Location = if(input.varNoTransform is FieldUse) Field(input.varNoTransform.name+"_f", input.varNoTransform.type.simpleName)
+                               else ProgVar(input.varNoTransform.name, input.varNoTransform.type.simpleName)
+            val exp = input.valueNoTransform
+            return when(exp) {
+                is GetExp       -> SyncStmt(loc, translateABSExpToSymExpr(exp))
+                is NewExp       -> AllocateStmt(loc, translateABSExpToSymExpr(exp))
+                is AsyncCall    -> CallStmt(loc, translateABSExpToSymExpr(exp.callee), translateABSExpToSymExpr(exp) as CallExpr)
+                is SyncCall     -> desugaring(loc, input.type, exp)
+                else -> org.abs_models.crowbar.data.AssignStmt(loc, translateABSExpToSymExpr(exp))
+            }
         }
         is Block -> {
             val subs = input.stmts.map {translateABSStmtToSymStmt(it)  }
@@ -85,26 +131,6 @@ fun translateABSStmtToSymStmt(input: Stmt?) : org.abs_models.crowbar.data.Stmt {
             val last = subs.last()
             val tail = subs.dropLast(1)
             return tail.foldRight( last , {nx, acc -> SeqStmt(nx, acc) })
-        }
-        is VarDeclStmt -> {
-            if(input.varDecl.initExp is NewExp) return AllocateStmt(ProgVar(input.varDecl.name, input.varDecl.initExp.type.simpleName),translateABSExpToSymExpr(input.varDecl.initExp))
-            if(input.varDecl.initExp is GetExp) return SyncStmt(ProgVar(input.varDecl.name, input.varDecl.initExp.type.simpleName),translateABSExpToSymExpr(input.varDecl.initExp))
-            if(input.varDecl.initExp is AsyncCall) {
-                val v = input.varDecl.initExp as AsyncCall
-                return CallStmt(ProgVar(input.varDecl.name, input.varDecl.initExp.type.simpleName), translateABSExpToSymExpr(v.callee), translateABSExpToSymExpr(v) as CallExpr)
-            }
-            return org.abs_models.crowbar.data.AssignStmt(ProgVar(input.varDecl.name,input.varDecl.type.simpleName), translateABSExpToSymExpr(input.varDecl.initExp))
-        }
-        is AssignStmt -> {
-            val loc:Location = if(input.varNoTransform is FieldUse) Field(input.varNoTransform.name+"_f", input.varNoTransform.type.simpleName)
-                               else ProgVar(input.varNoTransform.name, input.varNoTransform.type.simpleName)
-            if(input.valueNoTransform is NewExp) return AllocateStmt(loc,translateABSExpToSymExpr(input.valueNoTransform))
-            if(input.valueNoTransform is GetExp) return SyncStmt(loc,translateABSExpToSymExpr(input.valueNoTransform))
-            if(input.valueNoTransform is AsyncCall) {
-                val v = input.valueNoTransform as AsyncCall
-                return CallStmt(loc, translateABSExpToSymExpr(v.callee), translateABSExpToSymExpr(v) as CallExpr)
-            }
-            return org.abs_models.crowbar.data.AssignStmt(loc, translateABSExpToSymExpr(input.valueNoTransform))
         }
         is WhileStmt -> {
             return org.abs_models.crowbar.data.WhileStmt(translateABSExpToSymExpr(input.conditionNoTransform),
@@ -117,6 +143,19 @@ fun translateABSStmtToSymStmt(input: Stmt?) : org.abs_models.crowbar.data.Stmt {
         is IfStmt -> return org.abs_models.crowbar.data.IfStmt(translateABSExpToSymExpr(input.conditionNoTransform), translateABSStmtToSymStmt(input.then), translateABSStmtToSymStmt(input.`else`))
         else -> throw Exception("Translation of ${input::class} not supported" )
     }
+}
+
+fun desugaring(loc: Location, type: Type, syncCall: SyncCall) : org.abs_models.crowbar.data.Stmt{
+    val calleeExpr = translateABSExpToSymExpr(syncCall.callee)
+    val callExpr = translateABSExpToSymExpr(syncCall)
+
+    if(syncCall.callee is ThisExp)
+        return SyncCallStmt(loc, calleeExpr, callExpr as SyncCallExpr)
+
+    val fut = FreshGenerator.getFreshProgVar("Fut<"+type+">")
+    val callStmt = CallStmt(fut, calleeExpr, callExpr as CallExpr)
+    val syncStmt = SyncStmt(loc, readFut(fut))
+    return SeqStmt(callStmt, syncStmt)
 }
 
 fun translateABSGuardToSymExpr(input : Guard) : Expr{

@@ -149,7 +149,7 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
 
     override fun visit(info: InfoScopeClose): String {
         // Invalidate declarations made in the current scope
-        val validDefs = varDefs.filter{ it.second < scopeLevel }
+        val validDefs = varDefs.filter { it.second < scopeLevel }
         varDefs.clear()
         varDefs.addAll(validDefs)
 
@@ -185,7 +185,7 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
         var location = renderLocation(loc)
 
         // Variables have to be declared on first use
-        if (loc is ProgVar && varDefs.none{ it.first == location }) {
+        if (loc is ProgVar && varDefs.none { it.first == location }) {
             if (declare)
                 varDefs.add(Pair(location, scopeLevel))
             // Futures and object types are replaced by placeholder strings

@@ -15,7 +15,6 @@ import com.github.ajalt.clikt.parameters.types.path
 import com.github.ajalt.clikt.parameters.types.restrictTo
 import org.abs_models.crowbar.data.Formula
 import org.abs_models.crowbar.data.True
-import org.abs_models.crowbar.interfaces.directlySafe
 import org.abs_models.crowbar.interfaces.filterAtomic
 import org.abs_models.crowbar.types.PostInvType
 import org.abs_models.crowbar.types.RegAccType
@@ -42,7 +41,10 @@ data class Repository(private val model : Model?,
                                                                               "ABS.StdLib.Fut<ABS.StdLib.Unit>"),
                       val classReqs : MutableMap<String,Pair<Formula,ClassDecl>> = mutableMapOf(),
                       val methodReqs : MutableMap<String,Pair<Formula,MethodSig>> = mutableMapOf(),
-                      val methodEnss : MutableMap<String,Pair<Formula,MethodSig>> = mutableMapOf()){
+                      val methodEnss : MutableMap<String,Pair<Formula,MethodSig>> = mutableMapOf(),
+
+                      val syncMethodReqs : MutableMap<String,Pair<Formula,MethodSig>> = mutableMapOf(),
+                      val syncMethodEnss : MutableMap<String,Pair<Formula,MethodSig>> = mutableMapOf()){
     init{
         if(model != null) {
             populateAllowedTypes(model)
@@ -74,12 +76,15 @@ data class Repository(private val model : Model?,
                 if(decl is ClassDecl){
                     for(mImpl in decl.methods){
                         val iUse = getDeclaration(mImpl.methodSig,mImpl.contextDecl as ClassDecl)
+                        val syncSpecReq = extractSpec(mImpl, "Requires")
+                        val syncSpecEns = extractSpec(mImpl, "Ensures")
+                        syncMethodReqs[decl.qualifiedName+"."+mImpl.methodSig.name] = Pair(syncSpecReq, mImpl.methodSig)
+                        syncMethodEnss[decl.qualifiedName+"."+mImpl.methodSig.name] = Pair(syncSpecEns, mImpl.methodSig)
                         if(iUse == null){
                             methodReqs[decl.qualifiedName+"."+mImpl.methodSig.name] = Pair(True, mImpl.methodSig)
                         } else {
                             val spec = extractSpec(iUse.allMethodSigs.first { it.matches(mImpl.methodSig) }, "Requires")
                             methodReqs[decl.qualifiedName+"."+mImpl.methodSig.name] = Pair(spec, mImpl.methodSig)
-
                             val spec2 = extractSpec(iUse.allMethodSigs.first { it.matches(mImpl.methodSig) }, "Ensures")
                             methodEnss[decl.qualifiedName+"."+mImpl.methodSig.name] = Pair(spec2, mImpl.methodSig)
                         }
@@ -234,24 +239,26 @@ class Main : CliktCommand() {
 
     private fun runFreeAnalysis(model: Model) : Boolean{
         val mets = mutableListOf<MethodImpl>()
+        val safemets = mutableListOf<MethodImpl>()
         val sigs = mutableListOf<MethodSig>()
         val safe = mutableListOf<MethodSig>()
         for(decl in model.moduleDecls){
             for(cDecl in decl.decls.filterIsInstance<ClassDecl>().map{it as ClassDecl}){
-                for(mImpl in cDecl.methods){
-                        if(decl.name.startsWith("ABS."))
-                             safe.add(mImpl.methodSig)
-                        else {
-                            mets.add(mImpl)
-                            sigs.add(mImpl.methodSig)
-                        }
+                for(mImpl in cDecl.methods) {
+                    if (decl.name.startsWith("ABS.")) {
+                        safe.add(mImpl.methodSig)
+                        safemets.add(mImpl)
+                    } else {
+                        mets.add(mImpl)
+                        sigs.add(mImpl.methodSig)
+                    }
                 }
             }
         }
         safe.addAll(mets.filter { triviallyFree(it) }.map { it.methodSig })
+        mets.removeAll( mets.filter { triviallyFree(it) } )
         sigs.removeAll (mets.filter { triviallyFree(it) }.map { it.methodSig })
-        sigs.removeAll(mets.filter { directlySafe(it.block, sigs, mutableListOf()) }.map { it.methodSig })
-        output("Crowbar  : Potentially deadlocking methods: \n\t${sigs.joinToString("\n\t")}")
+        output("Crowbar  : Potentially deadlocking methods: \n\t${mets.map { it.contextDecl.name+"."+it.methodSig }.joinToString("\n\t")}")
         return sigs.isEmpty()
     }
 

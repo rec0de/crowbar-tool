@@ -94,6 +94,8 @@ fun<T : ASTNode<out ASTNode<*>>?> extractSpec(decl : ASTNode<T>, expectedSpec : 
             ret = if(ret == null) next else And(ret, next)
             if(!multipleAllowed) break
         }
+    }else if (decl is MethodImpl){
+        ret = extractInheritedSpec(decl.methodSig,expectedSpec,default)
     }else {
         for (annotation in decl.nodeAnnotations) {
             if(!annotation.type.toString().endsWith(".Spec")) continue
@@ -107,10 +109,7 @@ fun<T : ASTNode<out ASTNode<*>>?> extractSpec(decl : ASTNode<T>, expectedSpec : 
             if (!multipleAllowed) break
         }
     }
-    val next = if(decl is MethodImpl) extractInheritedSpec(decl.methodSig,expectedSpec,default) else null
-    if(ret != null && next == null) return ret
-    if(ret == null && next != null) return next
-    if(ret != null && next != null) return And(ret,next)
+    if(ret != null) return ret
     if(verbosity >= Verbosity.VVV)
         println("Crowbar-v: Could not extract $expectedSpec specification, using ${default.prettyPrint()}")
     return default
