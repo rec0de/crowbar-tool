@@ -19,13 +19,15 @@ import org.abs_models.crowbar.tree.SymbolicTree
 
 object TestcaseGenerator {
 
+    var fileIndex = 1
+
     fun investigateAll(node: SymbolicNode) {
         val uncloseable = node.collectLeaves().filter { it is LogicNode && !it.evaluate() }.map { it as LogicNode }
-        var fileIndex = 1
 
         uncloseable.forEach {
             val counterexample = investigateSingle(node, it)
             writeTestcase(counterexample, fileIndex)
+            fileIndex++
         }
     }
 
