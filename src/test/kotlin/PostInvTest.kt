@@ -12,7 +12,9 @@ class PostInvTest : StringSpec ({
 			load(listOf(Paths.get("src/test/resources/exception.abs")))
 		}
 	}
-	for( smt in listOf("z3","cvc")) {
+	val cvc: String = System.getenv("CVC") ?: "cvc"
+	val z3: String = System.getenv("Z3") ?: "z3"
+	for (smt in listOf(z3, cvc)) {
 		println("testing with: $smt as backend")
 		smtPath = smt
 		"$smt success"{

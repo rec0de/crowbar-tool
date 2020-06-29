@@ -6,7 +6,9 @@ import java.nio.file.Paths
 
 class DesugaringTest : StringSpec({
     val postInv = PostInvType::class
-    for (smt in listOf("z3", "cvc")) {
+    val cvc: String = System.getenv("CVC") ?: "cvc"
+    val z3: String = System.getenv("Z3") ?: "z3"
+    for (smt in listOf(z3, cvc)) {
         println("testing with: $smt as backend")
         smtPath = smt
         "$smt desugaring"{

@@ -5,7 +5,9 @@ import org.abs_models.crowbar.types.RegAccType
 class RegAccTest : StringSpec ({
 
 	val regAcc = RegAccType::class
-	for( smt in listOf("z3","cvc")) {
+	val cvc: String = System.getenv("CVC") ?: "cvc"
+	val z3: String = System.getenv("Z3") ?: "z3"
+	for (smt in listOf(z3, cvc)) {
 		println("testing with: $smt as backend")
 		smtPath = smt
 /*
