@@ -23,13 +23,12 @@ import java.nio.file.Paths
 import kotlin.system.exitProcess
 
 enum class Verbosity { SILENT, NORMAL, V, VV, VVV }
-enum class InvestigateLevel { NONE, GENERATE, EXECUTE }
 
 var tmpPath = "/tmp/"
 var smtPath  = "z3"
 //var timeoutS  = 100
 var verbosity = Verbosity.NORMAL
-var invLevel = InvestigateLevel.NONE
+var investigate = false
 
 //todo: once allowedTypes is not needed anymore, the repository needs to be passed to fewer places
 data class Repository(private val model : Model?,
@@ -150,7 +149,7 @@ class Main : CliktCommand() {
     private val verbose    by   option("--verbose", "-v", help="verbosity output level").int().restrictTo(Verbosity.values().indices).default(Verbosity.NORMAL.ordinal)
     private val deductType by   option("--deduct", "-d", help="Used Deductive Type").choice("PostInv","RegAcc").convert { when(it){"PostInv" -> PostInvType::class; "RegAcc" -> RegAccType::class; else -> throw Exception(); } }.default(PostInvType::class)
     private val freedom    by   option("--freedom", "-fr", help="Performs a simple check for potentially deadlocking methods").flag()
-    private val investigate by  option("--investigate", "-inv", help="Generate counterexamples for uncloseable branches").flag()
+    private val invFlag    by  option("--investigate", "-inv", help="Generate counterexamples for uncloseable branches").flag()
 
     override fun run() {
 
@@ -158,9 +157,7 @@ class Main : CliktCommand() {
         smtPath = smtCmd
         verbosity = Verbosity.values()[verbose]
         // timeoutS = timeout
-
-        if(investigate)
-            invLevel = InvestigateLevel.GENERATE
+        investigate = invFlag
 
         val (model, repos) = load(filePath)
         //todo: check all VarDecls and Field Decls here
