@@ -7,6 +7,9 @@ import org.abs_models.crowbar.data.Formula
 import org.abs_models.crowbar.data.Term
 import org.abs_models.crowbar.data.Function
 import org.abs_models.crowbar.data.Location
+import org.abs_models.crowbar.data.UpdateElement
+import org.abs_models.crowbar.data.apply
+import org.abs_models.crowbar.data.exprToTerm
 
 // Abstract classes & interfaces
 
@@ -106,9 +109,12 @@ class InfoObjAlloc(val lhs: Location, val classInit: Expr, val newSMTExpr: Strin
 	override fun <ReturnType> accept(visitor: NodeInfoVisitor<ReturnType>) = visitor.visit(this)
 }
 
-class InfoReturn(val expression: Expr, postcondition: Formula, invariant: Formula) : LeafInfo, NodeInfo(isAnon = false, isHeapAnon = false) {
+class InfoReturn(val expression: Expr, postcondition: Formula, invariant: Formula, update: UpdateElement) : LeafInfo, NodeInfo(isAnon = false, isHeapAnon = false) {
+	val retExprSMT = apply(update, exprToTerm(expression)).toSMT(false)
+
 	override fun <ReturnType> accept(visitor: NodeInfoVisitor<ReturnType>) = visitor.visit(this)
 	override val obligations = listOf(Pair("Method postcondition", postcondition), Pair("Object invariant", invariant))
+	override val smtExpressions = listOf(retExprSMT)
 }
 
 class InfoSkip() : NodeInfo(isAnon = false, isHeapAnon = false) {

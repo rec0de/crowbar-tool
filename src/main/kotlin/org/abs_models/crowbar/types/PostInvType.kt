@@ -375,7 +375,7 @@ class PITSyncCallAssign(repos: Repository) : PITAssign(repos, Modality(
         // Generate SMT representation of the anonymized heap for future heap reconstruction
         val anonHeapExpr = apply(updateRightNext, Heap).toSMT(false)
         // Generate SMT expression of method return value for model evaluation
-        val returnValExpr = apply(updateRightNext, freshVar).toSMT(false)
+        val returnValExpr = if(lhs.dType == "Unit") "0" else apply(updateRightNext, freshVar).toSMT(false)
 
         val next = symbolicNext(lhs,
                 freshVar,
@@ -457,7 +457,7 @@ object PITReturn : Rule(Modality(
                         ElementaryUpdate(ReturnVar("<UNKNOWN>"), ret)), targetPost), //todo:hack
                     UpdateOnFormula(input.update, target)
             ),
-            info = InfoReturn(retExpr, targetPost, target)
+            info = InfoReturn(retExpr, targetPost, target, input.update)
         )
         return listOf(res)
     }

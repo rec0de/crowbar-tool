@@ -114,9 +114,11 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
     }
 
     override fun visit(info: InfoSyncCallAssign): String {
-        // Get location with possible type declaration both in original form
+        // Detect a stand-alone method call with no lhs
+        val unitCall = if (info.lhs is ProgVar) info.lhs.dType == "Unit" else (info.lhs as Field).dType == "Unit"
+
         val location = renderDeclLocation(info.lhs, type2str = false, declare = false)
-        val origCall = "// $location = ${renderExp(info.callee)}.${renderExp(info.call)};"
+        val origCallExp = "${renderExp(info.callee)}.${renderExp(info.call)}"
 
         // Get heap anonymization assignments
         val postHeap = model.heapMap[info.heapExpr]
@@ -125,7 +127,10 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
         val methodReturnVal = model.smtExprs[info.returnValSMT]
         val callReplacement = if (methodReturnVal != null) renderModelAssignment(info.lhs, methodReturnVal) else "// No return value available"
 
-        return indent("$origCall\n$assignmentBlock\n$callReplacement")
+        return if (unitCall)
+                indent("// $origCallExp;\n$assignmentBlock")
+            else
+                indent("// $location = $origCallExp;\n$assignmentBlock\n$callReplacement")
     }
 
     override fun visit(info: InfoLoopInitial) = indent("while(${renderExp(info.guard)}) { }")
@@ -162,7 +167,13 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
     }
 
     override fun visit(info: InfoReturn): String {
-        return indent("// return ${renderExp(info.expression)};\nprintln ${renderExp(info.expression)};")
+        val original = "// return ${renderExp(info.expression)};"
+        val replacement = "println ${renderExp(info.expression)};"
+        val eval = "// Evaluates to: ${model.smtExprs[info.retExprSMT]}"
+
+        // TODO: render eval value according to correct type
+
+        return indent("$original\n$replacement\n$eval")
     }
 
     override fun visit(info: InfoScopeClose): String {
@@ -201,13 +212,16 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
             else -> throw Exception("Cannot render unknown location: ${loc.prettyPrint()}")
         }
 
-        val renderedValue = when (type) {
+        return "$location = ${renderModelValue(value, type)};"
+    }
+
+    private fun renderModelValue(value: Int, dType: String): String {
+        return when (dType) {
             "Int" -> value.toString()
             "Fut" -> "\"${model.futNameById(value)}\""
             "Bool" -> if (value == 0) "False" else "True"
             else -> if (value == 0) "null" else "\"${getObjectById(value)}\""
         }
-        return "$location = $renderedValue;"
     }
 
     private fun renderDeclLocation(loc: Location, type2str: Boolean, declare: Boolean = true): String {
