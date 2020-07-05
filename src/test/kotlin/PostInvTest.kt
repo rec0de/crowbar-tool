@@ -350,5 +350,13 @@ class PostInvTest : StringSpec ({
 			val unexposedContractSuccess = classDecl.extractMethodNode(postInv,"unexposedContractSuccess", repos)
 			executeNode(unexposedContractSuccess, repos, postInv) shouldBe true
 		}
+
+		"$smt syncField"{
+			val (model, repos) = load(listOf(Paths.get("src/test/resources/syncField.abs")))
+			val classDecl = model.extractClassDecl("TargetField", "C", repos)
+
+			val unexposedContractFail = classDecl.extractMethodNode(postInv,"m", repos)
+			executeNode(unexposedContractFail, repos, postInv) shouldBe true
+		}
 	}
 })

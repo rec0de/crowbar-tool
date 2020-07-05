@@ -1,0 +1,22 @@
+module TargetField;
+
+data Spec = Ensures(Bool) | Requires(Bool);
+
+interface I {  [Spec : Ensures(result == 0)] Int n(); }
+
+class C  implements I {
+    Int f = 0;
+
+    [Spec : Ensures(result == 0)]
+    Int m(Int v){
+        this.f = this.n();
+    
+        return this.f;
+    }
+
+    Int n(){
+        return 0;
+    }
+}
+
+{}

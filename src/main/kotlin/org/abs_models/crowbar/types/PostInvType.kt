@@ -304,7 +304,7 @@ class PITSyncCallAssign(repos: Repository) : PITAssign(repos, Modality(
         PostInvAbstractVar("TYPE"))) {
 
     override fun transform(cond: MatchCondition, input: SymbolicState): List<SymbolicTree> {
-        val lhs = cond.map[LocationAbstractVar("LHS")] as ProgVar
+        val lhs = cond.map[LocationAbstractVar("LHS")] as Location
         val call = cond.map[SyncCallExprAbstractVar("CALL")] as SyncCallExpr
         val remainder = cond.map[StmtAbstractVar("CONT")] as Stmt
         val target = cond.map[PostInvAbstractVar("TYPE")] as DeductType
