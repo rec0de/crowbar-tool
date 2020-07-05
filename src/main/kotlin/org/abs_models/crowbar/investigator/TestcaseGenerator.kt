@@ -1,11 +1,11 @@
 package org.abs_models.crowbar.investigator
 
 import java.io.File
+import org.abs_models.crowbar.data.Term
 import org.abs_models.crowbar.data.Field
 import org.abs_models.crowbar.data.Formula
 import org.abs_models.crowbar.data.Location
 import org.abs_models.crowbar.data.ProgVar
-import org.abs_models.crowbar.data.Term
 import org.abs_models.crowbar.data.deupdatify
 import org.abs_models.crowbar.interfaces.generateSMT
 import org.abs_models.crowbar.interfaces.plainSMTCommand
@@ -65,9 +65,8 @@ object TestcaseGenerator {
         // Collect types of fields and variables from leaf node
         val pre = deupdatify(uncloseable.ante)
         val post = deupdatify(uncloseable.succ)
-        val availableDefs = ((pre.iterate { it is Term } + post.iterate { it is Term }) as Set<Term>).map { collectUsedDefinitions(it) }.flatten().toSet()
-        println(availableDefs)
-        val miscExpressions = miscExpressionTerms.filter { println(it.prettyPrint() + collectUsedDefinitions(it).toString()); collectUsedDefinitions(it).minus(availableDefs).isEmpty() }.map { it.toSMT(false) }
+        val availableDefs = ((pre.iterate { it is Term } + post.iterate { it is Term }) as Set<Term>).map{ collectUsedDefinitions(it) }.flatten().toSet()
+        val miscExpressions = miscExpressionTerms.filter{ collectUsedDefinitions(it).minus(availableDefs).isEmpty() }.map{ it.toSMT(false) }
 
         output("Investigator: parsing model....", Verbosity.V)
         val model = getModel(uncloseable, heapExpressions, newExpressions, miscExpressions)
