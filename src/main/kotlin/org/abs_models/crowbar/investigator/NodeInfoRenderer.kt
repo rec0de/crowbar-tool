@@ -177,11 +177,12 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
     override fun visit(info: InfoReturn): String {
         val original = "// return ${renderExp(info.expression)};"
         val replacement = "println ${renderExp(info.expression)};"
-        val eval = "// Evaluates to: ${model.smtExprs[info.retExpr.toSMT(false)]}"
 
-        // TODO: render eval value according to correct type
+        val evalValue = model.smtExprs[info.retExpr.toSMT(false)]
+        val eval = if (evalValue == null) "Irrelevant or unavailable value" else renderModelValue(evalValue, info.expression.absExp!!.type.simpleName)
+        val evalMsg = "// Evaluates to: $eval"
 
-        return indent("$original\n$replacement\n$eval")
+        return indent("$original\n$replacement\n$evalMsg")
     }
 
     override fun visit(info: InfoScopeClose): String {
