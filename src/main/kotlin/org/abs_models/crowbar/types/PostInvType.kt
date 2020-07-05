@@ -375,7 +375,7 @@ class PITSyncCallAssign(repos: Repository) : PITAssign(repos, Modality(
         // Generate SMT representation of the anonymized heap for future heap reconstruction
         val anonHeapExpr = apply(updateRightNext, Heap).toSMT(false)
         // Generate SMT expression of method return value for model evaluation
-        val returnValExpr = apply(updateRightNext, freshVar)
+        val returnValExpr = apply(updateRightNext, freshVar) as Term
 
         val next = symbolicNext(lhs,
                 freshVar,

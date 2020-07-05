@@ -5,6 +5,8 @@ import org.abs_models.crowbar.data.Field
 import org.abs_models.crowbar.data.Formula
 import org.abs_models.crowbar.data.Location
 import org.abs_models.crowbar.data.ProgVar
+import org.abs_models.crowbar.data.Term
+import org.abs_models.crowbar.data.deupdatify
 import org.abs_models.crowbar.interfaces.generateSMT
 import org.abs_models.crowbar.interfaces.plainSMTCommand
 import org.abs_models.crowbar.main.Verbosity
@@ -55,7 +57,17 @@ object TestcaseGenerator {
         val newExpressions = infoNodes.filter { it is InfoObjAlloc }.map { (it as InfoObjAlloc).newSMTExpr }
 
         output("Investigator: collecting other smt expressions....", Verbosity.V)
-        val miscExpressions = infoNodes.map { it.smtExpressions }.flatten().map { it.toSMT(false) }
+        val miscExpressionTerms = infoNodes.map { it.smtExpressions }.flatten()
+
+        // Remove expressions that contain definitions missing from the SMT model
+        // This will cause the solver to error out, and any expression depending on a definition
+        // not present in the SMT model is irrelevant to the correctness of the method anyway
+        // Collect types of fields and variables from leaf node
+        val pre = deupdatify(uncloseable.ante)
+        val post = deupdatify(uncloseable.succ)
+        val availableDefs = ((pre.iterate { it is Term } + post.iterate { it is Term }) as Set<Term>).map { collectUsedDefinitions(it) }.flatten().toSet()
+        println(availableDefs)
+        val miscExpressions = miscExpressionTerms.filter { println(it.prettyPrint() + collectUsedDefinitions(it).toString()); collectUsedDefinitions(it).minus(availableDefs).isEmpty() }.map { it.toSMT(false) }
 
         output("Investigator: parsing model....", Verbosity.V)
         val model = getModel(uncloseable, heapExpressions, newExpressions, miscExpressions)
