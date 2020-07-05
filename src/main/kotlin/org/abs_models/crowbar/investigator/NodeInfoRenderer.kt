@@ -90,14 +90,17 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
     }
 
     override fun visit(info: InfoGetAssign): String {
-        // Get location with possible type declaration both in original form and executable form
         val location = renderDeclLocation(info.lhs, type2str = false, declare = false)
-        val strLocation = renderDeclLocation(info.lhs, type2str = true)
-
         val origGet = "// $location = ${renderExp(info.expression)};"
 
-        val futureValue = model.smtExprs[info.futureExpr]
-        val getReplacement = if (futureValue != null) "$strLocation = $futureValue;" else "// No future evaluation info available"
+        var futureValue = model.smtExprs[info.futureExpr.toSMT(false)]
+        var getReplacement = ""
+        if (futureValue == null) {
+            getReplacement = "// Future value irrelevant or unavailable, using default:\n"
+            futureValue = 0
+        }
+
+        getReplacement += renderModelAssignment(info.lhs, futureValue)
 
         return indent("$origGet\n$getReplacement")
     }
@@ -124,8 +127,13 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
         val postHeap = model.heapMap[info.heapExpr]
         val assignmentBlock = renderHeapAssignmentBlock(postHeap)
 
-        val methodReturnVal = model.smtExprs[info.returnValSMT]
-        val callReplacement = if (methodReturnVal != null) renderModelAssignment(info.lhs, methodReturnVal) else "// No return value available"
+        var methodReturnVal = model.smtExprs[info.returnValExpr.toSMT(false)]
+        var callReplacement = ""
+        if (methodReturnVal == null) {
+            callReplacement = "// Return value irrelevant or unavailable, using default:\n"
+            methodReturnVal = 0
+        }
+        callReplacement += renderModelAssignment(info.lhs, methodReturnVal)
 
         return if (unitCall)
                 indent("// $origCallExp;\n$assignmentBlock")
@@ -169,7 +177,7 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
     override fun visit(info: InfoReturn): String {
         val original = "// return ${renderExp(info.expression)};"
         val replacement = "println ${renderExp(info.expression)};"
-        val eval = "// Evaluates to: ${model.smtExprs[info.retExprSMT]}"
+        val eval = "// Evaluates to: ${model.smtExprs[info.retExpr.toSMT(false)]}"
 
         // TODO: render eval value according to correct type
 
@@ -220,6 +228,7 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
             "Int" -> value.toString()
             "Fut" -> "\"${model.futNameById(value)}\""
             "Bool" -> if (value == 0) "False" else "True"
+            "<UNKNOWN>" -> "\"unknownType($value)\""
             else -> if (value == 0) "null" else "\"${getObjectById(value)}\""
         }
     }

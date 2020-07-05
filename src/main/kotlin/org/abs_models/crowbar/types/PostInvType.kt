@@ -211,8 +211,8 @@ class PITSyncAssign(repos: Repository) : PITAssign(repos, Modality(
         val target = cond.map[PostInvAbstractVar("TYPE")] as DeductType
 
         // Generate SMT representation of the future expression to get its model value later
-        val futureSMTExpr = apply(input.update, rhs).toSMT(false)
-        val info = InfoGetAssign(lhs, rhsExpr, "(valueOf $futureSMTExpr)")
+        val futureSMTExpr = valueOfFunc(apply(input.update, rhs) as Term)
+        val info = InfoGetAssign(lhs, rhsExpr, futureSMTExpr)
 
         return listOf(symbolicNext(lhs, rhs, remainder, target, input.condition, input.update, info))
     }
@@ -375,7 +375,7 @@ class PITSyncCallAssign(repos: Repository) : PITAssign(repos, Modality(
         // Generate SMT representation of the anonymized heap for future heap reconstruction
         val anonHeapExpr = apply(updateRightNext, Heap).toSMT(false)
         // Generate SMT expression of method return value for model evaluation
-        val returnValExpr = if(lhs.dType == "Unit") "0" else apply(updateRightNext, freshVar).toSMT(false)
+        val returnValExpr = apply(updateRightNext, freshVar)
 
         val next = symbolicNext(lhs,
                 freshVar,

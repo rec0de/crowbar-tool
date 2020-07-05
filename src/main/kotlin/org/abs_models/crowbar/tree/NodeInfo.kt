@@ -7,6 +7,7 @@ import org.abs_models.crowbar.data.Formula
 import org.abs_models.crowbar.data.Term
 import org.abs_models.crowbar.data.Function
 import org.abs_models.crowbar.data.Location
+import org.abs_models.crowbar.data.LogicElement
 import org.abs_models.crowbar.data.UpdateElement
 import org.abs_models.crowbar.data.apply
 import org.abs_models.crowbar.data.exprToTerm
@@ -15,7 +16,7 @@ import org.abs_models.crowbar.data.exprToTerm
 
 abstract class NodeInfo(val isAnon: Boolean, val isHeapAnon: Boolean) {
 	open val isSignificantBranch = false
-	open val smtExpressions = listOf<String>()
+	open val smtExpressions = listOf<LogicElement>()
 	open val heapExpressions = listOf<String>()
 	abstract fun <ReturnType> accept(visitor: NodeInfoVisitor<ReturnType>): ReturnType
 }
@@ -90,7 +91,7 @@ class InfoLocAssign(val lhs: Location, val expression: Expr) : NodeInfo(isAnon =
 	override fun <ReturnType> accept(visitor: NodeInfoVisitor<ReturnType>) = visitor.visit(this)
 }
 
-class InfoGetAssign(val lhs: Location, val expression: Expr, val futureExpr: String) : NodeInfo(isAnon = false, isHeapAnon = false) {
+class InfoGetAssign(val lhs: Location, val expression: Expr, val futureExpr: LogicElement) : NodeInfo(isAnon = false, isHeapAnon = false) {
 	override fun <ReturnType> accept(visitor: NodeInfoVisitor<ReturnType>) = visitor.visit(this)
 	override val smtExpressions = listOf(futureExpr)
 }
@@ -99,9 +100,9 @@ class InfoCallAssign(val lhs: Location, val callee: Expr, val call: CallExpr, va
 	override fun <ReturnType> accept(visitor: NodeInfoVisitor<ReturnType>) = visitor.visit(this)
 }
 
-class InfoSyncCallAssign(val lhs: Location, val callee: Expr, val call: SyncCallExpr, val heapExpr: String, val returnValSMT: String) : NodeInfo(isAnon = false, isHeapAnon = true) {
+class InfoSyncCallAssign(val lhs: Location, val callee: Expr, val call: SyncCallExpr, val heapExpr: String, val returnValExpr: LogicElement) : NodeInfo(isAnon = false, isHeapAnon = true) {
 	override fun <ReturnType> accept(visitor: NodeInfoVisitor<ReturnType>) = visitor.visit(this)
-	override val smtExpressions = listOf(returnValSMT)
+	override val smtExpressions = listOf(returnValExpr)
 	override val heapExpressions = listOf(heapExpr)
 }
 
@@ -110,11 +111,11 @@ class InfoObjAlloc(val lhs: Location, val classInit: Expr, val newSMTExpr: Strin
 }
 
 class InfoReturn(val expression: Expr, postcondition: Formula, invariant: Formula, update: UpdateElement) : LeafInfo, NodeInfo(isAnon = false, isHeapAnon = false) {
-	val retExprSMT = apply(update, exprToTerm(expression)).toSMT(false)
+	val retExpr = apply(update, exprToTerm(expression))
 
 	override fun <ReturnType> accept(visitor: NodeInfoVisitor<ReturnType>) = visitor.visit(this)
 	override val obligations = listOf(Pair("Method postcondition", postcondition), Pair("Object invariant", invariant))
-	override val smtExpressions = listOf(retExprSMT)
+	override val smtExpressions = listOf(retExpr)
 }
 
 class InfoSkip() : NodeInfo(isAnon = false, isHeapAnon = false) {

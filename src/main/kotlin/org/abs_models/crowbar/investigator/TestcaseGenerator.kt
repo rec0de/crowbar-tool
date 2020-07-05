@@ -55,7 +55,7 @@ object TestcaseGenerator {
         val newExpressions = infoNodes.filter { it is InfoObjAlloc }.map { (it as InfoObjAlloc).newSMTExpr }
 
         output("Investigator: collecting other smt expressions....", Verbosity.V)
-        val miscExpressions = infoNodes.map { it.smtExpressions }.flatten()
+        val miscExpressions = infoNodes.map { it.smtExpressions }.flatten().map { it.toSMT(false) }
 
         output("Investigator: parsing model....", Verbosity.V)
         val model = getModel(uncloseable, heapExpressions, newExpressions, miscExpressions)
