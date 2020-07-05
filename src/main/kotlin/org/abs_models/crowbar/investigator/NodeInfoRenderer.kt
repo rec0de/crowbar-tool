@@ -53,6 +53,20 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
         return indent("// Assume the following pre-state:\n$initAssign\n// End of setup\n")
     }
 
+    override fun visit(info: InfoClassPrecondition) = ""
+
+    override fun visit(info: InfoMethodPrecondition) = ""
+
+    override fun visit(info: InfoNullCheck) = ""
+
+    override fun visit(info: InfoSkip) = ""
+
+    override fun visit(info: InfoSkipEnd) = ""
+
+    override fun visit(info: InfoInvariant) = ""
+
+    override fun visit(info: NoInfo) = ""
+
     override fun visit(info: InfoAwaitUse): String {
         val postHeap = model.heapMap[info.heapExpr]
         val assignmentBlock = renderHeapAssignmentBlock(postHeap)
@@ -61,12 +75,6 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
 
         return indent("\n// await $renderedGuard;\n$assignmentBlock\n")
     }
-
-    override fun visit(info: InfoClassPrecondition) = ""
-
-    override fun visit(info: InfoMethodPrecondition) = ""
-
-    override fun visit(info: InfoNullCheck) = ""
 
     override fun visit(info: InfoIfElse): String {
         val res =  indent("if(${renderExp(info.guard)}){}\nelse{")
@@ -80,8 +88,6 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
         scopeLevel += 1
         return res
     }
-
-    override fun visit(info: InfoInvariant) = ""
 
     override fun visit(info: InfoLocAssign): String {
         val location = renderDeclLocation(info.lhs, type2str = true)
@@ -195,45 +201,6 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
         return indent("}")
     }
 
-    override fun visit(info: InfoSkip) = ""
-
-    override fun visit(info: InfoSkipEnd) = ""
-
-    override fun visit(info: NoInfo) = ""
-
-    private fun renderHeapAssignmentBlock(postHeap: List<Pair<Field, Int>>?): String {
-        return if (postHeap == null)
-            "// No heap modification info available at this point"
-        else if (postHeap.size == 0)
-            "// Heap remains unchanged here"
-        else {
-            val assignments = postHeap.map { renderModelAssignment(it.first, it.second) }.joinToString("\n")
-            "// Assume the following assignments while blocked:\n$assignments\n// End assignments"
-        }
-    }
-
-    private fun renderModelAssignment(loc: Location, value: Int): String {
-        val location = renderDeclLocation(loc, type2str = true)
-
-        val type = when (loc) {
-            is Field -> loc.dType
-            is ProgVar -> loc.dType
-            else -> throw Exception("Cannot render unknown location: ${loc.prettyPrint()}")
-        }
-
-        return "$location = ${renderModelValue(value, type)};"
-    }
-
-    private fun renderModelValue(value: Int, dType: String): String {
-        return when (dType) {
-            "Int" -> value.toString()
-            "Fut" -> "\"${model.futNameById(value)}\""
-            "Bool" -> if (value == 0) "False" else "True"
-            "<UNKNOWN>" -> "\"unknownType($value)\""
-            else -> if (value == 0) "null" else "\"${getObjectById(value)}\""
-        }
-    }
-
     private fun renderDeclLocation(loc: Location, type2str: Boolean, declare: Boolean = true): String {
         var location = renderLocation(loc)
 
@@ -284,9 +251,38 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
         }
     }
 
-    private fun renderExp(e: Expr) = renderExpression(e, varRemaps)
+    private fun renderHeapAssignmentBlock(postHeap: List<Pair<Field, Int>>?): String {
+        return if (postHeap == null)
+            "// No heap modification info available at this point"
+        else if (postHeap.size == 0)
+            "// Heap remains unchanged here"
+        else {
+            val assignments = postHeap.map { renderModelAssignment(it.first, it.second) }.joinToString("\n")
+            "// Assume the following assignments while blocked:\n$assignments\n// End assignments"
+        }
+    }
 
-    private fun renderFormula(formula: Formula) = renderFormula(formula, varRemaps)
+    private fun renderModelAssignment(loc: Location, value: Int): String {
+        val location = renderDeclLocation(loc, type2str = true)
+
+        val type = when (loc) {
+            is Field -> loc.dType
+            is ProgVar -> loc.dType
+            else -> throw Exception("Cannot render unknown location: ${loc.prettyPrint()}")
+        }
+
+        return "$location = ${renderModelValue(value, type)};"
+    }
+
+    private fun renderModelValue(value: Int, dType: String): String {
+        return when (dType) {
+            "Int" -> value.toString()
+            "Fut" -> "\"${model.futNameById(value)}\""
+            "Bool" -> if (value == 0) "False" else "True"
+            "<UNKNOWN>" -> "\"unknownType($value)\""
+            else -> if (value == 0) "null" else "\"${getObjectById(value)}\""
+        }
+    }
 
     private fun getObjectBySMT(smtRep: String): String {
         if (!objMap.containsKey(smtRep)) {
@@ -304,6 +300,10 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
         val smtRep = model.objLookup[id]!!
         return getObjectBySMT(smtRep)
     }
+
+    private fun renderExp(e: Expr) = renderExpression(e, varRemaps)
+
+    private fun renderFormula(formula: Formula) = renderFormula(formula, varRemaps)
 
     private fun indent(text: String) = indent(text, scopeLevel)
 }
