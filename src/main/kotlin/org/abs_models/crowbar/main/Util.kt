@@ -1,6 +1,7 @@
 package org.abs_models.crowbar.main
 
 import org.abs_models.crowbar.data.*
+import org.abs_models.crowbar.data.Function
 import org.abs_models.crowbar.data.Stmt
 import org.abs_models.crowbar.interfaces.translateABSExpToSymExpr
 import org.abs_models.crowbar.tree.LogicNode
@@ -93,10 +94,10 @@ fun<T : ASTNode<out ASTNode<*>>?> extractSpec(decl : ASTNode<T>, expectedSpec : 
             ret = if(ret == null) next else And(ret, next)
             if(!multipleAllowed) break
         }
-    }else if (decl is MethodImpl){
+    }else if (decl is MethodImpl && decl !is FunctionDecl){
         ret = extractInheritedSpec(decl.methodSig,expectedSpec,default)
     }else {
-        for (annotation in decl.nodeAnnotations) {
+        for (annotation in decl.nodeAnnotations){
             if(!annotation.type.toString().endsWith(".Spec")) continue
             if(annotation.value !is DataConstructorExp) {
                 throw Exception("Could not extract any specification from $decl because of the expected value")
@@ -104,14 +105,16 @@ fun<T : ASTNode<out ASTNode<*>>?> extractSpec(decl : ASTNode<T>, expectedSpec : 
             val annotated = annotation.value as DataConstructorExp
             if(annotated.constructor != expectedSpec) continue
             val next = exprToForm(translateABSExpToSymExpr(annotated.getParam(0) as Exp))
-            ret = if (ret == null) next else And(ret, next)
-            if (!multipleAllowed) break
+            ret = if(ret == null) next else And(ret, next)
+            if(!multipleAllowed) break
         }
     }
-    if(ret != null) return ret
-    if(verbosity >= Verbosity.VVV)
-        println("Crowbar-v: Could not extract $expectedSpec specification, using ${default.prettyPrint()}")
-    return default
+    if(ret == null) {
+        ret = default
+        if(verbosity >= Verbosity.VVV)
+            println("Crowbar-v: Could not extract $expectedSpec specification, using ${default.prettyPrint()}")
+    }
+    return oldExtract(ret) as Formula //Todo: add warning for old in precondition
 }
 
 
@@ -273,4 +276,37 @@ fun getIDeclaration(mSig: MethodSig, iDecl : InterfaceDecl): InterfaceDecl?{
         if(ret != null) return ret
     }
     return null
+}
+
+fun oldExtract(input: LogicElement) : LogicElement {
+    return when(input){
+        is Function -> {
+            if (input.name == "old"){
+                if(input.params.size == 1) {
+                    return oldHeapExtract(input.params[0])
+                }else
+                    throw Exception("Special keyword old must have one argument, actual arguments size:" + input.params.size)
+            }
+            return Function(input.name, input.params.map { p -> oldExtract(p) as Term })
+        }
+        is Predicate -> Predicate(input.name, input.params.map { p -> oldExtract(p) as Term })
+        is Impl -> Impl(oldExtract(input.left) as Formula, oldExtract(input.right) as Formula)
+        is And -> And(oldExtract(input.left) as Formula, oldExtract(input.right) as Formula)
+        is Or -> Or(oldExtract(input.left) as Formula, oldExtract(input.right) as Formula)
+        is Not -> Not(oldExtract(input.left) as Formula)
+        else                -> input
+    }
+}
+
+fun oldHeapExtract(input: LogicElement) : LogicElement {
+    return when(input){
+        is Function     -> Function(input.name, input.params.map { p -> oldHeapExtract(p) as Term })
+        is Predicate    -> Predicate(input.name, input.params.map { p -> oldHeapExtract(p) as Term })
+        is Impl -> Impl(oldHeapExtract(input.left) as Formula, oldHeapExtract(input.right) as Formula)
+        is And  -> And(oldHeapExtract(input.left) as Formula, oldHeapExtract(input.right) as Formula)
+        is Or   -> Or(oldHeapExtract(input.left) as Formula, oldHeapExtract(input.right) as Formula)
+        is Not  -> Not(oldHeapExtract(input.left) as Formula)
+        is Heap -> OldHeap
+        else    -> input
+    }
 }

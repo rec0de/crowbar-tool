@@ -54,8 +54,8 @@ interface PostInvType : DeductType{
         }
         output("Crowbar-v: method post-condition: ${metpost.prettyPrint()}", Verbosity.V)
         output("Crowbar-v: object invariant: ${objInv.prettyPrint()}",Verbosity.V)
-
-        symb = SymbolicState(And(objInv,metpre), EmptyUpdate, Modality(body, PostInvariantPair(metpost, objInv)))
+        val updateOldHeap = ElementaryUpdate(OldHeap, Heap)
+        symb = SymbolicState(And(objInv,metpre), updateOldHeap, Modality(body, PostInvariantPair(metpost, objInv)))
         return SymbolicNode(symb, emptyList())
     }
 

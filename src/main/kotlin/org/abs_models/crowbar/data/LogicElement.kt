@@ -108,34 +108,54 @@ object False : Formula {
 
 
 object Heap : ProgVar("heap","Heap")
+object OldHeap : ProgVar("oldheap","Heap")
 
 fun store(field: Field, value : Term) : Function = Function("store", listOf(Heap, field, value))
 fun select(field : Field) : Function = Function("select", listOf(Heap, field))
 fun anon(heap : Term) : Function = Function("anon", listOf(heap))
 fun poll(term : Term) : Function = Function("poll", listOf(term))
 fun readFut(term : Expr) : Expr = SExpr("valueOf", listOf(term))
-
-fun exprToTerm(input : Expr) : Term {
+fun exprToTerm(input : Expr, old : Boolean=false) : Term {
     return when(input){
-     is ProgVar -> input
-     is Field -> select(input)
-     is PollExpr -> poll(exprToTerm(input.e1))
-     is Const -> Function(input.name)
-     is SExpr -> Function(input.op, input.e.map { ex -> exprToTerm(ex) })
-     else -> throw Exception("Expression cannot be converted to term: "+input.prettyPrint())
+        is ProgVar -> input
+        is Field -> {
+            if(old)
+                return Function("old", listOf(select(input)))
+            return select(input)
+        }
+        is PollExpr -> poll(exprToTerm(input.e1))
+        is Const -> Function(input.name)
+        is SExpr -> {
+            if(input.op == "old")
+                if(input.e.size == 1)
+                    Function(input.op, input.e.map { ex -> exprToTerm(ex, true) })
+                else
+                    throw Exception("Special keyword old must have one argument, actual arguments size:" + input.e.size)
+            Function(input.op, input.e.map { ex -> exprToTerm(ex, old) })
+        }
+        else -> throw Exception("Expression cannot be converted to term: "+input.prettyPrint())
     }
 }
 
 //todo: the comparisons with 1 should be removed once the Bool data type is split from Int
-fun exprToForm(input : Expr) : Formula {
-    if(input is SExpr && input.op == "&&" && input.e.size ==2 ) return And(exprToForm(input.e[0]), exprToForm(input.e[1]))
-    if(input is SExpr && input.op == "||" && input.e.size ==2 ) return Or(exprToForm(input.e[0]), exprToForm(input.e[1]))
-    if(input is SExpr && input.op == "->" && input.e.size ==2 ) return Impl(exprToForm(input.e[0]), exprToForm(input.e[1]))
+fun exprToForm(input : Expr, old : Boolean=false) : Formula {
+    if(input is SExpr && input.op == "&&" && input.e.size ==2 ) return And(exprToForm(input.e[0], old), exprToForm(input.e[1], old))
+    if(input is SExpr && input.op == "||" && input.e.size ==2 ) return Or(exprToForm(input.e[0], old), exprToForm(input.e[1], old))
+    if(input is SExpr && input.op == "->" && input.e.size ==2 ) return Impl(exprToForm(input.e[0], old), exprToForm(input.e[1], old))
     if(input is SExpr && input.op == "!" && input.e.size ==1 ) return Not(exprToForm(input.e[0]))
-    if(input is SExpr && input.op == "!=") return Not(exprToForm(SExpr("=",input.e)))
-    if(input is SExpr) return Predicate(input.op, input.e.map { ex -> exprToTerm(ex) })
+    if(input is SExpr && input.op == "!=") return Not(exprToForm(SExpr("=",input.e), old))
+
+    if(input is SExpr){
+        if(input.op == "old"){
+            if(input.e.size == 1) {
+                return exprToForm(input.e[0], true)
+            }else
+                throw Exception("Special keyword old must have one argument, actual arguments size:" + input.e.size)
+        }
+        return Predicate(input.op, input.e.map { ex -> exprToTerm(ex, old) })
+    }
     if(input is Field || input is ProgVar || input is Const)
-        return exprToForm(SExpr("=",listOf(input, Const("1"))))
+        return exprToForm(SExpr("=",listOf(input, Const("1"))), old)
     throw Exception("Expression cannot be converted to formula: $input")
 }
 

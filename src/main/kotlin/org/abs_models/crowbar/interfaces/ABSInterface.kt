@@ -16,6 +16,7 @@ import org.abs_models.frontend.ast.WhileStmt
 import org.abs_models.frontend.typechecker.Type
 
 fun translateABSExpToSymExpr(input : Exp) : Expr {
+    val specialKeywords = listOf("old") //TODO: add "last"
     return when(input){
         is FieldUse        -> Field(input.name+"_f",input.type.simpleName)
         is IntLiteral      -> Const(input.content)
@@ -61,13 +62,17 @@ fun translateABSExpToSymExpr(input : Exp) : Expr {
                 "False"         -> Const("0")
                 else            -> throw Exception("Translation of data ${input::class} not supported, term is $input" )
             }
-        is FnApp ->
-            if(input.name == "valueOf") 
-                readFut(translateABSExpToSymExpr(input.params.getChild(0)))
-            else if(FunctionRepos.isKnown(input.decl.qualifiedName))
-                SExpr(input.decl.qualifiedName.replace(".","-"),input.params.map { translateABSExpToSymExpr(it) })
-            else
-                throw Exception("Translation of FnApp is not fully supported, term is $input with function ${input.name}" )
+                is FnApp                ->
+                    if (input.name == "valueOf")
+                        readFut(translateABSExpToSymExpr(input.params.getChild(0)))
+                  else if (input.decl is UnknownDecl){ if(input.name in specialKeywords)
+                        SExpr(input.name,input.params.map { translateABSExpToSymExpr(it) })
+                        else
+                            throw Exception("Unknown declaration of function ${input.name}")
+                    }
+                    else if(FunctionRepos.isKnown(input.decl.qualifiedName)) {
+                            SExpr(input.decl.qualifiedName.replace(".","-"),input.params.map { translateABSExpToSymExpr(it) })
+                        } else throw Exception("Translation of FnApp is not fully supported, term is $input with function ${input.name}" )
         is IfExp -> SExpr("iite", listOf(translateABSExpToSymExpr(input.condExp),translateABSExpToSymExpr(input.thenExp),translateABSExpToSymExpr(input.elseExp)))
         is Call -> {
             val met = input.methodSig.contextDecl.qualifiedName+"."+input.methodSig.name
