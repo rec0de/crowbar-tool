@@ -314,7 +314,8 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
 
     private fun renderExp(e: Expr) = renderExpression(e, varRemaps)
 
-    private fun renderFormula(formula: Formula) = renderFormula(formula, varRemaps)
+    // Public to allow rendering of formulas with correct replacements from elsewhere
+    fun renderFormula(formula: Formula) = renderFormula(formula, varRemaps)
 
     private fun indent(text: String) = indent(text, scopeLevel)
 }

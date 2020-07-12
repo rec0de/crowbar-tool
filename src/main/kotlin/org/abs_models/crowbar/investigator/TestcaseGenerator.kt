@@ -16,6 +16,7 @@ import org.abs_models.crowbar.tree.InfoNode
 import org.abs_models.crowbar.tree.InfoObjAlloc
 import org.abs_models.crowbar.tree.LeafInfo
 import org.abs_models.crowbar.tree.LogicNode
+import org.abs_models.crowbar.tree.NodeInfo
 import org.abs_models.crowbar.tree.SymbolicNode
 import org.abs_models.crowbar.tree.SymbolicTree
 
@@ -72,15 +73,8 @@ object TestcaseGenerator {
         val model = getModel(uncloseable, heapExpressions, newExpressions, miscExpressions)
 
         output("Investigator: rendering counterexample....", Verbosity.V)
-        NodeInfoRenderer.reset(model)
-        val fieldDefs = NodeInfoRenderer.fieldDefs()
-        val statements = mutableListOf<String>(NodeInfoRenderer.initAssignments())
 
-        for (it in branchNodes.asReversed()) {
-            statements.add((it as InfoNode).info.accept(NodeInfoRenderer))
-        }
-
-        return buildTestcase(statements, obligations, fieldDefs)
+        return buildTestcase(infoNodes.asReversed(), model, obligations)
     }
 
     private fun collectBranchNodes(root: SymbolicNode, leaf: SymbolicTree): List<SymbolicTree> {
@@ -139,7 +133,7 @@ object TestcaseGenerator {
         if (miscExpressions.size > 0)
             baseModel += "(get-value (${miscExpressions.joinToString(" ")}))"
 
-        // Get state at full anonymization point
+        // Get evaluations of all collected expressions (heap states after anon, new objects, future values, etc)
         val smtRep = generateSMT(leaf.ante, leaf.succ, modelCmd = baseModel)
         val solverResponse = plainSMTCommand(smtRep)!!
 
@@ -225,25 +219,29 @@ object TestcaseGenerator {
         return objMap
     }
 
-    private fun buildTestcase(statements: List<String>, obligations: List<Pair<String, Formula>>, fieldDefs: List<String>): String {
-
+    private fun buildTestcase(infoNodes: List<NodeInfo>, model: Model, obligations: List<Pair<String, Formula>>): String {
         val classFrameHeader = "module Counterexample;\n\nclass CeFrame {\n"
         val classFrameFooter = "\n}\n"
-
-        val fieldBlock = fieldDefs.joinToString("\n")
 
         val methodFrameHeader = "Unit ce() {\n"
         val methodFrameFooter = "\n}"
 
-        // TODO: Move this into NodeInfoRenderer
+        NodeInfoRenderer.reset(model)
+        val fieldDefs = NodeInfoRenderer.fieldDefs().joinToString("\n")
+        val statements = mutableListOf<String>(NodeInfoRenderer.initAssignments())
+
+        for (it in infoNodes) {
+            statements.add(it.accept(NodeInfoRenderer))
+        }
+
         val stmtString = statements.joinToString("\n")
         val explainer = "\n// Proof failed here. Trying to show:\n"
-        val oblString = obligations.map { "// ${it.first}: ${renderFormula(it.second, mapOf())}" }.joinToString("\n")
+        val oblString = obligations.map { "// ${it.first}: ${NodeInfoRenderer.renderFormula(it.second)}" }.joinToString("\n")
 
         val methodContent = stmtString + explainer + oblString
         val methodFrame = methodFrameHeader + indent(methodContent, 1) + methodFrameFooter
 
-        val classFrame = classFrameHeader + indent(fieldBlock, 1) + "\n\n" + indent(methodFrame, 1) + classFrameFooter
+        val classFrame = classFrameHeader + indent(fieldDefs, 1) + "\n\n" + indent(methodFrame, 1) + classFrameFooter
 
         return classFrame
     }
