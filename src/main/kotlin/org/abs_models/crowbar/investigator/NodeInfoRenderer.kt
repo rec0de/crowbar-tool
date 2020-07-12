@@ -53,6 +53,16 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
         return indent("// Assume the following pre-state:\n$initAssign\n// End of setup\n")
     }
 
+    fun fieldDefs(): List<String> {
+        val fields = model.initState.filter { it.first is Field }.map { it.first as Field }
+        val defs = fields.map {
+            val name = it.name.substring(0, it.name.length - 2)
+            val value = renderModelValue(0, it.dType)
+            "${complexTypeToString(it.dType)} $name = $value;"
+        }
+        return defs
+    }
+
     override fun visit(info: InfoClassPrecondition) = ""
 
     override fun visit(info: InfoMethodPrecondition) = ""
@@ -153,7 +163,8 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
         val text = "// Known true:\n" +
             "// Loop guard: ${renderExp(info.guard)}\n" +
             "// Loop invariant: ${renderFormula(info.loopInv)}\n" +
-            "while(${renderExp(info.guard)}) {"
+            "// while(${renderExp(info.guard)}) {\n" +
+            "{"
         val res = indent(text)
 
         scopeLevel += 1

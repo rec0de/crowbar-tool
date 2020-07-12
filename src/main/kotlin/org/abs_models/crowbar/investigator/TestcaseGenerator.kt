@@ -1,11 +1,11 @@
 package org.abs_models.crowbar.investigator
 
 import java.io.File
-import org.abs_models.crowbar.data.Term
 import org.abs_models.crowbar.data.Field
 import org.abs_models.crowbar.data.Formula
 import org.abs_models.crowbar.data.Location
 import org.abs_models.crowbar.data.ProgVar
+import org.abs_models.crowbar.data.Term
 import org.abs_models.crowbar.data.deupdatify
 import org.abs_models.crowbar.interfaces.generateSMT
 import org.abs_models.crowbar.interfaces.plainSMTCommand
@@ -65,22 +65,22 @@ object TestcaseGenerator {
         // Collect types of fields and variables from leaf node
         val pre = deupdatify(uncloseable.ante)
         val post = deupdatify(uncloseable.succ)
-        val availableDefs = ((pre.iterate { it is Term } + post.iterate { it is Term }) as Set<Term>).map{ collectUsedDefinitions(it) }.flatten().toSet()
-        val miscExpressions = miscExpressionTerms.filter{ collectUsedDefinitions(it).minus(availableDefs).isEmpty() }.map{ it.toSMT(false) }
+        val availableDefs = ((pre.iterate { it is Term } + post.iterate { it is Term }) as Set<Term>).map { collectUsedDefinitions(it) }.flatten().toSet()
+        val miscExpressions = miscExpressionTerms.filter { collectUsedDefinitions(it).minus(availableDefs).isEmpty() }.map { it.toSMT(false) }
 
         output("Investigator: parsing model....", Verbosity.V)
         val model = getModel(uncloseable, heapExpressions, newExpressions, miscExpressions)
-        val fields = model.initState.filter { it.first is Field }.map { it.first as Field }
 
         output("Investigator: rendering counterexample....", Verbosity.V)
         NodeInfoRenderer.reset(model)
+        val fieldDefs = NodeInfoRenderer.fieldDefs()
         val statements = mutableListOf<String>(NodeInfoRenderer.initAssignments())
 
         for (it in branchNodes.asReversed()) {
             statements.add((it as InfoNode).info.accept(NodeInfoRenderer))
         }
 
-        return buildTestcase(statements, obligations, fields)
+        return buildTestcase(statements, obligations, fieldDefs)
     }
 
     private fun collectBranchNodes(root: SymbolicNode, leaf: SymbolicTree): List<SymbolicTree> {
@@ -225,12 +225,12 @@ object TestcaseGenerator {
         return objMap
     }
 
-    private fun buildTestcase(statements: List<String>, obligations: List<Pair<String, Formula>>, fields: List<Field>): String {
+    private fun buildTestcase(statements: List<String>, obligations: List<Pair<String, Formula>>, fieldDefs: List<String>): String {
 
         val classFrameHeader = "module Counterexample;\n\nclass CeFrame {\n"
         val classFrameFooter = "\n}\n"
 
-        val fieldDefs = fields.map { "${complexTypeToString(it.dType)} ${it.name.substring(0, it.name.length - 2)};" }.joinToString("\n")
+        val fieldBlock = fieldDefs.joinToString("\n")
 
         val methodFrameHeader = "Unit ce() {\n"
         val methodFrameFooter = "\n}"
@@ -243,7 +243,7 @@ object TestcaseGenerator {
         val methodContent = stmtString + explainer + oblString
         val methodFrame = methodFrameHeader + indent(methodContent, 1) + methodFrameFooter
 
-        val classFrame = classFrameHeader + indent(fieldDefs, 1) + "\n\n" + indent(methodFrame, 1) + classFrameFooter
+        val classFrame = classFrameHeader + indent(fieldBlock, 1) + "\n\n" + indent(methodFrame, 1) + classFrameFooter
 
         return classFrame
     }
