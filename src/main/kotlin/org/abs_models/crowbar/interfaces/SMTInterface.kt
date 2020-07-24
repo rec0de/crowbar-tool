@@ -13,6 +13,7 @@ val smtHeader = """
     (define-sort MHeap () (Array Field Int))
     (declare-const heap MHeap)
     (declare-const oldheap MHeap)
+    (declare-const lastheap MHeap)
     (declare-fun   anon (MHeap) MHeap)
     (declare-fun   valueOf (Int) Int)
     (define-fun iOr((x Int) (y Int)) Int
@@ -44,7 +45,7 @@ fun generateSMT(ante : Formula, succ: Formula) : String {
     val post = deupdatify(Not(succ))
 
     val fields =  (pre.iterate { it is Field } + post.iterate { it is Field }) as Set<Field>
-    val vars =  ((pre.iterate { it is ProgVar } + post.iterate { it is ProgVar  }) as Set<ProgVar>).filter { it.name != "heap" && it.name != "oldheap"}
+    val vars =  ((pre.iterate { it is ProgVar } + post.iterate { it is ProgVar  }) as Set<ProgVar>).filter { it.name != "heap" && it.name !in specialHeapKeywords}
     val heaps =  ((pre.iterate { it is Function } + post.iterate{ it is Function }) as Set<Function>).map { it.name }.filter { it.startsWith("NEW") }
     val futs =  ((pre.iterate { it is Function } + post.iterate { it is Function }) as Set<Function>).filter { it.name.startsWith("fut_") }
     val funcs =  ((pre.iterate { it is Function } + post.iterate { it is Function }) as Set<Function>).filter { it.name.startsWith("f_") }

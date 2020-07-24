@@ -16,7 +16,7 @@ import org.abs_models.frontend.ast.WhileStmt
 import org.abs_models.frontend.typechecker.Type
 
 fun translateABSExpToSymExpr(input : Exp) : Expr {
-    val specialKeywords = listOf("old") //TODO: add "last"
+
     return when(input){
         is FieldUse        -> Field(input.name+"_f",input.type.simpleName)
         is IntLiteral      -> Const(input.content)
@@ -65,8 +65,9 @@ fun translateABSExpToSymExpr(input : Exp) : Expr {
                 is FnApp                ->
                     if (input.name == "valueOf")
                         readFut(translateABSExpToSymExpr(input.params.getChild(0)))
-                  else if (input.decl is UnknownDecl){ if(input.name in specialKeywords)
-                        SExpr(input.name,input.params.map { translateABSExpToSymExpr(it) })
+                  else if (input.decl is UnknownDecl){
+                        if(specialHeapKeywords.containsKey(input.name))
+                            SExpr(input.name,input.params.map { translateABSExpToSymExpr(it) })
                         else
                             throw Exception("Unknown declaration of function ${input.name}")
                     }

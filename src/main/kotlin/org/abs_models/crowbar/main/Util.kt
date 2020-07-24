@@ -114,7 +114,7 @@ fun<T : ASTNode<out ASTNode<*>>?> extractSpec(decl : ASTNode<T>, expectedSpec : 
         if(verbosity >= Verbosity.VVV)
             println("Crowbar-v: Could not extract $expectedSpec specification, using ${default.prettyPrint()}")
     }
-    return oldExtract(ret) as Formula //Todo: add warning for old in precondition
+    return specialKeyHeapExtract(ret) as Formula //Todo: add warning for old and last in precondition
 }
 
 
@@ -278,35 +278,40 @@ fun getIDeclaration(mSig: MethodSig, iDecl : InterfaceDecl): InterfaceDecl?{
     return null
 }
 
-fun oldExtract(input: LogicElement) : LogicElement {
+fun specialKeyHeapExtract(input: LogicElement) : LogicElement {
     return when(input){
         is Function -> {
-            if (input.name == "old"){
+            if (specialHeapKeywords.containsKey(input.name)){
                 if(input.params.size == 1) {
-                    return oldHeapExtract(input.params[0])
+                    return specialKeyHeapExtract(input.params[0], input.name)
                 }else
                     throw Exception("Special keyword old must have one argument, actual arguments size:" + input.params.size)
             }
-            return Function(input.name, input.params.map { p -> oldExtract(p) as Term })
+            return Function(input.name, input.params.map { p -> specialKeyHeapExtract(p) as Term })
         }
-        is Predicate -> Predicate(input.name, input.params.map { p -> oldExtract(p) as Term })
-        is Impl -> Impl(oldExtract(input.left) as Formula, oldExtract(input.right) as Formula)
-        is And -> And(oldExtract(input.left) as Formula, oldExtract(input.right) as Formula)
-        is Or -> Or(oldExtract(input.left) as Formula, oldExtract(input.right) as Formula)
-        is Not -> Not(oldExtract(input.left) as Formula)
+        is Predicate -> Predicate(input.name, input.params.map { p -> specialKeyHeapExtract(p) as Term })
+        is Impl -> Impl(specialKeyHeapExtract(input.left) as Formula, specialKeyHeapExtract(input.right) as Formula)
+        is And -> And(specialKeyHeapExtract(input.left) as Formula, specialKeyHeapExtract(input.right) as Formula)
+        is Or -> Or(specialKeyHeapExtract(input.left) as Formula, specialKeyHeapExtract(input.right) as Formula)
+        is Not -> Not(specialKeyHeapExtract(input.left) as Formula)
         else                -> input
     }
 }
 
-fun oldHeapExtract(input: LogicElement) : LogicElement {
+fun specialKeyHeapExtract(input: LogicElement, specialHeap : String) : LogicElement {
     return when(input){
-        is Function     -> Function(input.name, input.params.map { p -> oldHeapExtract(p) as Term })
-        is Predicate    -> Predicate(input.name, input.params.map { p -> oldHeapExtract(p) as Term })
-        is Impl -> Impl(oldHeapExtract(input.left) as Formula, oldHeapExtract(input.right) as Formula)
-        is And  -> And(oldHeapExtract(input.left) as Formula, oldHeapExtract(input.right) as Formula)
-        is Or   -> Or(oldHeapExtract(input.left) as Formula, oldHeapExtract(input.right) as Formula)
-        is Not  -> Not(oldHeapExtract(input.left) as Formula)
-        is Heap -> OldHeap
+        is Function     -> Function(input.name, input.params.map { p -> specialKeyHeapExtract(p,specialHeap) as Term })
+        is Predicate    -> Predicate(input.name, input.params.map { p -> specialKeyHeapExtract(p,specialHeap) as Term })
+        is Impl -> Impl(specialKeyHeapExtract(input.left,specialHeap) as Formula, specialKeyHeapExtract(input.right,specialHeap) as Formula)
+        is And  -> And(specialKeyHeapExtract(input.left,specialHeap) as Formula, specialKeyHeapExtract(input.right,specialHeap) as Formula)
+        is Or   -> Or(specialKeyHeapExtract(input.left,specialHeap) as Formula, specialKeyHeapExtract(input.right,specialHeap) as Formula)
+        is Not  -> Not(specialKeyHeapExtract(input.left,specialHeap) as Formula)
+        is Heap -> {
+            if(specialHeapKeywords.containsKey(specialHeap))
+                specialHeapKeywords[specialHeap] as LogicElement
+            else
+                throw Exception("The special heap keyword $specialHeap is not supported")
+        }
         else    -> input
     }
 }

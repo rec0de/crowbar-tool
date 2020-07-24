@@ -439,10 +439,19 @@ object PITAwait : Rule(Modality(
         val target = cond.map[FormulaAbstractVar("OBJ")] as Formula
         val targetPost = cond.map[FormulaAbstractVar("POST")] as Formula
 
+        val updateLastHeap = ElementaryUpdate(LastHeap, Heap)
         val lNode = LogicNode(input.condition, UpdateOnFormula(input.update, target))
-        val sStat = SymbolicState(And(input.condition,UpdateOnFormula(ChainUpdate(input.update, ElementaryUpdate(Heap,anon(Heap))), And(target,guard))),
-                                 ChainUpdate(input.update, ElementaryUpdate(Heap,anon(Heap))),
-                                 Modality(cont, PostInvariantPair(targetPost,target)))
+        val sStat = SymbolicState(
+                And(
+                        input.condition,
+                        UpdateOnFormula(
+                                ChainUpdate(input.update,ChainUpdate(ElementaryUpdate(Heap,anon(Heap)),updateLastHeap)),
+                                And(target,guard)
+                        )
+                ),
+                ChainUpdate(input.update, ChainUpdate(ElementaryUpdate(Heap,anon(Heap)),updateLastHeap)),
+                Modality(cont, PostInvariantPair(targetPost,target)))
+
         return listOf(lNode,SymbolicNode(sStat))
 
     }

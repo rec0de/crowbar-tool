@@ -107,8 +107,11 @@ object False : Formula {
 
 
 
+val specialHeapKeywords = mapOf("old" to OldHeap, "last" to LastHeap)
+
 object Heap : ProgVar("heap","Heap")
 object OldHeap : ProgVar("oldheap","Heap")
+object LastHeap : ProgVar("lastheap","Heap")
 
 fun store(field: Field, value : Term) : Function = Function("store", listOf(Heap, field, value))
 fun select(field : Field) : Function = Function("select", listOf(Heap, field))
@@ -126,7 +129,7 @@ fun exprToTerm(input : Expr, old : Boolean=false) : Term {
         is PollExpr -> poll(exprToTerm(input.e1))
         is Const -> Function(input.name)
         is SExpr -> {
-            if(input.op == "old")
+            if(specialHeapKeywords.containsKey(input.op))
                 if(input.e.size == 1)
                     Function(input.op, input.e.map { ex -> exprToTerm(ex, true) })
                 else
