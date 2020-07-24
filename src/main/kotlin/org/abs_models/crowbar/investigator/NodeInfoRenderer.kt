@@ -192,14 +192,29 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
     }
 
     override fun visit(info: InfoReturn): String {
-        val original = "// return ${renderExp(info.expression)};"
-        val replacement = "println ${renderExp(info.expression)};"
+        val replacement = "println ${renderExp(info.expression)}; // return statement"
 
+        // Get the evaluation of the whole expression
         val evalValue = model.smtExprs[info.retExpr.toSMT(false)]
         val eval = if (evalValue == null) "Irrelevant or unavailable value" else renderModelValue(evalValue, info.expression.absExp!!.type.simpleName)
-        val evalMsg = "// Evaluates to: $eval"
 
-        return indent("$original\n$replacement\n$evalMsg")
+        // Get evaluations of all used definitions (progVars and fields)
+        val componentValues = info.retExprComponentMap.mapValues {
+            model.smtExprs[it.value.toSMT(false)]
+        }.filterValues{ it != null } // There shouldn't be any null values here, but we'll discard them just in case
+
+        // Render value and location for each component
+        val renderedComponents = componentValues.map {
+            val loc = if(it.key is Location) renderLocation(it.key as Location) else it.key.prettyPrint()
+            val value = renderModelValue(it.value!!, it.key.absExp!!.type.simpleName)
+            "// $loc: $value"
+        }
+
+        var evalMsg = "// Evaluates to: $eval"
+        if(renderedComponents.size > 1)
+            evalMsg += "\n// Detailed evaluation breakdown:\n" + renderedComponents.joinToString("\n")
+
+        return indent("$replacement\n$evalMsg")
     }
 
     override fun visit(info: InfoScopeClose): String {
@@ -258,7 +273,7 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
         return when (loc) {
             is ProgVar -> if (varRemaps.containsKey(loc.name)) varRemaps[loc.name]!! else loc.name
             is Field -> "this.${loc.name.substring(0, loc.name.length - 2)}" // Remove _f suffix
-            else -> throw Exception("rip")
+            else -> throw Exception("Cannot render unknown location type: ${loc.prettyPrint()}")
         }
     }
 

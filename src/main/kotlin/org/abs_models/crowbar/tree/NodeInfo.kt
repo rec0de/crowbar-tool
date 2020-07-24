@@ -11,6 +11,7 @@ import org.abs_models.crowbar.data.LogicElement
 import org.abs_models.crowbar.data.UpdateElement
 import org.abs_models.crowbar.data.apply
 import org.abs_models.crowbar.data.exprToTerm
+import org.abs_models.crowbar.investigator.collectBaseExpressions
 
 // Abstract classes & interfaces
 
@@ -112,10 +113,11 @@ class InfoObjAlloc(val lhs: Location, val classInit: Expr, val newSMTExpr: Strin
 
 class InfoReturn(val expression: Expr, postcondition: Formula, invariant: Formula, update: UpdateElement) : LeafInfo, NodeInfo(isAnon = false, isHeapAnon = false) {
 	val retExpr = apply(update, exprToTerm(expression)) as Term
-
+	val retExprComponentMap = collectBaseExpressions(expression).associate{ it to (apply(update, exprToTerm(it)) as Term)}
+	
 	override fun <ReturnType> accept(visitor: NodeInfoVisitor<ReturnType>) = visitor.visit(this)
 	override val obligations = listOf(Pair("Method postcondition", postcondition), Pair("Object invariant", invariant))
-	override val smtExpressions = listOf(retExpr)
+	override val smtExpressions = listOf(retExpr) + retExprComponentMap.values
 }
 
 class InfoSkip() : NodeInfo(isAnon = false, isHeapAnon = false) {
