@@ -201,17 +201,17 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
         // Get evaluations of all used definitions (progVars and fields)
         val componentValues = info.retExprComponentMap.mapValues {
             model.smtExprs[it.value.toSMT(false)]
-        }.filterValues{ it != null } // There shouldn't be any null values here, but we'll discard them just in case
+        }.filterValues { it != null } // There shouldn't be any null values here, but we'll discard them just in case
 
         // Render value and location for each component
         val renderedComponents = componentValues.map {
-            val loc = if(it.key is Location) renderLocation(it.key as Location) else it.key.prettyPrint()
+            val loc = if (it.key is Location) renderLocation(it.key as Location) else it.key.prettyPrint()
             val value = renderModelValue(it.value!!, it.key.absExp!!.type.simpleName)
             "// $loc: $value"
         }
 
         var evalMsg = "// Evaluates to: $eval"
-        if(renderedComponents.size > 1)
+        if (renderedComponents.size > 1)
             evalMsg += "\n// Detailed evaluation breakdown:\n" + renderedComponents.joinToString("\n")
 
         return indent("$replacement\n$evalMsg")

@@ -1,13 +1,13 @@
 package org.abs_models.crowbar.investigator
 
+import org.abs_models.crowbar.data.Const
+import org.abs_models.crowbar.data.Expr
 import org.abs_models.crowbar.data.Field
 import org.abs_models.crowbar.data.Function
-import org.abs_models.crowbar.data.ProgVar
-import org.abs_models.crowbar.data.Term
-import org.abs_models.crowbar.data.Expr
-import org.abs_models.crowbar.data.Const
-import org.abs_models.crowbar.data.SExpr
 import org.abs_models.crowbar.data.PollExpr
+import org.abs_models.crowbar.data.ProgVar
+import org.abs_models.crowbar.data.SExpr
+import org.abs_models.crowbar.data.Term
 
 fun collectUsedDefinitions(elem: Term): Set<String> {
     return when (elem) {
