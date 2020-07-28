@@ -124,6 +124,10 @@ object TestcaseGenerator {
         val fieldTypes = ((leaf.ante.iterate { it is Field } + leaf.succ.iterate { it is Field }) as Set<Field>).associate { Pair(it.name, it.dType) }
         val varTypes = ((leaf.ante.iterate { it is ProgVar } + leaf.succ.iterate { it is ProgVar }) as Set<ProgVar>).filter { it.name != "heap" }.associate { Pair(it.name, it.dType) }
 
+        // Collect conjunctively joined sub-obligation parts
+        val subObligationMap = collectSubObligations(deupdatify(leaf.succ) as Formula).associate { Pair(it.toSMT(false), it) }
+        val subObligations = subObligationMap.keys.toList()
+
         // Build model command
         var baseModel = "(get-model)"
         if (heapExpressions.size > 0)
@@ -132,6 +136,8 @@ object TestcaseGenerator {
             baseModel += "(get-value (${newExpressions.joinToString(" ")}))"
         if (miscExpressions.size > 0)
             baseModel += "(get-value (${miscExpressions.joinToString(" ")}))"
+        if (subObligationMap.keys.size > 0)
+            baseModel += "(get-value (${subObligations.joinToString(" ")}))"
 
         // Get evaluations of all collected expressions (heap states after anon, new objects, future values, etc)
         val smtRep = generateSMT(leaf.ante, leaf.succ, modelCmd = baseModel)
@@ -179,7 +185,10 @@ object TestcaseGenerator {
         // Get evaluations of misc expressions (return value expressions, values of futures, method return values)
         val smtExprs = getExpressionMap(miscExpressions)
 
-        return Model(initialAssignments, heapAssignments, futLookup, objLookup, smtExprs)
+        // Get evaluations of sub-obligations and create usable mapping by formula
+        val subObligationValues = getExpressionMap(subObligations).mapKeys { subObligationMap[it.key]!! }.mapValues { it.value == 1 }
+
+        return Model(initialAssignments, heapAssignments, futLookup, objLookup, smtExprs, subObligationValues)
     }
 
     private fun getHeapMap(heapExpressions: List<String>, fields: List<Function>, fieldTypes: Map<String, String>): Map<String, List<Pair<Field, Int>>> {
@@ -238,7 +247,10 @@ object TestcaseGenerator {
         val explainer = "\n// Proof failed here. Trying to show:\n"
         val oblString = obligations.map { "// ${it.first}: ${NodeInfoRenderer.renderFormula(it.second)}" }.joinToString("\n")
 
-        val methodContent = stmtString + explainer + oblString
+        var subOblString = "\n// Failed to show the following sub-obligations:\n"
+        subOblString += model.subObligations.filter { !it.value }.map { "// ${NodeInfoRenderer.renderFormula(it.key)}" }.joinToString("\n")
+
+        val methodContent = stmtString + explainer + oblString + subOblString
         val methodFrame = methodFrameHeader + indent(methodContent, 1) + methodFrameFooter
 
         val classFrame = classFrameHeader + indent(fieldDefs, 1) + "\n\n" + indent(methodFrame, 1) + classFrameFooter
@@ -260,11 +272,12 @@ class Model(
     val heapMap: Map<String, List<Pair<Field, Int>>>,
     val futLookup: Map<Int, String>,
     val objLookup: Map<Int, String>,
-    val smtExprs: Map<String, Int>
+    val smtExprs: Map<String, Int>,
+    val subObligations: Map<Formula, Boolean>
 ) {
     // The SMT solver may reference futures that were not defined in the program
     // we'll mark these with a questionmark and give the underlying integer id from the solver
     fun futNameById(id: Int) = if (futLookup.containsKey(id)) futLookup[id]!! else "fut_?($id)"
 }
 
-val EmptyModel = Model(listOf(), mapOf(), mapOf(), mapOf(), mapOf())
+val EmptyModel = Model(listOf(), mapOf(), mapOf(), mapOf(), mapOf(), mapOf())
