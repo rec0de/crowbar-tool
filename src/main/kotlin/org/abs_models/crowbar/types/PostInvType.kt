@@ -211,7 +211,7 @@ class PITSyncAssign(repos: Repository) : PITAssign(repos, Modality(
         val target = cond.map[PostInvAbstractVar("TYPE")] as DeductType
 
         // Generate SMT representation of the future expression to get its model value later
-        val futureSMTExpr = valueOfFunc(apply(input.update, rhs) as Term)
+        val futureSMTExpr = apply(input.update, rhs) as Term
         val info = InfoGetAssign(lhs, rhsExpr, futureSMTExpr)
 
         return listOf(symbolicNext(lhs, rhs, remainder, target, input.condition, input.update, info))
