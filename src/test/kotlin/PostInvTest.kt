@@ -12,7 +12,9 @@ class PostInvTest : StringSpec ({
 			load(listOf(Paths.get("src/test/resources/exception.abs")))
 		}
 	}
-	for( smt in listOf("z3","cvc")) {
+	val cvc: String = System.getenv("CVC") ?: "cvc"
+	val z3: String = System.getenv("Z3") ?: "z3"
+	for (smt in listOf(z3, cvc)) {
 		println("testing with: $smt as backend")
 		smtPath = smt
 		"$smt success"{
@@ -336,6 +338,25 @@ class PostInvTest : StringSpec ({
 			//simple success for sync call with complex inherited contracts
 			val updateFieldSuccess = classDecl.extractMethodNode(postInv,"updateFieldSuccess", repos)
 			executeNode(updateFieldSuccess, repos, postInv) shouldBe true
+		}
+
+		"$smt unexposedcontract"{
+			val (model, repos) = load(listOf(Paths.get("src/test/resources/unexposedcontract.abs")))
+			val classDecl = model.extractClassDecl("UnexposedContract", "UnexposedContractC", repos)
+
+			val unexposedContractFail = classDecl.extractMethodNode(postInv,"unexposedContractFail", repos)
+			executeNode(unexposedContractFail, repos, postInv) shouldBe false
+
+			val unexposedContractSuccess = classDecl.extractMethodNode(postInv,"unexposedContractSuccess", repos)
+			executeNode(unexposedContractSuccess, repos, postInv) shouldBe true
+		}
+
+		"$smt syncField"{
+			val (model, repos) = load(listOf(Paths.get("src/test/resources/syncField.abs")))
+			val classDecl = model.extractClassDecl("TargetField", "C", repos)
+
+			val unexposedContractFail = classDecl.extractMethodNode(postInv,"m", repos)
+			executeNode(unexposedContractFail, repos, postInv) shouldBe true
 		}
 	}
 })

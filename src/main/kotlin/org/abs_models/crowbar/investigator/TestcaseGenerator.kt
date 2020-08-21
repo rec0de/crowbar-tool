@@ -7,6 +7,7 @@ import org.abs_models.crowbar.data.Location
 import org.abs_models.crowbar.data.ProgVar
 import org.abs_models.crowbar.data.Term
 import org.abs_models.crowbar.data.deupdatify
+import org.abs_models.crowbar.data.specialHeapKeywords
 import org.abs_models.crowbar.interfaces.generateSMT
 import org.abs_models.crowbar.interfaces.plainSMTCommand
 import org.abs_models.crowbar.main.Verbosity
@@ -120,9 +121,12 @@ object TestcaseGenerator {
         miscExpressions: List<String>
     ): Model {
 
+        // "heap", "old", "last", etc do not reference program vars
+        val reservedVarNames = listOf("heap", "Unit") + specialHeapKeywords.values.map{ it.name }
+
         // Collect types of fields and variables from leaf node
         val fieldTypes = ((leaf.ante.iterate { it is Field } + leaf.succ.iterate { it is Field }) as Set<Field>).associate { Pair(it.name, it.dType) }
-        val varTypes = ((leaf.ante.iterate { it is ProgVar } + leaf.succ.iterate { it is ProgVar }) as Set<ProgVar>).filter { it.name != "heap" }.associate { Pair(it.name, it.dType) }
+        val varTypes = ((leaf.ante.iterate { it is ProgVar } + leaf.succ.iterate { it is ProgVar }) as Set<ProgVar>).filter { !reservedVarNames.contains(it.name) }.associate { Pair(it.name, it.dType) }
 
         // Collect conjunctively joined sub-obligation parts
         val subObligationMap = collectSubObligations(deupdatify(leaf.succ) as Formula).associate { Pair(it.toSMT(false), it) }
@@ -154,7 +158,7 @@ object TestcaseGenerator {
         val parsed = ModelParser.parseModel()
         val constants = parsed.filter { it is Constant }
         val initHeap = constants.find { it.name == "heap" }
-        val vars = constants.filter { !(it.name matches Regex("(.*_f|fut_.*|NEW\\d.*|Unit|heap|f_(\\d)+)")) }
+        val vars = constants.filter { !(it.name matches Regex("(.*_f|fut_.*|NEW\\d.*|f_(\\d)+)") || reservedVarNames.contains(it.name)) }
         val fields = constants.filter { it.name matches Regex(".*_f") }
         val futLookup = constants.filter { it.name.startsWith("fut_") }.associate { Pair((it.value as Integer).value, it.name) }
 

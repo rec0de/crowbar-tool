@@ -1,6 +1,7 @@
 package org.abs_models.crowbar.main
 
 import org.abs_models.crowbar.data.*
+import org.abs_models.crowbar.data.Function
 import org.abs_models.crowbar.data.Stmt
 import org.abs_models.crowbar.interfaces.translateABSExpToSymExpr
 import org.abs_models.crowbar.investigator.TestcaseGenerator
@@ -94,10 +95,10 @@ fun<T : ASTNode<out ASTNode<*>>?> extractSpec(decl : ASTNode<T>, expectedSpec : 
             ret = if(ret == null) next else And(ret, next)
             if(!multipleAllowed) break
         }
-    }else if (decl is MethodImpl){
+    }else if (decl is MethodImpl && decl !is FunctionDecl){
         ret = extractInheritedSpec(decl.methodSig,expectedSpec,default)
     }else {
-        for (annotation in decl.nodeAnnotations) {
+        for (annotation in decl.nodeAnnotations){
             if(!annotation.type.toString().endsWith(".Spec")) continue
             if(annotation.value !is DataConstructorExp) {
                 throw Exception("Could not extract any specification from $decl because of the expected value")
@@ -105,14 +106,16 @@ fun<T : ASTNode<out ASTNode<*>>?> extractSpec(decl : ASTNode<T>, expectedSpec : 
             val annotated = annotation.value as DataConstructorExp
             if(annotated.constructor != expectedSpec) continue
             val next = exprToForm(translateABSExpToSymExpr(annotated.getParam(0) as Exp))
-            ret = if (ret == null) next else And(ret, next)
-            if (!multipleAllowed) break
+            ret = if(ret == null) next else And(ret, next)
+            if(!multipleAllowed) break
         }
     }
-    if(ret != null) return ret
-    if(verbosity >= Verbosity.VVV)
-        println("Crowbar-v: Could not extract $expectedSpec specification, using ${default.prettyPrint()}")
-    return default
+    if(ret == null) {
+        ret = default
+        if(verbosity >= Verbosity.VVV)
+            println("Crowbar-v: Could not extract $expectedSpec specification, using ${default.prettyPrint()}")
+    }
+    return specialKeyHeapExtract(ret) as Formula //Todo: add warning for old and last in precondition
 }
 
 
@@ -279,4 +282,42 @@ fun getIDeclaration(mSig: MethodSig, iDecl : InterfaceDecl): InterfaceDecl?{
         if(ret != null) return ret
     }
     return null
+}
+
+fun specialKeyHeapExtract(input: LogicElement) : LogicElement {
+    return when(input){
+        is Function -> {
+            if (specialHeapKeywords.containsKey(input.name)){
+                if(input.params.size == 1) {
+                    return specialKeyHeapExtract(input.params[0], input.name)
+                }else
+                    throw Exception("Special keyword old must have one argument, actual arguments size:" + input.params.size)
+            }
+            return Function(input.name, input.params.map { p -> specialKeyHeapExtract(p) as Term })
+        }
+        is Predicate -> Predicate(input.name, input.params.map { p -> specialKeyHeapExtract(p) as Term })
+        is Impl -> Impl(specialKeyHeapExtract(input.left) as Formula, specialKeyHeapExtract(input.right) as Formula)
+        is And -> And(specialKeyHeapExtract(input.left) as Formula, specialKeyHeapExtract(input.right) as Formula)
+        is Or -> Or(specialKeyHeapExtract(input.left) as Formula, specialKeyHeapExtract(input.right) as Formula)
+        is Not -> Not(specialKeyHeapExtract(input.left) as Formula)
+        else                -> input
+    }
+}
+
+fun specialKeyHeapExtract(input: LogicElement, specialHeap : String) : LogicElement {
+    return when(input){
+        is Function     -> Function(input.name, input.params.map { p -> specialKeyHeapExtract(p,specialHeap) as Term })
+        is Predicate    -> Predicate(input.name, input.params.map { p -> specialKeyHeapExtract(p,specialHeap) as Term })
+        is Impl -> Impl(specialKeyHeapExtract(input.left,specialHeap) as Formula, specialKeyHeapExtract(input.right,specialHeap) as Formula)
+        is And  -> And(specialKeyHeapExtract(input.left,specialHeap) as Formula, specialKeyHeapExtract(input.right,specialHeap) as Formula)
+        is Or   -> Or(specialKeyHeapExtract(input.left,specialHeap) as Formula, specialKeyHeapExtract(input.right,specialHeap) as Formula)
+        is Not  -> Not(specialKeyHeapExtract(input.left,specialHeap) as Formula)
+        is Heap -> {
+            if(specialHeapKeywords.containsKey(specialHeap))
+                specialHeapKeywords[specialHeap] as LogicElement
+            else
+                throw Exception("The special heap keyword $specialHeap is not supported")
+        }
+        else    -> input
+    }
 }

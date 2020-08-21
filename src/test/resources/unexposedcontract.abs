@@ -1,0 +1,33 @@
+module UnexposedContract;
+
+data Spec = ObjInv(Bool) | Ensures(Bool) | Requires(Bool);
+
+class UnexposedContractC {
+    Int f = 0;
+
+    [Spec : Ensures(result >= 0)]
+    Int unexposedContractFail(Int v){
+        Int w = v;
+        Fut<Unit> x = this!n(w);
+        await x?;
+        return this.f;
+    }
+
+    [Spec : Ensures(True)]
+    Int unexposedContractSuccess(Int v){
+        Int w = v;
+        Fut<Unit> x = this!n(w);
+        await x?;
+        return this.f;
+    }
+
+    [Spec : Ensures(this.f >= 0)]
+    Unit n(Int v){
+    	if(v >= 0) this.f = v;
+        else       this.f = -v;
+    }
+
+
+}
+
+{}

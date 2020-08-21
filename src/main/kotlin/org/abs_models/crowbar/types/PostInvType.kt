@@ -74,8 +74,8 @@ interface PostInvType : DeductType{
         }
         output("Crowbar-v: method post-condition: ${metpost.prettyPrint()}", Verbosity.V)
         output("Crowbar-v: object invariant: ${objInv.prettyPrint()}",Verbosity.V)
-
-        symb = SymbolicState(And(objInv,metpre), EmptyUpdate, Modality(body, PostInvariantPair(metpost, objInv)))
+        val updateOldHeap = ElementaryUpdate(OldHeap, Heap)
+        symb = SymbolicState(And(objInv,metpre), updateOldHeap, Modality(body, PostInvariantPair(metpost, objInv)))
         return SymbolicNode(symb, emptyList())
     }
 
@@ -501,16 +501,25 @@ object PITAwait : Rule(Modality(
         val target = cond.map[FormulaAbstractVar("OBJ")] as Formula
         val targetPost = cond.map[FormulaAbstractVar("POST")] as Formula
 
+        val updateLastHeap = ElementaryUpdate(LastHeap, Heap)
+
         // Generate SMT representation of the anonymized heap for future heap reconstruction
         val anonHeapExpr = apply(ChainUpdate(input.update, ElementaryUpdate(Heap,anon(Heap))), Heap).toSMT(false)
 
         val lNode = LogicNode(input.condition, UpdateOnFormula(input.update, target), info = InfoInvariant(target))
 
-        val sStat = SymbolicState(And(input.condition,UpdateOnFormula(ChainUpdate(input.update, ElementaryUpdate(Heap,anon(Heap))), And(target,guard))),
-                                 ChainUpdate(input.update, ElementaryUpdate(Heap,anon(Heap))),
-                                 Modality(cont, PostInvariantPair(targetPost,target)))
-        return listOf(lNode,SymbolicNode(sStat, info = InfoAwaitUse(guardExpr, anonHeapExpr)))
+        val sStat = SymbolicState(
+                And(
+                        input.condition,
+                        UpdateOnFormula(
+                                ChainUpdate(input.update,ChainUpdate(ElementaryUpdate(Heap,anon(Heap)),updateLastHeap)),
+                                And(target,guard)
+                        )
+                ),
+                ChainUpdate(input.update, ChainUpdate(ElementaryUpdate(Heap,anon(Heap)),updateLastHeap)),
+                Modality(cont, PostInvariantPair(targetPost,target)))
 
+        return listOf(lNode,SymbolicNode(sStat, info = InfoAwaitUse(guardExpr, anonHeapExpr)))
     }
 }
 

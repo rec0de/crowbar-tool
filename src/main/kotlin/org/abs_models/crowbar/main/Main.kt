@@ -81,6 +81,7 @@ data class Repository(private val model : Model?,
                         syncMethodEnss[decl.qualifiedName+"."+mImpl.methodSig.name] = Pair(syncSpecEns, mImpl.methodSig)
                         if(iUse == null){
                             methodReqs[decl.qualifiedName+"."+mImpl.methodSig.name] = Pair(True, mImpl.methodSig)
+                            methodEnss[decl.qualifiedName+"."+mImpl.methodSig.name] = Pair(True, mImpl.methodSig)
                         } else {
                             val spec = extractSpec(iUse.allMethodSigs.first { it.matches(mImpl.methodSig) }, "Requires")
                             methodReqs[decl.qualifiedName+"."+mImpl.methodSig.name] = Pair(spec, mImpl.methodSig)
@@ -240,7 +241,7 @@ class Main : CliktCommand() {
         val sigs = mutableListOf<MethodSig>()
         val safe = mutableListOf<MethodSig>()
         for(decl in model.moduleDecls){
-            for(cDecl in decl.decls.filterIsInstance<ClassDecl>().map{it as ClassDecl}){
+            for(cDecl in decl.decls.filterIsInstance<ClassDecl>().map{it}){
                 for(mImpl in cDecl.methods) {
                     if (decl.name.startsWith("ABS.")) {
                         safe.add(mImpl.methodSig)
