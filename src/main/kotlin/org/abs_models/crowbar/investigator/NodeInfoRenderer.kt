@@ -49,16 +49,21 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
     }
 
     fun initAssignments(): String {
-        val initAssign = model.initState.map { renderModelAssignment(it.first, it.second) }.joinToString("\n")
-        return indent("// Assume the following pre-state:\n$initAssign\n// End of setup\n")
+        val initAssign = model.initState.filter{ it.first is ProgVar }.map { renderModelAssignment(it.first, it.second) }
+        val res = if(initAssign.size > 0)
+                "// Assume the following pre-state:\n${initAssign.joinToString("\n")}\n// End of setup\n"
+            else
+                ""
+        return indent(res)
     }
 
     fun fieldDefs(): List<String> {
-        val fields = model.initState.filter { it.first is Field }.map { it.first as Field }
+        val fields = model.initState.filter { it.first is Field }.map { Pair(it.first as Field, it.second) }
         val defs = fields.map {
-            val name = it.name.substring(0, it.name.length - 2)
-            val value = renderModelValue(0, it.dType)
-            "${complexTypeToString(it.dType)} $name = $value;"
+            val field = it.first
+            val name = field.name.substring(0, field.name.length - 2)
+            val value = renderModelValue(it.second, field.dType)
+            "${complexTypeToString(field.dType)} $name = $value;"
         }
         return defs
     }
