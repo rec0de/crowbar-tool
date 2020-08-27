@@ -23,13 +23,16 @@ fun collectFromFunction(func: Function): Set<String> {
     return if (func.name.startsWith("f_")) paramDefs + func.name else paramDefs
 }
 
-fun collectBaseExpressions(exp: Expr): Set<Expr> {
+fun collectBaseExpressions(exp: Expr, old: Boolean = false): Set<Expr> {
     return when (exp) {
         is ProgVar -> setOf(exp)
-        is Field -> setOf(exp)
-        is PollExpr -> collectBaseExpressions(exp.e1)
+        is Field -> if(old) setOf(SExpr("old", listOf(exp))) else setOf(exp)
+        is PollExpr -> collectBaseExpressions(exp.e1, old)
         is Const -> setOf()
-        is SExpr -> exp.e.map { collectBaseExpressions(it) }.flatten().toSet()
+        is SExpr -> {
+            val oldflag = (exp.op == "old") || old
+            exp.e.map { collectBaseExpressions(it, oldflag) }.flatten().toSet()
+        }
         else -> throw Exception("Cannot collect base expressions from unknown expression: ${exp.prettyPrint()}")
     }
 }
