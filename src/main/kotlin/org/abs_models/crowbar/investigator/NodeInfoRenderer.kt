@@ -86,7 +86,10 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
         val postHeap = model.heapMap[info.heapExpr]
         val assignmentBlock = renderHeapAssignmentBlock(postHeap)
 
-        val renderedGuard = if (info.guard.absExp is FieldUse) "${renderExp(info.guard)}?" else renderExp(info.guard)
+        val isFutureGuard = info.guard.absExp!!.type.simpleName == "Fut"
+        val maybeQuestionmark = if(isFutureGuard) "?" else ""
+
+        val renderedGuard = "${renderExp(info.guard)}$maybeQuestionmark"
 
         return indent("\n// await $renderedGuard;\n$assignmentBlock\n")
     }
