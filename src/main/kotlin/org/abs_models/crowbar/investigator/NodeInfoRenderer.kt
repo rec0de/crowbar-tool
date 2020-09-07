@@ -26,7 +26,6 @@ import org.abs_models.crowbar.tree.InfoSkipEnd
 import org.abs_models.crowbar.tree.InfoSyncCallAssign
 import org.abs_models.crowbar.tree.NoInfo
 import org.abs_models.crowbar.tree.NodeInfoVisitor
-import org.abs_models.frontend.ast.FieldUse
 
 object NodeInfoRenderer : NodeInfoVisitor<String> {
 
@@ -36,6 +35,7 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
     private val varDefs = mutableSetOf<Pair<String, Int>>()
     private val varTypes = mutableMapOf<String, String>()
     private val varRemaps = mutableMapOf<String, String>()
+    private val usedFields = mutableSetOf<Field>()
     private var model = EmptyModel
 
     fun reset(newModel: Model) {
@@ -46,11 +46,12 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
         varDefs.clear()
         varTypes.clear()
         varRemaps.clear()
+        usedFields.clear()
     }
 
     fun initAssignments(): String {
-        val initAssign = model.initState.filter{ it.first is ProgVar }.map { renderModelAssignment(it.first, it.second) }
-        val res = if(initAssign.size > 0)
+        val initAssign = model.initState.filter { it.first is ProgVar }.map { renderModelAssignment(it.first, it.second) }
+        val res = if (initAssign.size > 0)
                 "// Assume the following pre-state:\n${initAssign.joinToString("\n")}\n// End of setup\n"
             else
                 ""
@@ -59,7 +60,10 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
 
     fun fieldDefs(): List<String> {
         val fields = model.initState.filter { it.first is Field }.map { Pair(it.first as Field, it.second) }
-        val defs = fields.map {
+        // Find fields not included in the model but included in the counterexample and initialize them with default value
+        val missingFields = (usedFields - fields.map { it.first }.toSet()).map { Pair(it, 0) }
+
+        val defs = (fields + missingFields).map {
             val field = it.first
             val name = field.name.substring(0, field.name.length - 2)
             val value = renderModelValue(it.second, field.dType)
@@ -87,7 +91,7 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
         val assignmentBlock = renderHeapAssignmentBlock(postHeap)
 
         val isFutureGuard = info.guard.absExp!!.type.simpleName == "Fut"
-        val maybeQuestionmark = if(isFutureGuard) "?" else ""
+        val maybeQuestionmark = if (isFutureGuard) "?" else ""
 
         val renderedGuard = "${renderExp(info.guard)}$maybeQuestionmark"
 
@@ -280,7 +284,11 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
     private fun renderLocation(loc: Location): String {
         return when (loc) {
             is ProgVar -> if (varRemaps.containsKey(loc.name)) varRemaps[loc.name]!! else loc.name
-            is Field -> "this.${loc.name.substring(0, loc.name.length - 2)}" // Remove _f suffix
+            is Field -> {
+                val name = loc.name.substring(0, loc.name.length - 2) // Remove _f suffix
+                usedFields.add(loc) // Remember this field so we include it in field definitions later
+                "this.$name"
+            }
             else -> throw Exception("Cannot render unknown location type: ${loc.prettyPrint()}")
         }
     }

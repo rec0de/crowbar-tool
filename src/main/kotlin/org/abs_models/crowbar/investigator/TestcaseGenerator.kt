@@ -122,7 +122,7 @@ object TestcaseGenerator {
     ): Model {
 
         // "heap", "old", "last", etc do not reference program vars
-        val reservedVarNames = listOf("heap", "Unit") + specialHeapKeywords.values.map{ it.name }
+        val reservedVarNames = listOf("heap", "Unit") + specialHeapKeywords.values.map { it.name }
 
         // Collect types of fields and variables from leaf node
         val fieldTypes = ((leaf.ante.iterate { it is Field } + leaf.succ.iterate { it is Field }) as Set<Field>).associate { Pair(it.name, it.dType) }
@@ -240,7 +240,6 @@ object TestcaseGenerator {
         val methodFrameFooter = "\n}"
 
         NodeInfoRenderer.reset(model)
-        val fieldDefs = NodeInfoRenderer.fieldDefs().joinToString("\n")
         val statements = mutableListOf<String>(NodeInfoRenderer.initAssignments())
 
         for (it in infoNodes) {
@@ -254,6 +253,7 @@ object TestcaseGenerator {
         var subOblString = "\n// Failed to show the following sub-obligations:\n"
         subOblString += model.subObligations.filter { !it.value }.map { "// ${NodeInfoRenderer.renderFormula(it.key)}" }.joinToString("\n")
 
+        val fieldDefs = NodeInfoRenderer.fieldDefs().joinToString("\n")
         val methodContent = stmtString + explainer + oblString + subOblString
         val methodFrame = methodFrameHeader + indent(methodContent, 1) + methodFrameFooter
 
