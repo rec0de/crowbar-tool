@@ -26,7 +26,7 @@ fun collectFromFunction(func: Function): Set<String> {
 fun collectBaseExpressions(exp: Expr, old: Boolean = false): Set<Expr> {
     return when (exp) {
         is ProgVar -> setOf(exp)
-        is Field -> if(old) setOf(SExpr("old", listOf(exp))) else setOf(exp)
+        is Field -> if (old) setOf(SExpr("old", listOf(exp))) else setOf(exp)
         is PollExpr -> collectBaseExpressions(exp.e1, old)
         is Const -> setOf()
         is SExpr -> {
