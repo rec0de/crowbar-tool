@@ -204,7 +204,7 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
     }
 
     override fun visit(info: InfoReturn): String {
-        val replacement = "println ${renderExp(info.expression)}; // return statement"
+        val replacement = "println(toString(${renderExp(info.expression)})); // return statement"
 
         // Get the evaluation of the whole expression
         val evalValue = model.smtExprs[info.retExpr.toSMT(false)]
