@@ -233,11 +233,15 @@ object TestcaseGenerator {
     }
 
     private fun buildTestcase(infoNodes: List<NodeInfo>, model: Model, obligations: List<Pair<String, Formula>>): String {
-        val classFrameHeader = "module Counterexample;\n\nclass CeFrame {\n"
-        val classFrameFooter = "\n}\n"
+        val interfaceDef = "interface Ce { Unit ce(); }\n"
+        val classFrameHeader = "module Counterexample;\n$interfaceDef\nclass CeFrame implements Ce {\n"
+        val classFrameFooter = "\n}\n\n"
 
         val methodFrameHeader = "Unit ce() {\n"
         val methodFrameFooter = "\n}"
+
+        val mainBlockInner = "Ce x = new CeFrame();\nx.ce();"
+        val mainBlock = "{\n${indent(mainBlockInner, 1)}\n}\n"
 
         NodeInfoRenderer.reset(model)
         val statements = mutableListOf<String>(NodeInfoRenderer.initAssignments())
@@ -257,7 +261,7 @@ object TestcaseGenerator {
         val methodContent = stmtString + explainer + oblString + subOblString
         val methodFrame = methodFrameHeader + indent(methodContent, 1) + methodFrameFooter
 
-        val classFrame = classFrameHeader + indent(fieldDefs, 1) + "\n\n" + indent(methodFrame, 1) + classFrameFooter
+        val classFrame = classFrameHeader + indent(fieldDefs, 1) + "\n\n" + indent(methodFrame, 1) + classFrameFooter + mainBlock
 
         return classFrame
     }
