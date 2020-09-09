@@ -257,8 +257,9 @@ object TestcaseGenerator {
         var subOblString = "\n// Failed to show the following sub-obligations:\n"
         subOblString += model.subObligations.filter { !it.value }.map { "// ${NodeInfoRenderer.renderFormula(it.key)}" }.joinToString("\n")
 
+        val requiredScopeCloses = NodeInfoRenderer.closeScopes() // Close scopes left open due to abrupt proof end
         val fieldDefs = NodeInfoRenderer.fieldDefs().joinToString("\n")
-        val methodContent = stmtString + explainer + oblString + subOblString
+        val methodContent = stmtString + explainer + oblString + subOblString + requiredScopeCloses
         val methodFrame = methodFrameHeader + indent(methodContent, 1) + methodFrameFooter
 
         val classFrame = classFrameHeader + indent(fieldDefs, 1) + "\n\n" + indent(methodFrame, 1) + classFrameFooter + mainBlock

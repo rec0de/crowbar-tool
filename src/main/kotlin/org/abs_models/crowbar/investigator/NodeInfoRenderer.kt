@@ -72,6 +72,15 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
         return defs
     }
 
+    fun closeScopes(): String {
+        var res = ""
+        while(scopeLevel > 0) {
+            scopeLevel -= 1
+            res += indent("\n}")
+        }
+        return res
+    }
+
     override fun visit(info: InfoClassPrecondition) = ""
 
     override fun visit(info: InfoMethodPrecondition) = ""
@@ -188,7 +197,7 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
         val text = "while(${renderExp(info.guard)}){} \n" +
             "// Known true:\n" +
             "// Negated loop guard: !(${renderExp(info.guard)})\n" +
-            "// Loop invariant: ${renderFormula(info.invariant)}"
+            "// Loop invariant: ${renderFormula(info.invariant)}\n"
 
         return indent(text)
     }
