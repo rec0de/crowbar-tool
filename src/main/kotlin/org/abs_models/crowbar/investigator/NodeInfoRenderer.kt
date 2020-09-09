@@ -74,7 +74,7 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
 
     fun closeScopes(): String {
         var res = ""
-        while(scopeLevel > 0) {
+        while (scopeLevel > 0) {
             scopeLevel -= 1
             res += indent("\n}")
         }
@@ -244,7 +244,8 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
         varDefs.clear()
         varDefs.addAll(validDefs)
 
-        scopeLevel -= 1
+        if (scopeLevel > 0)
+            scopeLevel -= 1
         return indent("}")
     }
 
@@ -352,7 +353,11 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
         return getObjectBySMT(smtRep)
     }
 
-    private fun renderExp(e: Expr) = renderExpression(e, varRemaps)
+    private fun renderExp(e: Expr): String {
+        // Keep track of fields referenced in expressions for field declarations
+        usedFields.addAll(collectBaseExpressions(e).filter { it is Field }.map { it as Field })
+        return renderExpression(e, varRemaps)
+    }
 
     // Public to allow rendering of formulas with correct replacements from elsewhere
     fun renderFormula(formula: Formula) = renderFormula(formula, varRemaps)
