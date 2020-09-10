@@ -4,7 +4,7 @@ object Tokenizer {
 
     private val whitespace = Regex("\\s")
     private val numeric = Regex("(\\-)?\\d+")
-    private val allowedId = Regex("[a-zA-Z0-9\\-_!=\\+\\*/]")
+    private val allowedId = Regex("[a-zA-Z0-9\\-_!=\\+\\*/\"]")
 
     fun tokenize(code: String): List<Token> {
 
@@ -29,7 +29,10 @@ object Tokenizer {
                     }
 
                     if (numeric matches identifier)
-                        tokens.add(ConcreteValue(identifier.toInt()))
+                        // The solver occasionally comes up with huge integer literals
+                        // parsing them as ints fails, so we will parse as long and
+                        // cut to int size. This might cause some incorrect counterexamples.
+                        tokens.add(ConcreteValue(identifier.toLong().toInt()))
                     else
                         tokens.add(Identifier(identifier))
                 }
