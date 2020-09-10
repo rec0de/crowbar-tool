@@ -18,7 +18,7 @@ import org.abs_models.crowbar.investigator.collectBaseExpressions
 abstract class NodeInfo(val isAnon: Boolean, val isHeapAnon: Boolean) {
 	open val isSignificantBranch = false
 	open val smtExpressions = listOf<Term>()
-	open val heapExpressions = listOf<String>()
+	open val heapExpressions = listOf<Term>()
 	abstract fun <ReturnType> accept(visitor: NodeInfoVisitor<ReturnType>): ReturnType
 }
 
@@ -71,7 +71,7 @@ class InfoScopeClose() : NodeInfo(isAnon = false, isHeapAnon = false) {
 	override fun <ReturnType> accept(visitor: NodeInfoVisitor<ReturnType>) = visitor.visit(this)
 }
 
-class InfoAwaitUse(val guard: Expr, val heapExpr: String) : NodeInfo(isAnon = false, isHeapAnon = true) {
+class InfoAwaitUse(val guard: Expr, val heapExpr: Term) : NodeInfo(isAnon = false, isHeapAnon = true) {
 	override fun <ReturnType> accept(visitor: NodeInfoVisitor<ReturnType>) = visitor.visit(this)
 	override val heapExpressions = listOf(heapExpr)
 }
@@ -101,7 +101,7 @@ class InfoCallAssign(val lhs: Location, val callee: Expr, val call: CallExpr, va
 	override fun <ReturnType> accept(visitor: NodeInfoVisitor<ReturnType>) = visitor.visit(this)
 }
 
-class InfoSyncCallAssign(val lhs: Location, val callee: Expr, val call: SyncCallExpr, val heapExpr: String, val returnValExpr: Term) : NodeInfo(isAnon = false, isHeapAnon = true) {
+class InfoSyncCallAssign(val lhs: Location, val callee: Expr, val call: SyncCallExpr, val heapExpr: Term, val returnValExpr: Term) : NodeInfo(isAnon = false, isHeapAnon = true) {
 	override fun <ReturnType> accept(visitor: NodeInfoVisitor<ReturnType>) = visitor.visit(this)
 	override val smtExpressions = listOf(returnValExpr)
 	override val heapExpressions = listOf(heapExpr)

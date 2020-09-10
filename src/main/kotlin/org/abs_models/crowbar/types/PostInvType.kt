@@ -373,7 +373,7 @@ class PITSyncCallAssign(repos: Repository) : PITAssign(repos, Modality(
         val updateOnFormula =  UpdateOnFormula(updateLeftNext, subst(postCond, substPostMap) as Formula)
 
         // Generate SMT representation of the anonymized heap for future heap reconstruction
-        val anonHeapExpr = apply(updateRightNext, Heap).toSMT(false)
+        val anonHeapExpr = apply(updateRightNext, Heap) as Term
         // Generate SMT expression of method return value for model evaluation
         val returnValExpr = apply(updateRightNext, freshVar) as Term
 
@@ -504,7 +504,7 @@ object PITAwait : Rule(Modality(
         val updateLastHeap = ElementaryUpdate(LastHeap, Heap)
 
         // Generate SMT representation of the anonymized heap for future heap reconstruction
-        val anonHeapExpr = apply(ChainUpdate(input.update, ElementaryUpdate(Heap,anon(Heap))), Heap).toSMT(false)
+        val anonHeapExpr = apply(ChainUpdate(input.update, ElementaryUpdate(Heap,anon(Heap))), Heap) as Term
 
         val lNode = LogicNode(input.condition, UpdateOnFormula(input.update, target), info = InfoInvariant(target))
 

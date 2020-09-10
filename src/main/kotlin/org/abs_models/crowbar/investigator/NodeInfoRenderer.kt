@@ -96,7 +96,7 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
     override fun visit(info: NoInfo) = ""
 
     override fun visit(info: InfoAwaitUse): String {
-        val postHeap = model.heapMap[info.heapExpr]
+        val postHeap = model.heapMap[info.heapExpr.toSMT(false)]
         val assignmentBlock = renderHeapAssignmentBlock(postHeap)
 
         val isFutureGuard = info.guard.absExp!!.type.simpleName == "Fut"
@@ -161,7 +161,7 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
         val origCallExp = "${renderExp(info.callee)}.${renderExp(info.call)}"
 
         // Get heap anonymization assignments
-        val postHeap = model.heapMap[info.heapExpr]
+        val postHeap = model.heapMap[info.heapExpr.toSMT(false)]
         val assignmentBlock = renderHeapAssignmentBlock(postHeap)
 
         var methodReturnVal = model.smtExprs[info.returnValExpr.toSMT(false)]

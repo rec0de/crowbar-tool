@@ -28,7 +28,13 @@ object TestcaseGenerator {
     fun investigateAll(node: SymbolicNode) {
         val uncloseable = node.collectLeaves().filter { it is LogicNode && !it.evaluate() }.map { it as LogicNode }
 
-        uncloseable.forEach {
+        // Splits in the symex tree _before_ the last full anonymization point can cause duplicate unclosed leafs
+        // we consider nodes with identical pre and postconditions to be redundant
+        val deduped = uncloseable.distinctBy {
+            deupdatify(it.ante).prettyPrint() + deupdatify(it.succ).prettyPrint()
+        }
+
+        deduped.forEach {
             val counterexample = investigateSingle(node, it)
             writeTestcase(counterexample, fileIndex)
             fileIndex++
@@ -53,7 +59,7 @@ object TestcaseGenerator {
         val infoNodes = branchNodes.map { (it as InfoNode).info }
 
         output("Investigator: collecting anonymized heap expressions....", Verbosity.V)
-        val heapExpressions = infoNodes.map { it.heapExpressions }.flatten()
+        val heapExpressions = infoNodes.map { it.heapExpressions }.flatten().map { it.toSMT(false) }
 
         output("Investigator: collecting object allocation expressions....", Verbosity.V)
         val newExpressions = infoNodes.filter { it is InfoObjAlloc }.map { (it as InfoObjAlloc).newSMTExpr }
