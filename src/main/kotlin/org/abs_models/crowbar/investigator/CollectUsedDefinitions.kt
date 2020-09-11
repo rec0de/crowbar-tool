@@ -22,7 +22,7 @@ fun collectUsedDefinitions(elem: Term): Set<String> {
 
 fun collectFromFunction(func: Function): Set<String> {
     val paramDefs = func.params.map { collectUsedDefinitions(it) }.flatten().toSet()
-    return if (func.name.startsWith("f_")) paramDefs + func.name else paramDefs
+    return if (func.name.startsWith("f_") || func.name.startsWith("fut_")) paramDefs + func.name else paramDefs
 }
 
 fun collectBaseExpressions(exp: Expr, old: Boolean = false): Set<Expr> {
