@@ -27,6 +27,7 @@ object Tokenizer {
                         stringLit += code[i]
                         i += 1
                     }
+                    i += 1 // Skip closing quote
                     tokens.add(StringLiteral(stringLit))
                 }
                 char matches whitespace -> {}

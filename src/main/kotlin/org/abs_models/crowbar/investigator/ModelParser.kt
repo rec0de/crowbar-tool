@@ -29,6 +29,9 @@ object ModelParser {
     fun parseArrayValues(): List<Array> {
         consume(LParen())
 
+        if (checkForSMTError())
+            return listOf()
+
         val model = mutableListOf<Array>()
 
         while (tokens[0] is LParen) {
@@ -45,6 +48,9 @@ object ModelParser {
 
     fun parseIntegerValues(): List<Int> {
         consume(LParen())
+
+        if (checkForSMTError())
+            return listOf()
 
         val values = mutableListOf<Int>()
 
@@ -183,6 +189,18 @@ object ModelParser {
         consume(RParen())
         val value = parseIntExp()
         return Array(value)
+    }
+
+    private fun checkForSMTError(): Boolean {
+        return if (tokens[0] == Identifier("error")) {
+            consume()
+            val eMsg = (tokens[0] as StringLiteral).toString()
+            consume()
+            consume(RParen())
+            System.err.println("SMT solver error: $eMsg")
+            true
+        } else
+            false
     }
 
     // Consume a subexpression without doing anything
