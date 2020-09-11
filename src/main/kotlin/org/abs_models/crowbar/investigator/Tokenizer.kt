@@ -4,7 +4,8 @@ object Tokenizer {
 
     private val whitespace = Regex("\\s")
     private val numeric = Regex("(\\-)?\\d+")
-    private val allowedId = Regex("[a-zA-Z0-9\\-_!=\\+\\*/\"]")
+    private val allowedId = Regex("[a-zA-Z0-9\\-_!=\\+\\*/]")
+    private val allowedStringLit = Regex("[^\"]")
 
     fun tokenize(code: String): List<Token> {
 
@@ -20,6 +21,14 @@ object Tokenizer {
             when {
                 char == "(" -> tokens.add(LParen())
                 char == ")" -> tokens.add(RParen())
+                char == "\"" -> {
+                    var stringLit = ""
+                    while (i < code.length && allowedStringLit matches code[i].toString()) {
+                        stringLit += code[i]
+                        i += 1
+                    }
+                    tokens.add(StringLiteral(stringLit))
+                }
                 char matches whitespace -> {}
                 char matches allowedId -> {
                     var identifier = char
@@ -59,5 +68,6 @@ abstract class Token(val spelling: String) {
 
 class LParen() : Token("(")
 class RParen() : Token(")")
+class StringLiteral(content: String) : Token("\"$content\"")
 class Identifier(spelling: String) : Token(spelling)
 class ConcreteValue(val value: Int) : Token(value.toString())
