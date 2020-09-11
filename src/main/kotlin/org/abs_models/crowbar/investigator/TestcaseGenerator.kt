@@ -58,15 +58,6 @@ object TestcaseGenerator {
         val branchNodes = collectBranchNodes(node, uncloseable)
         val infoNodes = branchNodes.map { (it as InfoNode).info }
 
-        output("Investigator: collecting anonymized heap expressions....", Verbosity.V)
-        val heapExpressions = infoNodes.map { it.heapExpressions }.flatten().map { it.toSMT(false) }
-
-        output("Investigator: collecting object allocation expressions....", Verbosity.V)
-        val newExpressions = infoNodes.filter { it is InfoObjAlloc }.map { (it as InfoObjAlloc).newSMTExpr }
-
-        output("Investigator: collecting other smt expressions....", Verbosity.V)
-        val miscExpressionTerms = infoNodes.map { it.smtExpressions }.flatten()
-
         // Remove expressions that contain definitions missing from the SMT model
         // This will cause the solver to error out, and any expression depending on a definition
         // not present in the SMT model is irrelevant to the correctness of the method anyway
@@ -74,7 +65,17 @@ object TestcaseGenerator {
         val pre = deupdatify(uncloseable.ante)
         val post = deupdatify(uncloseable.succ)
         val availableDefs = ((pre.iterate { it is Term } + post.iterate { it is Term }) as Set<Term>).map { collectUsedDefinitions(it) }.flatten().toSet()
+
+        output("Investigator: collecting anonymized heap expressions....", Verbosity.V)
+        val heapExpressionTerms = infoNodes.map { it.heapExpressions }.flatten()
+        val heapExpressions = heapExpressionTerms.filter { collectUsedDefinitions(it).minus(availableDefs).isEmpty() }.map { it.toSMT(false) }
+
+        output("Investigator: collecting other smt expressions....", Verbosity.V)
+        val miscExpressionTerms = infoNodes.map { it.smtExpressions }.flatten()
         val miscExpressions = miscExpressionTerms.filter { collectUsedDefinitions(it).minus(availableDefs).isEmpty() }.map { it.toSMT(false) }
+
+        output("Investigator: collecting object allocation expressions....", Verbosity.V)
+        val newExpressions = infoNodes.filter { it is InfoObjAlloc }.map { (it as InfoObjAlloc).newSMTExpr }
 
         output("Investigator: parsing model....", Verbosity.V)
         val model = getModel(uncloseable, heapExpressions, newExpressions, miscExpressions)
