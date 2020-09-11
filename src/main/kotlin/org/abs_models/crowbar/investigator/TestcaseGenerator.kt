@@ -3,6 +3,7 @@ package org.abs_models.crowbar.investigator
 import java.io.File
 import org.abs_models.crowbar.data.Field
 import org.abs_models.crowbar.data.Formula
+import org.abs_models.crowbar.data.Heap
 import org.abs_models.crowbar.data.Location
 import org.abs_models.crowbar.data.ProgVar
 import org.abs_models.crowbar.data.Term
@@ -68,7 +69,7 @@ object TestcaseGenerator {
 
         output("Investigator: collecting anonymized heap expressions....", Verbosity.V)
         val heapExpressionTerms = infoNodes.map { it.heapExpressions }.flatten()
-        val heapExpressions = heapExpressionTerms.filter { collectUsedDefinitions(it).minus(availableDefs).isEmpty() }.map { it.toSMT(false) }
+        val heapExpressions = (heapExpressionTerms.filter { collectUsedDefinitions(it).minus(availableDefs).isEmpty() } + Heap).map { it.toSMT(false) }
 
         output("Investigator: collecting other smt expressions....", Verbosity.V)
         val miscExpressionTerms = infoNodes.map { it.smtExpressions }.flatten()
@@ -164,22 +165,11 @@ object TestcaseGenerator {
 
         val parsed = ModelParser.parseModel()
         val constants = parsed.filter { it is Constant }
-        val initHeap = constants.find { it.name == "heap" }
         val vars = constants.filter { !(it.name matches Regex("(.*_f|fut_.*|NEW\\d.*|f_(\\d)+)") || reservedVarNames.contains(it.name)) }
         val fields = constants.filter { it.name matches Regex(".*_f") }
         val futLookup = constants.filter { it.name.startsWith("fut_") }.associate { Pair((it.value as Integer).value, it.name) }
 
-        if (initHeap == null)
-            throw Exception("Model contained no heap definition")
-
-        val heapState = initHeap.value as Array
         val initialAssignments = mutableListOf<Pair<Location, Int>>()
-
-        fields.forEach {
-            val initValue = heapState.getValue((it.value as Integer).value)
-            val field = Field(it.name, fieldTypes[it.name]!!)
-            initialAssignments.add(Pair(field, initValue))
-        }
 
         vars.forEach {
             val initValue = (it.value as Integer).value
@@ -189,6 +179,9 @@ object TestcaseGenerator {
 
         // Get heap-states at heap anonymization points
         val heapAssignments = getHeapMap(heapExpressions, fields, fieldTypes)
+
+        val heapState = heapAssignments["heap"]!!
+        initialAssignments.addAll(heapState)
 
         // Get mapping of object ids to names
         val objLookup = getObjectMap(newExpressions)

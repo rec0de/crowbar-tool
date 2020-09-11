@@ -2,7 +2,7 @@ package org.abs_models.crowbar.investigator
 
 object ModelParser {
 
-    val tokens: MutableList<Token> = mutableListOf()
+    var tokens: MutableList<Token> = mutableListOf()
 
     fun loadSMT(smtString: String) {
         tokens.clear()
@@ -79,8 +79,10 @@ object ModelParser {
         val value: Value
 
         // Functions are annoying to parse & evaluate, so we won't
-        // The only relevant function is anon(), which is handled separately anyway
-        if (args.size == 0)
+        // Heap definitions of Array type can get complex once counterexamples reach a certain size
+        // So we will only parse simple integer constant definitions here
+        // Parsing of heaps and relevant functions is handled elsewhere
+        if (args.size == 0 && type == Type.INT)
             value = parseValue(type)
         else {
             ignore()
@@ -159,19 +161,45 @@ object ModelParser {
             throw Exception("Expected concrete integer value but got '${tokens[0]}'' at ${tokens.joinToString(" ")}")
     }
 
-    private fun parseArrayExp(): Array {
-        consume(LParen())
+    private fun parseArrayExp(defs: Map<String, List<Token>> = mapOf()): Array {
         val array: Array
+
+        // If we find a previously declared identifier, pretend we read the defined
+        // replacement token sequence instead. Hacky, I know.
+        if (tokens[0] is Identifier && defs.containsKey(tokens[0].toString())) {
+            val id = tokens[0].toString()
+            consume()
+            tokens = (defs[id]!! + tokens).toMutableList()
+        }
+
+        consume(LParen())
 
         if (tokens[0] is LParen)
             array = parseConstArray()
-        else {
-            consume(Identifier("store"))
-            array = parseArrayExp()
+        else if (tokens[0] == Identifier("let")) {
+            val newDefs = defs.toMutableMap()
+            consume()
+            consume(LParen())
+            // Parse 'macro' definitions
+            while (tokens[0] is LParen) {
+                consume()
+                val id = (tokens[0] as Identifier).toString()
+                consume()
+                // Save token sequence for replacements
+                newDefs[id] = extractSubexpression()
+                consume(RParen())
+            }
+
+            consume(RParen())
+            array = parseArrayExp(newDefs)
+        } else if (tokens[0] == Identifier("store")) {
+            consume()
+            array = parseArrayExp(defs)
             val index = parseIntExp()
             val value = parseIntExp()
             array.map.put(index, value)
-        }
+        } else
+            throw Exception("Unexpected token \"${tokens[0]}\" in array expression")
 
         consume(RParen())
         return array
@@ -216,6 +244,27 @@ object ModelParser {
 
             consume()
         }
+    }
+
+    // Consume a subexpression and return it as a list of tokens
+    private fun extractSubexpression(): List<Token> {
+        val extracted = mutableListOf<Token>()
+
+        var layer = if (tokens[0] is LParen) 1 else 0
+        extracted.add(tokens[0])
+        consume()
+
+        while (layer > 0) {
+            if (tokens[0] is LParen)
+                layer++
+            else if (tokens[0] is RParen)
+                layer--
+
+            extracted.add(tokens[0])
+            consume()
+        }
+
+        return extracted
     }
 
     private fun consume(expected: Token? = null) {
