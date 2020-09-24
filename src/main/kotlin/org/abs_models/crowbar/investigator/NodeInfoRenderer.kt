@@ -1,11 +1,11 @@
 package org.abs_models.crowbar.investigator
 
 import org.abs_models.crowbar.data.Expr
-import org.abs_models.crowbar.data.SExpr
 import org.abs_models.crowbar.data.Field
 import org.abs_models.crowbar.data.Formula
 import org.abs_models.crowbar.data.Location
 import org.abs_models.crowbar.data.ProgVar
+import org.abs_models.crowbar.data.SExpr
 import org.abs_models.crowbar.tree.InfoAwaitUse
 import org.abs_models.crowbar.tree.InfoCallAssign
 import org.abs_models.crowbar.tree.InfoClassPrecondition
@@ -51,7 +51,9 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
     }
 
     fun initAssignments(): String {
-        val initAssign = model.initState.filter { it.first is ProgVar }.map { renderModelAssignment(it.first, it.second) }
+        val oldHeap = model.heapMap["oldheap"]!!
+        // Do not render assignments for fields that do not change value from their declared values
+        val initAssign = model.initState.filter { it.first is ProgVar || (it.first is Field && !oldHeap.contains(it)) }.map { renderModelAssignment(it.first, it.second) }
         val res = if (initAssign.size > 0)
                 "// Assume the following pre-state:\n${initAssign.joinToString("\n")}\n// End of setup\n"
             else
@@ -60,7 +62,9 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
     }
 
     fun fieldDefs(): List<String> {
-        val fields = model.initState.filter { it.first is Field }.map { Pair(it.first as Field, it.second) }
+        // For more intuitive counterexamples, we initialize fields to their value in the state before method execution
+        // The state in which the actual counterexample begins is initialized in the method-internal initial assignments
+        val fields = model.heapMap["oldheap"]!!
         // Find fields not included in the model but included in the counterexample and initialize them with default value
         val missingFields = (usedFields - fields.map { it.first }.toSet()).map { Pair(it, 0) }
 
@@ -216,7 +220,7 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
     override fun visit(info: InfoReturn): String {
 
         // Desugaring apparently inserts literal "return Unit" statements, we won't render those
-        if(info.expression is SExpr && info.expression.op == "Unit")
+        if (info.expression is SExpr && info.expression.op == "Unit")
             return indent("// return unit")
 
         val replacement = "println(toString(${renderExp(info.expression)})); // return statement"

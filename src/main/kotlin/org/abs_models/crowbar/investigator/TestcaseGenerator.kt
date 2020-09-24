@@ -5,6 +5,7 @@ import org.abs_models.crowbar.data.Field
 import org.abs_models.crowbar.data.Formula
 import org.abs_models.crowbar.data.Heap
 import org.abs_models.crowbar.data.Location
+import org.abs_models.crowbar.data.OldHeap
 import org.abs_models.crowbar.data.ProgVar
 import org.abs_models.crowbar.data.Term
 import org.abs_models.crowbar.data.deupdatify
@@ -69,7 +70,7 @@ object TestcaseGenerator {
 
         output("Investigator: collecting anonymized heap expressions....", Verbosity.V)
         val heapExpressionTerms = infoNodes.map { it.heapExpressions }.flatten()
-        val heapExpressions = (heapExpressionTerms.filter { collectUsedDefinitions(it).minus(availableDefs).isEmpty() } + Heap).map { it.toSMT(false) }
+        val heapExpressions = (heapExpressionTerms.filter { collectUsedDefinitions(it).minus(availableDefs).isEmpty() } + Heap + OldHeap).map { it.toSMT(false) }
 
         output("Investigator: collecting other smt expressions....", Verbosity.V)
         val miscExpressionTerms = infoNodes.map { it.smtExpressions }.flatten()
