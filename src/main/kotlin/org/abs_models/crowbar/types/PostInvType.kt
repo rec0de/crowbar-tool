@@ -302,7 +302,7 @@ class PITCallAssign(repos: Repository) : PITAssign(repos, Modality(
         val pre = LogicNode(
             input.condition,
             UpdateOnFormula(input.update, precondSubst),
-            info = InfoClassPrecondition(precondSubst)
+            info = InfoMethodPrecondition(precondSubst)
         )
 
 
