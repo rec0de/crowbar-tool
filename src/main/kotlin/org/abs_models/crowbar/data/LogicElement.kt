@@ -104,9 +104,6 @@ object False : Formula {
     override fun toSMT(isInForm : Boolean) : String = if(isInForm) "false" else "0"
 }
 
-
-
-
 val specialHeapKeywords = mapOf("old" to OldHeap, "last" to LastHeap)
 
 object Heap : ProgVar("heap","Heap")
