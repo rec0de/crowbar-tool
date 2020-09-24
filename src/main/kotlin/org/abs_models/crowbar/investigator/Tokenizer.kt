@@ -4,7 +4,7 @@ object Tokenizer {
 
     private val whitespace = Regex("\\s")
     private val numeric = Regex("(\\-)?\\d+")
-    private val allowedId = Regex("[a-zA-Z0-9\\-_!=\\+\\*/]")
+    private val allowedId = Regex("[^\\s\"\'\\)\\(\\]\\[]")
     private val allowedStringLit = Regex("[^\"]")
 
     fun tokenize(code: String): List<Token> {

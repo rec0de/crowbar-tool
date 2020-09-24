@@ -1,6 +1,7 @@
 package org.abs_models.crowbar.investigator
 
 import org.abs_models.crowbar.data.Expr
+import org.abs_models.crowbar.data.SExpr
 import org.abs_models.crowbar.data.Field
 import org.abs_models.crowbar.data.Formula
 import org.abs_models.crowbar.data.Location
@@ -213,6 +214,11 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
     }
 
     override fun visit(info: InfoReturn): String {
+
+        // Desugaring apparently inserts literal "return Unit" statements, we won't render those
+        if(info.expression is SExpr && info.expression.op == "Unit")
+            return indent("// return unit")
+
         val replacement = "println(toString(${renderExp(info.expression)})); // return statement"
 
         // Get the evaluation of the whole expression
