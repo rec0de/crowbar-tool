@@ -35,7 +35,7 @@ class BasicTest : StringSpec() {
             val cond = MatchCondition()
             match(conc, pattern, cond)
             assert(!cond.failure)
-            val res = org.abs_models.crowbar.data.apply(pattern3,cond) as Anything
+            val res = apply(pattern3,cond) as Anything
             res shouldBe AddExpr(ProgVar("v"), Const("1"))
             assert(!containsAbstractVar(res))
         }*/

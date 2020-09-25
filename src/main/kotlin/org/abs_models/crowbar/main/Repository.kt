@@ -4,11 +4,18 @@ import org.abs_models.crowbar.data.DeductType
 import org.abs_models.crowbar.data.exprToTerm
 import org.abs_models.crowbar.interfaces.translateABSExpToSymExpr
 import org.abs_models.crowbar.tree.SymbolicNode
+import org.abs_models.frontend.ast.DataTypeDecl
 import org.abs_models.frontend.ast.ExpFunctionDef
 import org.abs_models.frontend.ast.FunctionDecl
 import org.abs_models.frontend.ast.Model
 import kotlin.reflect.KClass
 import kotlin.system.exitProcess
+
+
+object ADTRepos {
+	private val known: MutableMap<String, DataTypeDecl> = mutableMapOf()
+
+}
 
 object FunctionRepos{
     private val known : MutableMap<String, FunctionDecl> = mutableMapOf()

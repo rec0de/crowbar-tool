@@ -491,3 +491,27 @@ object PITWhile : Rule(Modality(
 
     }
 }
+
+
+object PITBranch : Rule(Modality(
+    SeqStmt(BranchStmt(ExprAbstractVar("LHS"),
+        BranchAbstractListVar("BRANCHES")),StmtAbstractVar("CONT")),
+    PostInvAbstractVar("TYPE"))) {
+
+    override fun transform(cond: MatchCondition, input : SymbolicState): List<SymbolicTree> {
+        val match = exprToTerm(cond.map[ExprAbstractVar("LHS")] as Expr)
+        val type = cond.map[PostInvAbstractVar("TYPE")] as DeductType
+        val cont = cond.map[StmtAbstractVar("CONT")] as Stmt
+        val branches = cond.map[BranchAbstractListVar("BRANCHES")] as BranchList
+        val update = input.update
+        var ress = listOf<SymbolicNode>()
+        var no : Formula = True
+        for(br in branches.content){
+            val preCond = Predicate("=",listOf(match, exprToTerm(br.matchTerm)))
+            val ss = SymbolicState(And(no,And(input.condition, UpdateOnFormula(update, preCond))), update, Modality(SeqStmt(br.branch, cont), type))
+            ress = ress + SymbolicNode(ss)
+            no = And(no, Not(preCond))
+        }
+        return ress
+    }
+}
