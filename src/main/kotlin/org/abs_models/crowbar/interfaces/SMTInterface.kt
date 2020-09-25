@@ -12,8 +12,8 @@ val smtHeader = """
     (define-sort Field () Int)
     (define-sort MHeap () (Array Field Int))
     (declare-const heap MHeap)
-    (declare-const oldheap MHeap)
-    (declare-const lastheap MHeap)
+    (declare-const ${OldHeap.name} MHeap)
+    (declare-const ${LastHeap.name} MHeap)
     (declare-fun   anon (MHeap) MHeap)
     (declare-fun   valueOf (Int) Int)
     (define-fun iOr((x Int) (y Int)) Int
