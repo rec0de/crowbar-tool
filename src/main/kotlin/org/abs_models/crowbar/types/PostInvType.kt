@@ -54,7 +54,7 @@ interface PostInvType : DeductType{
         }
         output("Crowbar-v: method post-condition: ${metpost.prettyPrint()}", Verbosity.V)
         output("Crowbar-v: object invariant: ${objInv.prettyPrint()}",Verbosity.V)
-        val updateOldHeap = ElementaryUpdate(OldHeap, Heap)
+        val updateOldHeap =  ChainUpdate(ElementaryUpdate(LastHeap,Heap), ElementaryUpdate(OldHeap, Heap))
         symb = SymbolicState(And(objInv,metpre), updateOldHeap, Modality(body, PostInvariantPair(metpost, objInv)))
         return SymbolicNode(symb, emptyList())
     }
@@ -324,7 +324,11 @@ class PITSyncCallAssign(repos: Repository) : PITAssign(repos, Modality(
                 UpdateOnFormula(input.update, subst(precond, substPreMap) as Formula)
         )
 
-        val postCond = repos.syncMethodEnss[call.met]?.first ?: True
+        //XXX handle  last here as well
+        var postCond = repos.syncMethodEnss[call.met]?.first ?: True
+        var someHeap = FreshGenerator.getFreshProgVar(Heap.dType)
+        postCond = UpdateOnFormula(ElementaryUpdate(OldHeap,Heap), postCond)
+        postCond = UpdateOnFormula(ElementaryUpdate(LastHeap,someHeap), postCond)
         val targetPostDecl = repos.syncMethodEnss[call.met]!!.second
         val substPostMap = mapSubstPar(call, targetPostDecl)
 

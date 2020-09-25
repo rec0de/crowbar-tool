@@ -109,5 +109,24 @@ class OldTest : StringSpec({
         }
 
 
+        "$smt propOld"{
+            val (model, repos) = load(listOf(Paths.get("src/test/resources/oldprop.abs")))
+            val classDecl = model.extractClassDecl("M", "C", repos)
+
+            var ss = classDecl.extractMethodNode(postInv,"m", repos)
+            executeNode(ss, repos, postInv) shouldBe true
+            ss = classDecl.extractMethodNode(postInv,"m2", repos)
+            executeNode(ss, repos, postInv) shouldBe true
+            ss = classDecl.extractMethodNode(postInv,"m3", repos)
+            executeNode(ss, repos, postInv) shouldBe false
+            ss = classDecl.extractMethodNode(postInv,"n1", repos)
+            executeNode(ss, repos, postInv) shouldBe true
+            ss = classDecl.extractMethodNode(postInv,"n2", repos)
+            executeNode(ss, repos, postInv) shouldBe true
+
+
+        }
+
+
     }
 })

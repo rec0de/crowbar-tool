@@ -234,7 +234,7 @@ open class Field(val name : String, private val dType : String = "Int") : Locati
     override fun toSMT(isInForm : Boolean) : String = name
 }
 
-open class ProgVar(val name : String, private val dType : String = "Int") : Location, Term { //todo: change simpleName to qualifiedName and do something clever in the SMT-translation
+open class ProgVar(val name : String, val dType : String = "Int") : Location, Term { //todo: change simpleName to qualifiedName and do something clever in the SMT-translation
     override fun prettyPrint(): String {
         return "$name:$dType"
     }
