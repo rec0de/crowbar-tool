@@ -2,6 +2,7 @@ package org.abs_models.crowbar.tree
 
 interface NodeInfoVisitor<ReturnType> {
     fun visit(info: InfoAwaitUse): ReturnType
+    fun visit(info: InfoBranch): ReturnType
     fun visit(info: InfoCallAssign): ReturnType
     fun visit(info: InfoClassPrecondition): ReturnType
     fun visit(info: InfoGetAssign): ReturnType

@@ -1,6 +1,9 @@
 package org.abs_models.crowbar.investigator
 
+import org.abs_models.crowbar.data.Const
 import org.abs_models.crowbar.data.Expr
+import org.abs_models.crowbar.data.Field
+import org.abs_models.crowbar.data.ProgVar
 import org.abs_models.frontend.ast.AddAddExp
 import org.abs_models.frontend.ast.AndBoolExp
 import org.abs_models.frontend.ast.Call
@@ -30,7 +33,7 @@ import org.abs_models.frontend.ast.VarUse
 
 fun renderExpression(expression: Expr, varSubMap: Map<String, String> = mapOf()): String {
     if (expression.absExp == null)
-        return expression.prettyPrint()
+        return renderSimpleCrowbarExpression(expression, varSubMap) // Fallback rendering, required for pattern expressions
     else
         return renderAbsExpression(expression.absExp!!, varSubMap)
 }
@@ -63,5 +66,14 @@ fun renderAbsExpression(e: Exp, m: Map<String, String>): String {
         is FnApp           -> "${e.name}(${e.params.map{ renderAbsExpression(it, m) }.joinToString(", ")})"
         is DataConstructorExp -> e.dataConstructor!!.name
         else               -> throw Exception("Cannot render ABS Expression: $e")
+    }
+}
+
+fun renderSimpleCrowbarExpression(e: Expr, m: Map<String, String>): String {
+    return when (e) {
+        is Const           -> e.name
+        is ProgVar         -> if (m.containsKey(e.name)) m[e.name]!! else e.name
+        is Field           -> "this." + e.name.substring(0, e.name.length - 2)
+        else               -> throw Exception("Cannot render complex crowbar Expression: ${e.prettyPrint()}")
     }
 }

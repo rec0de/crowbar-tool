@@ -15,29 +15,30 @@ import org.abs_models.crowbar.main.*
 import org.abs_models.crowbar.rule.FreshGenerator
 import org.abs_models.crowbar.rule.MatchCondition
 import org.abs_models.crowbar.rule.Rule
-import org.abs_models.crowbar.tree.LogicNode
-import org.abs_models.crowbar.tree.SymbolicNode
-import org.abs_models.crowbar.tree.SymbolicTree
-import org.abs_models.crowbar.tree.NodeInfo
-import org.abs_models.crowbar.tree.InfoScopeClose
+import org.abs_models.crowbar.tree.InfoAwaitUse
+import org.abs_models.crowbar.tree.InfoBranch
+import org.abs_models.crowbar.tree.InfoCallAssign
+import org.abs_models.crowbar.tree.InfoClassPrecondition
+import org.abs_models.crowbar.tree.InfoGetAssign
+import org.abs_models.crowbar.tree.InfoIfElse
+import org.abs_models.crowbar.tree.InfoIfThen
+import org.abs_models.crowbar.tree.InfoInvariant
+import org.abs_models.crowbar.tree.InfoLocAssign
 import org.abs_models.crowbar.tree.InfoLoopInitial
 import org.abs_models.crowbar.tree.InfoLoopPreserves
 import org.abs_models.crowbar.tree.InfoLoopUse
-import org.abs_models.crowbar.tree.InfoInvariant
-import org.abs_models.crowbar.tree.InfoClassPrecondition
-import org.abs_models.crowbar.tree.InfoAwaitUse
-import org.abs_models.crowbar.tree.InfoIfThen
-import org.abs_models.crowbar.tree.InfoIfElse
-import org.abs_models.crowbar.tree.InfoLocAssign
-import org.abs_models.crowbar.tree.InfoGetAssign
-import org.abs_models.crowbar.tree.InfoCallAssign
+import org.abs_models.crowbar.tree.InfoMethodPrecondition
+import org.abs_models.crowbar.tree.InfoNullCheck
 import org.abs_models.crowbar.tree.InfoObjAlloc
 import org.abs_models.crowbar.tree.InfoReturn
+import org.abs_models.crowbar.tree.InfoScopeClose
 import org.abs_models.crowbar.tree.InfoSkip
 import org.abs_models.crowbar.tree.InfoSkipEnd
-import org.abs_models.crowbar.tree.InfoNullCheck
-import org.abs_models.crowbar.tree.InfoMethodPrecondition
 import org.abs_models.crowbar.tree.InfoSyncCallAssign
+import org.abs_models.crowbar.tree.LogicNode
+import org.abs_models.crowbar.tree.NodeInfo
+import org.abs_models.crowbar.tree.SymbolicNode
+import org.abs_models.crowbar.tree.SymbolicTree
 import org.abs_models.frontend.ast.*
 import kotlin.system.exitProcess
 
@@ -575,7 +576,8 @@ object PITBranch : Rule(Modality(
     PostInvAbstractVar("TYPE"))) {
 
     override fun transform(cond: MatchCondition, input : SymbolicState): List<SymbolicTree> {
-        val match = exprToTerm(cond.map[ExprAbstractVar("LHS")] as Expr)
+        val matchExpr = cond.map[ExprAbstractVar("LHS")] as Expr
+        val match = exprToTerm(matchExpr)
         val type = cond.map[PostInvAbstractVar("TYPE")] as DeductType
         val cont = cond.map[StmtAbstractVar("CONT")] as Stmt
         val branches = cond.map[BranchAbstractListVar("BRANCHES")] as BranchList
@@ -584,8 +586,10 @@ object PITBranch : Rule(Modality(
         var no : Formula = True
         for(br in branches.content){
             val preCond = Predicate("=",listOf(match, exprToTerm(br.matchTerm)))
-            val ss = SymbolicState(And(no,And(input.condition, UpdateOnFormula(update, preCond))), update, Modality(SeqStmt(br.branch, cont), type))
-            ress = ress + SymbolicNode(ss)
+            // Add two scope close markers for counterexample generation (one for branch, one for switch)
+            val contBody = SeqStmt(br.branch, SeqStmt(ScopeMarker, SeqStmt(ScopeMarker, cont)))
+            val ss = SymbolicState(And(no,And(input.condition, UpdateOnFormula(update, preCond))), update, Modality(contBody, type))
+            ress = ress + SymbolicNode(ss, info = InfoBranch(matchExpr, br.matchTerm, no))
             no = And(no, Not(preCond))
         }
         return ress

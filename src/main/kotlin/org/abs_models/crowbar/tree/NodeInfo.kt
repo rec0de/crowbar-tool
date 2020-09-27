@@ -88,6 +88,10 @@ class InfoIfElse(val guard: Expr) : NodeInfo(isAnon = false, isHeapAnon = false)
 	override fun <ReturnType> accept(visitor: NodeInfoVisitor<ReturnType>) = visitor.visit(this)
 }
 
+class InfoBranch(val matchExpr: Expr, val pattern: Expr, val previousConditions: Formula) : NodeInfo(isAnon = false, isHeapAnon = false) {
+	override fun <ReturnType> accept(visitor: NodeInfoVisitor<ReturnType>) = visitor.visit(this)
+}
+
 class InfoLocAssign(val lhs: Location, val expression: Expr) : NodeInfo(isAnon = false, isHeapAnon = false) {
 	override fun <ReturnType> accept(visitor: NodeInfoVisitor<ReturnType>) = visitor.visit(this)
 }

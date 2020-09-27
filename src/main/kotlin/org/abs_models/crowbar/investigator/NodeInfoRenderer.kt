@@ -8,6 +8,7 @@ import org.abs_models.crowbar.data.OldHeap
 import org.abs_models.crowbar.data.ProgVar
 import org.abs_models.crowbar.data.SExpr
 import org.abs_models.crowbar.tree.InfoAwaitUse
+import org.abs_models.crowbar.tree.InfoBranch
 import org.abs_models.crowbar.tree.InfoCallAssign
 import org.abs_models.crowbar.tree.InfoClassPrecondition
 import org.abs_models.crowbar.tree.InfoGetAssign
@@ -123,6 +124,17 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
     override fun visit(info: InfoIfThen): String {
         val res = indent("if(${renderExp(info.guard)}){")
         scopeLevel += 1
+        return res
+    }
+
+    override fun visit(info: InfoBranch): String {
+        var res = indent("switch(${renderExp(info.matchExpr)}){\n")
+        scopeLevel += 1
+        res = res + "${renderExp(info.pattern)} => {\n"
+        scopeLevel += 1
+        res = res + "// Known from previous negated patterns:\n" +
+                    "// ${renderFormula(info.previousConditions)}\n"
+
         return res
     }
 
