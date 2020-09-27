@@ -104,11 +104,11 @@ object False : Formula {
     override fun toSMT(isInForm : Boolean) : String = if(isInForm) "false" else "0"
 }
 
-val specialHeapKeywords = mapOf("old" to OldHeap, "last" to LastHeap)
+val specialHeapKeywords = mapOf(OldHeap.name to OldHeap, LastHeap.name to LastHeap)
 
 object Heap : ProgVar("heap","Heap")
-object OldHeap : ProgVar("oldheap","Heap")
-object LastHeap : ProgVar("lastheap","Heap")
+object OldHeap : ProgVar("old","Heap")
+object LastHeap : ProgVar("last","Heap")
 
 fun store(field: Field, value : Term) : Function = Function("store", listOf(Heap, field, value))
 fun select(field : Field) : Function = Function("select", listOf(Heap, field))
