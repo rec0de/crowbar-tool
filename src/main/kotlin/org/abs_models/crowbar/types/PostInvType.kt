@@ -362,17 +362,17 @@ class PITSyncCallAssign(repos: Repository) : PITAssign(repos, Modality(
                 info = InfoMethodPrecondition(precondSubst)
         )
 
-        //XXX handle  last here as well
-        var postCond = repos.syncMethodEnss[call.met]?.first ?: True
-        var someHeap = FreshGenerator.getFreshProgVar(Heap.dType)
-        postCond = UpdateOnFormula(ElementaryUpdate(OldHeap,Heap), postCond)
-        postCond = UpdateOnFormula(ElementaryUpdate(LastHeap,someHeap), postCond)
+        val postCond = repos.syncMethodEnss[call.met]?.first ?: True
         val targetPostDecl = repos.syncMethodEnss[call.met]!!.second
         val substPostMap = mapSubstPar(call, targetPostDecl)
 
-
         val anon = ElementaryUpdate(Heap, anon(Heap))
-        val updateLeftNext = ChainUpdate(input.update, ChainUpdate(anon, updateNew))
+
+        //XXX handle  last here as well
+        val someHeap = FreshGenerator.getFreshProgVar(Heap.dType)
+        val heapUpdate = ChainUpdate(ElementaryUpdate(OldHeap,Heap), ElementaryUpdate(LastHeap,someHeap))
+
+        val updateLeftNext = ChainUpdate(input.update, ChainUpdate(heapUpdate, ChainUpdate(anon, updateNew)))
         val updateRightNext = ChainUpdate(input.update, anon)
         val updateOnFormula =  UpdateOnFormula(updateLeftNext, subst(postCond, substPostMap) as Formula)
 
