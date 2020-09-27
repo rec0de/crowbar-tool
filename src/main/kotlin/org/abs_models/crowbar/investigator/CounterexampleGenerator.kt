@@ -23,11 +23,11 @@ import org.abs_models.crowbar.tree.NodeInfo
 import org.abs_models.crowbar.tree.SymbolicNode
 import org.abs_models.crowbar.tree.SymbolicTree
 
-object TestcaseGenerator {
+object CounterexampleGenerator {
 
     var fileIndex = 1
 
-    fun investigateAll(node: SymbolicNode) {
+    fun investigateAll(node: SymbolicNode, snippetID: String) {
         val uncloseable = node.collectLeaves().filter { it is LogicNode && !it.evaluate() }.map { it as LogicNode }
 
         // Splits in the symex tree _before_ the last full anonymization point can cause duplicate unclosed leafs
@@ -37,18 +37,18 @@ object TestcaseGenerator {
         }
 
         deduped.forEach {
-            val counterexample = investigateSingle(node, it)
+            val counterexample = investigateSingle(node, it, snippetID)
             writeTestcase(counterexample, fileIndex)
             fileIndex++
         }
     }
 
-    fun investigateFirst(node: SymbolicNode) {
+    fun investigateFirst(node: SymbolicNode, snippetID: String) {
         val uncloseable = node.collectLeaves().first { it is LogicNode && !it.evaluate() } as LogicNode
-        investigateSingle(node, uncloseable)
+        investigateSingle(node, uncloseable, snippetID)
     }
 
-    private fun investigateSingle(node: SymbolicNode, uncloseable: LogicNode): String {
+    private fun investigateSingle(node: SymbolicNode, uncloseable: LogicNode, snippetID: String): String {
         if (uncloseable.info !is LeafInfo)
             throw Exception("Unclosed branch does not have proof obligation information")
 
@@ -84,7 +84,7 @@ object TestcaseGenerator {
 
         output("Investigator: rendering counterexample....", Verbosity.V)
 
-        return buildTestcase(infoNodes.asReversed(), model, obligations)
+        return buildTestcase(infoNodes.asReversed(), model, obligations, snippetID)
     }
 
     private fun collectBranchNodes(root: SymbolicNode, leaf: SymbolicTree): List<SymbolicTree> {
@@ -233,7 +233,12 @@ object TestcaseGenerator {
         return objMap
     }
 
-    private fun buildTestcase(infoNodes: List<NodeInfo>, model: Model, obligations: List<Pair<String, Formula>>): String {
+    private fun buildTestcase(
+        infoNodes: List<NodeInfo>,
+        model: Model,
+        obligations: List<Pair<String, Formula>>,
+        snippetID: String
+    ): String {
         val interfaceDef = "interface Ce { Unit ce(); }\n"
         val classFrameHeader = "module Counterexample;\n$interfaceDef\nclass CeFrame implements Ce {\n"
         val classFrameFooter = "\n}\n\n"
@@ -251,6 +256,7 @@ object TestcaseGenerator {
             statements.add(it.accept(NodeInfoRenderer))
         }
 
+        val stmtHeader = "// Snippet from: $snippetID\n"
         val stmtString = statements.joinToString("\n")
         val explainer = "\n// Proof failed here. Trying to show:\n"
         val oblString = obligations.map { "// ${it.first}: ${NodeInfoRenderer.renderFormula(it.second)}" }.joinToString("\n")
@@ -260,7 +266,7 @@ object TestcaseGenerator {
 
         val requiredScopeCloses = NodeInfoRenderer.closeScopes() // Close scopes left open due to abrupt proof end
         val fieldDefs = NodeInfoRenderer.fieldDefs().joinToString("\n")
-        val methodContent = stmtString + explainer + oblString + subOblString + requiredScopeCloses
+        val methodContent = stmtHeader + stmtString + explainer + oblString + subOblString + requiredScopeCloses
         val methodFrame = methodFrameHeader + indent(methodContent, 1) + methodFrameFooter
 
         val classFrame = classFrameHeader + indent(fieldDefs, 1) + "\n\n" + indent(methodFrame, 1) + classFrameFooter + mainBlock

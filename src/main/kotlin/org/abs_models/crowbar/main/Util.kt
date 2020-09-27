@@ -4,7 +4,7 @@ import org.abs_models.crowbar.data.*
 import org.abs_models.crowbar.data.Function
 import org.abs_models.crowbar.data.Stmt
 import org.abs_models.crowbar.interfaces.translateABSExpToSymExpr
-import org.abs_models.crowbar.investigator.TestcaseGenerator
+import org.abs_models.crowbar.investigator.CounterexampleGenerator
 import org.abs_models.crowbar.tree.LogicNode
 import org.abs_models.crowbar.tree.SymbolicNode
 import org.abs_models.crowbar.tree.getStrategy
@@ -194,7 +194,7 @@ fun ClassDecl.extractMethodNode(usedType: KClass<out DeductType>, name : String,
     return callTarget.call(obj, this, name, repos) as SymbolicNode
 }
 
-fun executeNode(node : SymbolicNode, repos: Repository, usedType : KClass<out DeductType>) : Boolean{ //todo: this should handle inference and static leafs now
+fun executeNode(node : SymbolicNode, repos: Repository, usedType: KClass<out DeductType>, identifier: String = "unknown") : Boolean{ //todo: this should handle inference and static leafs now
 
     output("Crowbar  : starting symbolic execution....")
     val pit = getStrategy(usedType,repos)
@@ -225,7 +225,7 @@ fun executeNode(node : SymbolicNode, repos: Repository, usedType : KClass<out De
 
     if(!closed && investigate) {
         output("Crowbar  : failed to close node, starting investigator....")
-        TestcaseGenerator.investigateAll(node)
+        CounterexampleGenerator.investigateAll(node, identifier)
     }
 
     return closed
@@ -233,12 +233,12 @@ fun executeNode(node : SymbolicNode, repos: Repository, usedType : KClass<out De
 
 fun ClassDecl.executeAll(repos: Repository, usedType: KClass<out DeductType>): Boolean{
     val iNode = extractInitialNode(usedType)
-    var totalClosed = executeNode(iNode, repos, usedType)
+    var totalClosed = executeNode(iNode, repos, usedType, "<init>")
     output("Crowbar  : Verification <init>: $totalClosed")
 
     for(m in methods){
         val node = extractMethodNode(usedType, m.methodSig.name, repos)
-        val closed = executeNode(node, repos, usedType)
+        val closed = executeNode(node, repos, usedType, m.methodSig.name)
         output("Crowbar  : Verification ${m.methodSig.name}: $closed")
         totalClosed = totalClosed && closed
     }
