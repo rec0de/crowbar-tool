@@ -256,7 +256,7 @@ class Main : CliktCommand() {
         safe.addAll(mets.filter { triviallyFree(it) }.map { it.methodSig })
         mets.removeAll( mets.filter { triviallyFree(it) } )
         sigs.removeAll (mets.filter { triviallyFree(it) }.map { it.methodSig })
-        output("Crowbar  : Potentially deadlocking methods: \n\t${mets.map { it.contextDecl.name+"."+it.methodSig }.joinToString("\n\t")}")
+        output("Crowbar  : Potentially deadlocking methods: \n\t${mets.joinToString("\n\t") { it.contextDecl.name + "." + it.methodSig }}")
         return sigs.isEmpty()
     }
 

@@ -1,0 +1,70 @@
+module M;
+
+data Spec = ObjInv(Bool) | Ensures(Bool) | Requires(Bool);
+
+class C{
+
+    [Spec: Ensures(result != 0)] //success
+    Int m1(Int i, Int j){
+        Int k = 0;
+        case i {
+           0 => k = 5;
+           j => k = 10;
+           l => k = 15;
+           _ => k = 1;
+        }
+        return k;
+    }
+
+    [Spec: Ensures(result != 0)] //success
+    Int m2(Int i, Int j){
+        Int k = 0;
+        case i {
+           0 => k = 5;
+            l => k = -i;
+           _ => k = 1;
+        }
+        return k;
+    }
+
+    [Spec: Ensures(result != 0)] //fail
+    Int m3(Int i, Int j){
+        Int k = 0;
+        case i {
+           1 => k = 5;
+           l => k = -i;
+           _ => skip;
+        }
+        return k;
+    }
+    [Spec: Ensures(result != 0)] //success
+    Int m4(Int i, Int j){
+        Int k = 0;
+        case i {
+           0 => k = 5;
+           _ => k = -i;
+        }
+        return k;
+    }
+
+    [Spec: Ensures(result != 0)] //fail
+    Int m5(Int i, Int j){
+        Int k = 0;
+        case i {
+           0 => k = 5;
+           _ => skip;
+        }
+        return k;
+    }
+    [Spec: Ensures(result != 0)] //fail
+    Int m6(Int i, Int j){
+        Int k = 0;
+        case i {
+           1 => k = 5;
+           _ => skip;
+        }
+        return k;
+    }
+}
+
+{}

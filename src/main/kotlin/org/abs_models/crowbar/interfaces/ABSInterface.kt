@@ -110,8 +110,7 @@ fun translateABSStmtToSymStmt(input: Stmt?) : org.abs_models.crowbar.data.Stmt {
         }
         is VarDeclStmt -> {
             val loc = ProgVar(input.varDecl.name, input.varDecl.type.simpleName)
-            val exp = input.varDecl.initExp ?: NullExp()
-            return when(exp) {
+            return when(val exp = input.varDecl.initExp ?: NullExp()) {
                 is GetExp       -> SyncStmt(loc, translateABSExpToSymExpr(exp))
                 is NewExp       -> AllocateStmt(loc, translateABSExpToSymExpr(exp))
                 is AsyncCall    -> CallStmt(loc, translateABSExpToSymExpr(exp.callee), translateABSExpToSymExpr(exp) as CallExpr)
@@ -122,8 +121,7 @@ fun translateABSStmtToSymStmt(input: Stmt?) : org.abs_models.crowbar.data.Stmt {
         is AssignStmt -> {
             val loc:Location = if(input.varNoTransform is FieldUse) Field(input.varNoTransform.name+"_f", input.varNoTransform.type.simpleName)
                                else ProgVar(input.varNoTransform.name, input.varNoTransform.type.simpleName)
-            val exp = input.valueNoTransform
-            return when(exp) {
+            return when(val exp = input.valueNoTransform) {
                 is GetExp       -> SyncStmt(loc, translateABSExpToSymExpr(exp))
                 is NewExp       -> AllocateStmt(loc, translateABSExpToSymExpr(exp))
                 is AsyncCall    -> CallStmt(loc, translateABSExpToSymExpr(exp.callee), translateABSExpToSymExpr(exp) as CallExpr)
@@ -147,9 +145,19 @@ fun translateABSStmtToSymStmt(input: Stmt?) : org.abs_models.crowbar.data.Stmt {
         is AwaitStmt -> return org.abs_models.crowbar.data.AwaitStmt(translateABSGuardToSymExpr(input.guard),FreshGenerator.getFreshPP())
         is ReturnStmt -> return org.abs_models.crowbar.data.ReturnStmt(translateABSExpToSymExpr(input.retExp))
         is IfStmt -> return org.abs_models.crowbar.data.IfStmt(translateABSExpToSymExpr(input.conditionNoTransform), translateABSStmtToSymStmt(input.then), translateABSStmtToSymStmt(input.`else`))
+        is CaseStmt -> {
+            var list : List<Branch> = emptyList()
+            for( br in input.branchList){
+                val patt = translateABSPatternToSymExpr(br.left)
+                val next = translateABSStmtToSymStmt(br.right)
+                list = list + Branch(patt, next)
+            }
+            return BranchStmt(translateABSExpToSymExpr(input.expr), BranchList(list))
+        }
         else -> throw Exception("Translation of ${input::class} not supported" )
     }
 }
+
 
 fun desugaring(loc: Location, type: Type, syncCall: SyncCall) : org.abs_models.crowbar.data.Stmt{
     val calleeExpr = translateABSExpToSymExpr(syncCall.callee)
@@ -158,25 +166,32 @@ fun desugaring(loc: Location, type: Type, syncCall: SyncCall) : org.abs_models.c
     if(syncCall.callee is ThisExp)
         return SyncCallStmt(loc, calleeExpr, callExpr as SyncCallExpr)
 
-    val fut = FreshGenerator.getFreshProgVar("Fut<"+type+">")
+    val fut = FreshGenerator.getFreshProgVar("Fut<$type>")
     val callStmt = CallStmt(fut, calleeExpr, callExpr as CallExpr)
     val syncStmt = SyncStmt(loc, readFut(fut))
     return SeqStmt(callStmt, syncStmt)
 }
 
-fun translateABSGuardToSymExpr(input : Guard) : Expr{
+fun translateABSGuardToSymExpr(input : Guard) : Expr =
     when(input){
-        is ExpGuard -> return translateABSExpToSymExpr(input.pureExp)
-        is AndGuard -> return SExpr("&&",listOf(translateABSGuardToSymExpr(input.left),translateABSGuardToSymExpr(input.right)))
+        is ExpGuard -> translateABSExpToSymExpr(input.pureExp)
+        is AndGuard -> SExpr("&&",listOf(translateABSGuardToSymExpr(input.left),translateABSGuardToSymExpr(input.right)))
         is ClaimGuard -> {
             val placeholder = SExpr("=",listOf(Const("1"), Const("1"))) //todo: proper translation
             placeholder.absExp = input.`var` // Save reference to original guard expression
-            return placeholder
+            placeholder
         }
         else -> throw Exception("Translation of ${input::class} not supported" )
     }
-}
 
+fun translateABSPatternToSymExpr(pattern : Pattern) : Expr =
+    when (pattern) {
+        is PatternVarUse ->  ProgVar(pattern.name, pattern.type.simpleName)
+        is PatternVar ->  ProgVar(pattern.`var`.name, pattern.type.simpleName)
+        is LiteralPattern ->  translateABSExpToSymExpr(pattern.literal)
+        is UnderscorePattern ->  FreshGenerator.getFreshProgVar(pattern.type.simpleName)
+        else -> throw Exception("Translation of underscore and complex constructors is not supported")
+    }
 
 fun filterAtomic(input: Stmt?, app : (Stmt) -> Boolean) : Set<Stmt> {
     if(input == null) return emptySet()
@@ -189,29 +204,23 @@ fun filterAtomic(input: Stmt?, app : (Stmt) -> Boolean) : Set<Stmt> {
 }
 
 
-fun directSafe(exp: Exp, safeCalls: List<MethodSig>, safeSyncs: MutableList<VarOrFieldDecl>) : Boolean {
+fun directSafe(exp: Exp, safeCalls: List<MethodSig>, safeSyncs: MutableList<VarOrFieldDecl>) : Boolean =
     when(exp) {
-        is GetExp       -> return exp.pureExp is VarOrFieldUse && safeSyncs.contains((exp.pureExp as VarOrFieldUse).decl)
-        is NewExp       -> return true
-        is AsyncCall    -> {
-            return safeCalls.contains(exp.methodSig)
-        }
-        else -> return true
+        is GetExp       -> exp.pureExp is VarOrFieldUse && safeSyncs.contains((exp.pureExp as VarOrFieldUse).decl)
+        is NewExp       -> true
+        is AsyncCall    -> safeCalls.contains(exp.methodSig)
+        else -> true
     }
-}
 
-fun directSafeGuard(guard: Guard, safeSyncs: MutableList<VarOrFieldDecl>) : Boolean {
 
+fun directSafeGuard(guard: Guard, safeSyncs: MutableList<VarOrFieldDecl>) : Boolean =
     when(guard) {
-        is ClaimGuard -> {
-            if(guard.`var` is VarOrFieldUse) return safeSyncs.contains((guard.`var` as VarOrFieldUse).decl)
-            else return false
-        }
-        is AndGuard -> return directSafeGuard(guard.left,safeSyncs) && directSafeGuard(guard.right,safeSyncs)
-        is DurationGuard -> return true
-        else -> return false
+        is ClaimGuard -> (guard.`var` is VarOrFieldUse) && safeSyncs.contains((guard.`var` as VarOrFieldUse).decl)
+        is AndGuard ->  directSafeGuard(guard.left,safeSyncs) && directSafeGuard(guard.right,safeSyncs)
+        is DurationGuard ->  true
+        else ->  false
     }
-}
+
 
 fun directlySafe(input: Stmt?, safeCalls: List<MethodSig>, safeSyncs: MutableList<VarOrFieldDecl>) : Boolean {
     if(input == null) return true

@@ -254,7 +254,6 @@ class PITAllocAssign(repos: Repository) : PITAssign(repos, Modality(
         // Generate SMT representation of the NEW expression to get its model value later
         val constructorSMTExpr = apply(input.update, nextRhs).toSMT(false)
 
-
         val next = symbolicNext(lhs,
                                             nextRhs,
                                             remainder,
@@ -362,7 +361,7 @@ class PITSyncCallAssign(repos: Repository) : PITAssign(repos, Modality(
                 info = InfoMethodPrecondition(precondSubst)
         )
 
-        val postCond = repos.syncMethodEnss[call.met]?.first ?: True
+        var postCond = repos.syncMethodEnss[call.met]?.first ?: True
         val targetPostDecl = repos.syncMethodEnss[call.met]!!.second
         val substPostMap = mapSubstPar(call, targetPostDecl)
 
@@ -566,5 +565,29 @@ object PITWhile : Rule(Modality(
             SymbolicNode(use, info = useInfo)
         )
 
+    }
+}
+
+
+object PITBranch : Rule(Modality(
+    SeqStmt(BranchStmt(ExprAbstractVar("LHS"),
+        BranchAbstractListVar("BRANCHES")),StmtAbstractVar("CONT")),
+    PostInvAbstractVar("TYPE"))) {
+
+    override fun transform(cond: MatchCondition, input : SymbolicState): List<SymbolicTree> {
+        val match = exprToTerm(cond.map[ExprAbstractVar("LHS")] as Expr)
+        val type = cond.map[PostInvAbstractVar("TYPE")] as DeductType
+        val cont = cond.map[StmtAbstractVar("CONT")] as Stmt
+        val branches = cond.map[BranchAbstractListVar("BRANCHES")] as BranchList
+        val update = input.update
+        var ress = listOf<SymbolicNode>()
+        var no : Formula = True
+        for(br in branches.content){
+            val preCond = Predicate("=",listOf(match, exprToTerm(br.matchTerm)))
+            val ss = SymbolicState(And(no,And(input.condition, UpdateOnFormula(update, preCond))), update, Modality(SeqStmt(br.branch, cont), type))
+            ress = ress + SymbolicNode(ss)
+            no = And(no, Not(preCond))
+        }
+        return ress
     }
 }

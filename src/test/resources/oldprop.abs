@@ -1,0 +1,31 @@
+module M;
+
+data Spec = Ensures(Bool);
+
+class C {
+  Int u = 0;
+  [Spec: Ensures(this.u == old(this.u)+2)]
+  Unit m() {
+    this.n1();
+    this.u = this.u + 1;
+  }
+  [Spec: Ensures(this.u == old(this.u)+3)]
+  Unit m2() {
+    this.n1();
+    this.n1();
+    this.n1();
+  }
+  [Spec: Ensures(this.u == old(this.u)+3)]
+  Unit m3() {
+    this.n2();
+    this.n2();
+    this.n2();
+  }
+
+  [Spec: Ensures(this.u == old(this.u)+1)]
+  Unit n1() { this.u = this.u + 1; }
+  [Spec: Ensures(this.u == last(this.u)+1)]
+  Unit n2() { this.u = this.u + 1; }
+}
+
+{}

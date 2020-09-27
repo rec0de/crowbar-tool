@@ -7,7 +7,11 @@ data class ProgramElementAbstractVar(val name : String) : ProgramElement, Abstra
         return name
     }
 }
-
+data class ProgramElementListAbstractVar(val name : String) : ProgramElement, AbstractListVar {
+    override fun prettyPrint(): String {
+        return name
+    }
+}
 
 interface PP: ProgramElement
 data class PPId(val id: Int): PP, ProgramElement {
@@ -86,6 +90,44 @@ data class IfStmt(val guard : Expr, val thenStmt : Stmt, val elseStmt : Stmt) : 
     override fun iterate(f: (Anything) -> Boolean) : Set<Anything> =
         super.iterate(f) + guard.iterate(f) + thenStmt.iterate(f) + elseStmt.iterate(f)
     override fun hasReturn(): Boolean = thenStmt.hasReturn() || elseStmt.hasReturn()
+}
+
+data class Branch(val matchTerm : Expr, val branch : Stmt) {
+    fun prettyPrint(): String {
+        return matchTerm.prettyPrint()+" => "+branch.prettyPrint()
+    }
+}
+interface AbsBranchList : Anything{
+    fun hasReturn(): Boolean
+}
+
+data class BranchList (val content : List<Branch>) : AbsBranchList {
+    override fun prettyPrint(): String =
+        content.joinToString { it.prettyPrint()}
+
+
+    override fun iterate(f: (Anything) -> Boolean) : Set<Anything> =
+        content.fold(emptySet(),{acc, branch ->  acc + branch.matchTerm.iterate(f) + branch.branch.iterate(f)})
+
+    override fun hasReturn(): Boolean =
+        content.fold(false,{acc, branch ->  acc || branch.branch.hasReturn()})
+}
+
+data class BranchAbstractListVar(val name : String) : AbsBranchList, AbstractVar {
+    override fun prettyPrint(): String = name
+    override fun iterate(f: (Anything) -> Boolean) : Set<Anything> = emptySet()
+    override fun hasReturn(): Boolean = false
+}
+
+data class BranchStmt(val match : Expr, val branches : AbsBranchList) : Stmt {
+    override fun prettyPrint(): String {
+        return "case ${match.prettyPrint()}{ ${branches.prettyPrint() }"
+    }
+    override fun iterate(f: (Anything) -> Boolean) : Set<Anything> =
+        branches.iterate(f)
+
+    override fun hasReturn(): Boolean =
+        branches.hasReturn()
 }
 
 data class WhileStmt(val guard : Expr, val bodyStmt : Stmt, val id : PP, val invar : Formula = True) : Stmt {
