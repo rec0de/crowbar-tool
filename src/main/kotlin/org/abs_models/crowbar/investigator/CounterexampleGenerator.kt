@@ -19,6 +19,7 @@ import org.abs_models.crowbar.tree.InfoNode
 import org.abs_models.crowbar.tree.InfoObjAlloc
 import org.abs_models.crowbar.tree.LeafInfo
 import org.abs_models.crowbar.tree.LogicNode
+import org.abs_models.crowbar.tree.NoInfo
 import org.abs_models.crowbar.tree.NodeInfo
 import org.abs_models.crowbar.tree.SymbolicNode
 import org.abs_models.crowbar.tree.SymbolicTree
@@ -250,11 +251,20 @@ object CounterexampleGenerator {
         val mainBlock = "{\n${indent(mainBlockInner, 1)}\n}\n"
 
         NodeInfoRenderer.reset(model)
-        val statements = mutableListOf<String>(NodeInfoRenderer.initAssignments())
+        val initBlock = NodeInfoRenderer.initAssignments()
+        val statements = mutableListOf<String>()
+        val filteredNodes = infoNodes.filter { it !is NoInfo }
 
-        for (it in infoNodes) {
+        for (it in filteredNodes) {
             statements.add(it.accept(NodeInfoRenderer))
         }
+
+        // For some nodes, we want to render the initial assignments _after_ the node for more intuitive counterexamples
+        // (so far, only the InfoLoopUse makes use of this)
+        if (filteredNodes[0].initAfter)
+            statements.add(1, initBlock)
+        else
+            statements.add(0, initBlock)
 
         val stmtHeader = "// Snippet from: $snippetID\n"
         val stmtString = statements.joinToString("\n")

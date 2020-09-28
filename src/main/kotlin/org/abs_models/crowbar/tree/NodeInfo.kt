@@ -16,7 +16,8 @@ import org.abs_models.crowbar.investigator.collectBaseExpressions
 // Abstract classes & interfaces
 
 abstract class NodeInfo(val isAnon: Boolean, val isHeapAnon: Boolean) {
-	open val isSignificantBranch = false
+	open val isSignificantBranch = false // Indicates a proof branch showing an obligation other than the main postcondition
+	open val initAfter = false // Indicates that initial state information should be rendered _after_ the node rendering
 	open val smtExpressions = listOf<Term>()
 	open val heapExpressions = listOf<Term>()
 	abstract fun <ReturnType> accept(visitor: NodeInfoVisitor<ReturnType>): ReturnType
@@ -77,6 +78,7 @@ class InfoAwaitUse(val guard: Expr, val heapExpr: Term) : NodeInfo(isAnon = fals
 }
 
 class InfoLoopUse(val guard: Expr, val invariant: Formula) : NodeInfo(isAnon = true, isHeapAnon = true) {
+	override val initAfter = true
 	override fun <ReturnType> accept(visitor: NodeInfoVisitor<ReturnType>) = visitor.visit(this)
 }
 

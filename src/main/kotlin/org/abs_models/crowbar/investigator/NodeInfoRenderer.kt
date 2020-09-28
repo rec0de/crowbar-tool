@@ -212,7 +212,7 @@ object NodeInfoRenderer : NodeInfoVisitor<String> {
     }
 
     override fun visit(info: InfoLoopUse): String {
-        val text = "while(${renderExp(info.guard)}){} \n" +
+        val text = "// while(${renderExp(info.guard)}){} \n" +
             "// Known true:\n" +
             "// Negated loop guard: !(${renderExp(info.guard)})\n" +
             "// Loop invariant: ${renderFormula(info.invariant)}\n"
