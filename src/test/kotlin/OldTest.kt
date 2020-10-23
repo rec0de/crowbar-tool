@@ -123,6 +123,12 @@ class OldTest : StringSpec({
             executeNode(ss, repos, postInv) shouldBe true
             ss = classDecl.extractMethodNode(postInv,"n2", repos)
             executeNode(ss, repos, postInv) shouldBe true
+            ss = classDecl.extractMethodNode(postInv,"modify", repos)
+            executeNode(ss, repos, postInv) shouldBe true
+            ss = classDecl.extractMethodNode(postInv,"modifyFail", repos)
+            executeNode(ss, repos, postInv) shouldBe false
+            ss = classDecl.extractMethodNode(postInv,"doNothing", repos)
+            executeNode(ss, repos, postInv) shouldBe true
 
 
         }

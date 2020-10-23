@@ -4,6 +4,8 @@ data Spec = Ensures(Bool);
 
 class C {
   Int u = 0;
+  Int dontTouch = 0;
+  
   [Spec: Ensures(this.u == old(this.u)+2)]
   Unit m() {
     this.n1();
@@ -26,6 +28,20 @@ class C {
   Unit n1() { this.u = this.u + 1; }
   [Spec: Ensures(this.u == last(this.u)+1)]
   Unit n2() { this.u = this.u + 1; }
+
+  [Spec: Ensures(this.dontTouch == old(this.dontTouch))]
+  Unit modify() {
+    this.doNothing();
+  }
+
+  [Spec: Ensures(this.dontTouch == old(this.dontTouch))]
+  Unit modifyFail() {
+    this.dontTouch = 10;
+    this.doNothing();
+  }
+
+  [Spec: Ensures(this.dontTouch == old(this.dontTouch))]
+  Unit doNothing() { }
 }
 
 {}
